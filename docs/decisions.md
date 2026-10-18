@@ -57,6 +57,7 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Why:** XR has no click, only distance. One threshold makes the state flicker when a hand rests near it, which is the thing users find most irritating.
 - **Alternatives:** One threshold plus a time delay (debounce). Also stops flicker, but makes every response feel late.
 - **Trade-offs:** Two numbers to tune instead of one, and the gap must stay smaller than the space between nearby targets.
+- **Open conflict:** The 3 mm release is longer than the press travel of thin buttons (firm × 4 mm travels 1.6 mm; firm × 8 mm clears it by only 0.2 mm), which makes them feel sticky. Two ways out: (1) only objects whose press travel is at least 3 mm may be pressable, so thin is for non-pressable surfaces; (2) make release a fraction of travel. Option 2 keeps the "relationships are tokens" idea, but hand-tracking jitter doesn't shrink with thickness, so thin buttons would re-trigger. Details in [tokens.md](tokens.md#known-conflict-sticky-press).
 
 ### 9. dmm as the main size unit ⚠️
 - **Decision:** Sizes users look at are in dmm (scales with distance); sizes the hand touches are in mm; extents of view are in deg.

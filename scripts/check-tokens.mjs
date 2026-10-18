@@ -36,6 +36,18 @@ function walk(node, path, inheritedType) {
 
 walk(root, [], undefined);
 console.log(rows.join('\n'));
+
+// Known conflict: a press shallower than the release pull-back makes the button
+// feel sticky (the finger must lift above the resting surface before it lets go).
+const release = root.proximity.poke.release.$value.value;
+const sticky = [];
+for (const [t, tok] of Object.entries(root.material.t))
+  for (const [d, dens] of Object.entries(root.material.density)) {
+    const travel = tok.$value.value * dens.press.$value;
+    if (travel < release) sticky.push(`${d} x ${t} (${travel.toFixed(1)}mm)`);
+  }
+if (sticky.length)
+  console.warn(`\nwarning: press travel is shorter than proximity.poke.release (${release}mm) for: ${sticky.join(', ')}`);
 const provisional = rows.filter(r => r.startsWith('~')).length;
 console.log(`\n${rows.length} tokens (${rows.length - provisional} v0.1, ${provisional} provisional, marked ~)`);
 if (errors.length) {
