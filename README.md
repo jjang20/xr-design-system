@@ -12,7 +12,11 @@ Current version: tokens v0.1. Everything is measured at real-world scale (1 unit
 | [`docs/concepts.md`](docs/concepts.md) | The ideas behind the tokens: thickness, density, press ratio, hysteresis, dmm, packaging, wayfinding, dock follow, Z-Slider, MR contrast. |
 | [`docs/tokens.md`](docs/tokens.md) | How to read `tokens.json`: units, evidence tags, provisional values, renamed tokens. |
 | [`docs/decisions.md`](docs/decisions.md) | Why each choice was made: decision, why, alternatives, trade-offs. |
-| [`scripts/check-tokens.mjs`](scripts/check-tokens.mjs) | Validates `tokens.json`. Run `node scripts/check-tokens.mjs`. |
+| [`scripts/check-tokens.mjs`](scripts/check-tokens.mjs) | Validates `tokens.json`. |
+| [`scripts/build-tokens.mjs`](scripts/build-tokens.mjs) | Builds `tokens.json` into `dist/`: JS for WebXR code, CSS for the website, a Figma Variables import file. |
+| [`dist/`](dist) | The built files. Don't edit them; run `npm run build`. |
+
+After editing `tokens.json`, run `npm run build`. `npm run check` fails if anything is invalid or `dist/` is stale.
 
 ## Token categories
 

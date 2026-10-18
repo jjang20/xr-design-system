@@ -10,6 +10,32 @@ node scripts/check-tokens.mjs
 
 It lists every token and fails if one is missing a type, a unit or an evidence tag.
 
+## Built files
+
+`tokens.json` stays the only place values are edited. Code reads it through the files in `dist/`, which `npm run build` regenerates from it:
+
+| File | For | Units |
+|---|---|---|
+| `dist/tokens.js` | WebXR / three.js code | metres, radians, seconds. dmm = metres at 1 m |
+| `dist/tokens.css` | the website | `mm`, `deg`, `ms` as CSS units; dmm as a plain number |
+| `dist/figma-variables.json` | Figma, via Local variables → Import | the token's own number; unit in the description |
+
+`npm run check` validates `tokens.json` and fails if `dist/` is out of date.
+
+```js
+import { tokens, atDistance } from './dist/tokens.js';
+
+tokens.material.t.regular;                         // 0.008 (m)
+tokens.motion.hover.in.duration;                   // 0.12 (s)
+atDistance(tokens.size.button.default, 0.75);      // 0.045 (m) for a button 0.75 m away
+```
+
+```css
+.button { transition-duration: var(--contour-motion-hover-in-duration); } /* 120ms */
+```
+
+In CSS, names are the token path joined with `-` and prefixed `--contour-`.
+
 ## Shape of one token
 
 ```json
@@ -59,11 +85,12 @@ The website shows some tokens as one row with two values. Tokens should hold one
 
 ## Using dmm in a scene
 
-The 3D lab works in metres at 1:1 scale. To turn a dmm token into metres, multiply by the distance the UI is placed at:
+The 3D lab works in metres at 1:1 scale. To turn a dmm token into metres, multiply by the distance the UI is placed at. `dist/tokens.js` already divides by 1000, so use `atDistance`:
 
 ```js
 // 60 dmm at 0.75 m away -> 0.045 m wide
-const metres = (dmm, distanceM) => dmm / 1000 * distanceM;
+atDistance(tokens.size.button.default, 0.75);
+// from raw tokens.json: dmm / 1000 * distanceM
 ```
 
 mm tokens are physical and convert directly (`mm / 1000`). deg tokens are angles from the eye.

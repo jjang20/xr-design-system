@@ -30,11 +30,11 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Alternatives:** Leave them in the lab code until decided (two sources of truth again), or promote them straight to v0.1 (claims decisions that weren't made).
 - **Trade-offs:** A reader has to notice the flag. `scripts/check-tokens.mjs` marks them with `~` in its output to help.
 
-### 5. A check script, no build pipeline yet
-- **Decision:** Add `scripts/check-tokens.mjs` (no dependencies) that validates the file. Don't add Style Dictionary or a package build yet.
-- **Why:** The first risk is a typo or missing unit, not a missing export format. A build pipeline is worth adding once a second consumer (Figma Variables or Unity) actually reads the file.
-- **Alternatives:** Style Dictionary now: generates CSS/JS/JSON outputs, but adds dependencies and custom-unit transforms before anyone needs them.
-- **Trade-offs:** The website must read `tokens.json` directly for now and convert dmm itself (one line, shown in [tokens.md](tokens.md#using-dmm-in-a-scene)).
+### 5. A check script first, a build step once a second reader appears
+- **Decision:** Start with `scripts/check-tokens.mjs` (no dependencies) to validate the file. Add a build step only when a second consumer reads the tokens. That moment came with the WebXR components and Figma Variables; see [16](#16-a-small-build-script-instead-of-style-dictionary).
+- **Why:** The first risk was a typo or missing unit, not a missing export format.
+- **Alternatives:** A full build pipeline from day one: generates outputs before anyone needs them.
+- **Trade-offs:** Until the build step existed, the website had to read `tokens.json` directly and convert dmm itself.
 
 ---
 
@@ -99,3 +99,33 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Why:** "Why is this number this number?" is the first question a reviewer asks. Separating borrowed, estimated and to-be-tested values is what makes this research instead of a copy.
 - **Alternatives:** Comments in the docs only. Easy to drift from the values.
 - **Trade-offs:** Tags must be updated when a value is tested, or they become stale.
+
+---
+
+## Part 3. The token pipeline
+
+A pipeline is the step that turns one source file into the files each tool reads. In Figma terms: `tokens.json` is the main component, and the files in `dist/` are instances that update when the main one changes.
+
+### 16. A small build script instead of Style Dictionary
+- **Decision:** `scripts/build-tokens.mjs`, plain Node with no dependencies, writes three files into `dist/`: `tokens.js` (WebXR code), `tokens.css` (website), `figma-variables.json` (Figma).
+- **Why:** Style Dictionary is the standard tool because it handles many platforms (iOS, Android, CSS) with ready-made transforms. Contour needs none of those transforms: every size is in dmm, mm or deg, which Style Dictionary doesn't know, so each output would need a custom transform anyway. With 55 tokens, the whole converter is about 150 readable lines, and `npm install` is never needed.
+- **Alternatives:** Style Dictionary with custom unit transforms. Better if Contour later targets Unity, iOS or Android, since its plugin ecosystem covers those. Today it would add a dependency and a config layer around the same custom code.
+- **Trade-offs:** No plugin ecosystem; every new output is written by hand. Switching to Style Dictionary later is cheap, because the source (`tokens.json`) and output names don't change, only the script does.
+
+### 17. Code gets scene units; Figma and CSS keep the token's own unit ⚠️
+- **Decision:** In `dist/tokens.js` every number is converted to metres, radians or seconds (`material.t.regular` = 0.008). dmm tokens become "metres at 1 m away" and are scaled with `atDistance(value, distanceM)`. CSS keeps `mm`, `deg` and `ms` (all real CSS units) and writes dmm as a plain number. Figma gets the plain number with `Unit: dmm.` at the start of its description.
+- **Why:** three.js works in metres, radians and seconds. Converting once in the pipeline means component code never does unit maths, which is where XR sizing bugs come from (a 60 mm button where 60 dmm at 0.75 m = 45 mm was meant). Figma and the website are read by people, who think in the token's own unit.
+- **Alternatives:** Keep original units in JS and convert in each component: one source of numbers, but every component repeats the conversion and can get it wrong. Bake dmm into metres at a fixed distance: simpler, but wrong for anything not placed at that distance.
+- **Trade-offs:** The same token reads `60` in Figma and `0.06` in code, so cross-checking needs the `units` table. ⚠️ Component code will rely on "every number is SI"; changing that later means touching every component.
+
+### 18. Built files are committed, and `npm run check` catches drift
+- **Decision:** `dist/` is in git. `npm run check` fails when `dist/` doesn't match `tokens.json`.
+- **Why:** The website, demos and Figma can grab the files straight from GitHub without running a build. The check stops the classic problem of generated files going stale.
+- **Alternatives:** Build on install or in CI and keep `dist/` out of git. Cleaner history, but every consumer needs a build step.
+- **Trade-offs:** Each token change produces a bigger diff (source plus three outputs). The drift check runs only when someone runs it; a CI job would make it automatic.
+
+### 19. Figma Variables as an import file, not a live sync
+- **Decision:** Produce `dist/figma-variables.json` in the DTCG shape Figma's "Import variables" reads, one collection, groups from the token path. dmm sizes are scoped to width/height, gap, corner radius and stroke; everything else is unscoped.
+- **Why:** The Figma connector can't connect from this project right now, so writing to Figma directly isn't possible. An import file also keeps `tokens.json` the source: Figma receives values, it doesn't own them.
+- **Alternatives:** A sync through the Figma API or a plugin like Tokens Studio. Two-way and automatic, but needs access we don't have and invites edits in Figma that never reach `tokens.json`.
+- **Trade-offs:** Re-importing is a manual step after each change. Figma Variables only hold numbers, strings, booleans and colours, so easings become text (`cubic-bezier(...)`) and units live in descriptions. The import has not been tried in Figma yet.
