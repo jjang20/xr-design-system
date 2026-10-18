@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Contour arena: button scene</title>
+<style>
+  html, body { margin: 0; background: #222; font: 12px/1.4 system-ui, sans-serif; color: #ddd; }
+  #shot { display: inline-block; }
+  #labels { display: flex; }
+  #labels div { text-align: center; padding: 4px 0; background: #111; }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "/node_modules/three/build/three.module.js",
+  "three/addons/": "/node_modules/three/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div id="shot"><canvas id="c"></canvas><div id="labels"></div></div>
+<script type="module">
+// Renders one Contour button variant at real-world scale (1 unit = 1 m),
+// seen from the user's eye, in three states side by side: rest, hover, press.
+// The camera's field of view is set from the headset's pixels-per-degree, so
+// one image pixel covers the same angle as one headset pixel.
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+const STATES = [
+  { name: 'rest', hover: 0, push: 0 },
+  { name: 'hover', hover: 1, push: 0 },
+  { name: 'press', hover: 1, push: 1 },
+];
+const FRAME_W = 480, FRAME_H = 360;
+// Scene fixtures that are not tokens (corner radius, colours, light).
+// One bevel radius for every variant, so thickness is the only thing that changes.
+const BEVEL = 0.0025; // metres
+const COLORS = { button: '#e9e6e1', panel: '#3c4148', glow: '#ffffff' };
+
+function shadowTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(64, 64, 8, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(0,0,0,1)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(c);
+}
+
+function roundedRect(shape, half, r) {
+  shape.moveTo(-half + r, -half);
+  shape.lineTo(half - r, -half); shape.quadraticCurveTo(half, -half, half, -half + r);
+  shape.lineTo(half, half - r); shape.quadraticCurveTo(half, half, half - r, half);
+  shape.lineTo(-half + r, half); shape.quadraticCurveTo(-half, half, -half, half - r);
+  shape.lineTo(-half, -half + r); shape.quadraticCurveTo(-half, -half, -half + r, -half);
+  return shape;
+}
+
+function roundedRing(inner, outer, r) {
+  const shape = roundedRect(new THREE.Shape(), outer, r + (outer - inner));
+  shape.holes.push(roundedRect(new THREE.Path(), inner, r));
+  return new THREE.ShapeGeometry(shape, 12);
+}
+
+function buildScene(p, fixtures, state) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(fixtures.background);
+  scene.add(new THREE.HemisphereLight('#ffffff', '#5a5f66', 1.6));
+  const sun = new THREE.DirectionalLight('#ffffff', 1.4);
+  sun.position.set(0.3, 2, 0.8); // ceiling light, slightly in front
+  scene.add(sun);
+
+  // The UI group sits at the anchor: distance d, eccentricity below the eye,
+  // turned to face the eye (body-lock).
+  const ecc = THREE.MathUtils.degToRad(p.eccentricityDeg);
+  const ui = new THREE.Group();
+  ui.position.set(0, Math.sin(ecc) * p.distanceM, -Math.cos(ecc) * p.distanceM);
+  ui.lookAt(0, 0, 0);
+  scene.add(ui);
+
+  const b = p.button;
+  const n = 3;
+  const panelW = n * b.face + (n + 1) * b.gap * 2;
+  const panelH = b.face + b.gap * 4;
+  const panel = new THREE.Mesh(
+    new RoundedBoxGeometry(panelW, panelH, p.panel.t, 4, Math.min(panelH * 0.12, p.panel.t / 2)),
+    new THREE.MeshStandardMaterial({ color: COLORS.panel, roughness: 0.6, transparent: true, opacity: p.panel.opacity }),
+  );
+  panel.position.z = -p.panel.t / 2; // front face of the panel at z = 0
+  ui.add(panel);
+
+  const tex = shadowTexture();
+  let center = null;
+  for (let i = 0; i < n; i++) {
+    const active = i === 1;
+    const push = active ? state.push : 0;
+    const hover = active ? state.hover : 0;
+    const x = (i - 1) * (b.face + b.gap * 2);
+
+    // Press compresses the material: depth = density press ratio x thickness.
+    const depth = b.t * (1 - b.pressRatio * push);
+    const btn = new THREE.Mesh(
+      new RoundedBoxGeometry(b.face, b.face, b.t, 4, Math.min(BEVEL, b.t / 2)),
+      new THREE.MeshStandardMaterial({ color: COLORS.button, roughness: 0.45 }),
+    );
+    btn.scale.z = depth / b.t;
+    btn.position.set(x, 0, depth / 2);
+    ui.add(btn);
+
+    // Contact shadow on the panel, growing darker and tighter with push.
+    const s = 1 - (1 - p.shadow.scale) * push;
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(b.face * 1.35 * s, b.face * 1.35 * s),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false,
+        opacity: p.shadow.opacityMin + (p.shadow.opacityMax - p.shadow.opacityMin) * push }),
+    );
+    shadow.position.set(x, -b.face * 0.06, 0.0002);
+    ui.add(shadow);
+
+    // Hover: an edge glow of width feedback.glow.edge around the face, drawn
+    // as a flat ring just behind the button's front face.
+    if (hover > 0) {
+      const glow = new THREE.Mesh(
+        roundedRing(b.face / 2, b.face / 2 + p.glowEdge, BEVEL),
+        new THREE.MeshBasicMaterial({ color: COLORS.glow, transparent: true, opacity: 0.85 * hover }),
+      );
+      glow.position.set(x, 0, depth - 0.0005);
+      ui.add(glow);
+    }
+    if (active) center = btn;
+  }
+  return { scene, center };
+}
+
+window.renderVariant = (p, fixtures) => {
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(1);
+  renderer.setSize(FRAME_W * STATES.length, FRAME_H);
+  renderer.setScissorTest(true);
+
+  const camera = new THREE.PerspectiveCamera(FRAME_H / fixtures.ppd, FRAME_W / FRAME_H, 0.01, 10);
+  const ecc = THREE.MathUtils.degToRad(p.eccentricityDeg);
+  camera.lookAt(0, Math.sin(ecc), -Math.cos(ecc));
+
+  const regions = [];
+  STATES.forEach((state, i) => {
+    const { scene, center } = buildScene(p, fixtures, state);
+    renderer.setViewport(i * FRAME_W, 0, FRAME_W, FRAME_H);
+    renderer.setScissor(i * FRAME_W, 0, FRAME_W, FRAME_H);
+    renderer.render(scene, camera);
+    // Screen-space box of the active button, for pixel measurements.
+    scene.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(center);
+    const pts = [];
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z])
+      pts.push(new THREE.Vector3(x, y, z).project(camera));
+    const xs = pts.map(v => (v.x + 1) / 2 * FRAME_W), ys = pts.map(v => (1 - v.y) / 2 * FRAME_H);
+    regions.push({ x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) });
+  });
+
+  // Mean luminance difference between hover and press inside the button box,
+  // so it measures the press alone (both frames have the hover glow).
+  const gl = renderer.getContext();
+  const px = new Uint8Array(FRAME_W * STATES.length * FRAME_H * 4);
+  gl.readPixels(0, 0, FRAME_W * STATES.length, FRAME_H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const lum = (x, y) => {
+    const k = ((FRAME_H - 1 - y) * FRAME_W * STATES.length + x) * 4;
+    return (0.2126 * px[k] + 0.7152 * px[k + 1] + 0.0722 * px[k + 2]) / 255;
+  };
+  const r = regions[1];
+  const pad = 4;
+  let sum = 0, count = 0;
+  for (let y = Math.floor(r.y0) - pad; y <= Math.ceil(r.y1) + pad; y++)
+    for (let x = Math.floor(r.x0) - pad; x <= Math.ceil(r.x1) + pad; x++) {
+      sum += Math.abs(lum(x + FRAME_W, y) - lum(x + 2 * FRAME_W, y));
+      count++;
+    }
+
+  const labels = document.getElementById('labels');
+  labels.innerHTML = STATES.map(s => `<div style="width:${FRAME_W}px">${s.name}</div>`).join('');
+  return {
+    frame: { w: FRAME_W, h: FRAME_H, ppd: fixtures.ppd },
+    buttonPx: { w: r.x1 - r.x0, h: r.y1 - r.y0 },
+    pressDelta: sum / count,
+  };
+};
+window.sceneReady = true;
+</script>
+</body>
+</html>
