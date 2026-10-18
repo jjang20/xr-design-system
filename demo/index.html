@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contour components</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <aside id="hud">
+    <h1>Contour <span>core components · tokens v0.1</span></h1>
+    <p class="how">
+      <b>Mouse</b> is a far ray: hover, click to press.<br />
+      <b>Wheel</b> or <b>drag</b> on the Z-Slider pushes and pulls it.<br />
+      <b>Drag empty space</b> or <b>← →</b> to turn; the dock follows after a delay.
+    </p>
+    <div class="row">
+      <span>Packaging parent</span>
+      <div id="modes" role="group" aria-label="Packaging parent mode"></div>
+    </div>
+    <p id="log" aria-live="polite">&nbsp;</p>
+    <button id="xr" disabled>Checking for a headset…</button>
+    <details>
+      <summary>Tokens in use</summary>
+      <table id="tokens"></table>
+    </details>
+  </aside>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
