@@ -8,6 +8,12 @@ Same shape as [docs/decisions.md](../docs/decisions.md): **Decision**, **Why**, 
 - **Alternatives:** (a) Only pairwise, with a reference image added as an extra contestant. That still only says "better or worse than the reference", and with few votes it's noisy. (b) Only rubric scores, no pairwise. Good at "is it good enough", bad at telling two good options apart, which is what token tuning needs.
 - **Trade-offs:** More judging per experiment, and experiments can end with no winner. ⚠️ The rubric is now the definition of quality for the whole system: change it deliberately, because every past "pass" was judged against the old version.
 
+### 0b. Motion is judged by code, using Emil Kowalski's rules
+- **Decision:** The bar's motion row is checked against the tokens, not judged by eye. The rules come from Emil Kowalski's design-engineering practice: strong custom ease-out for anything entering, no ease-in, UI motion under 300 ms, press that tracks the finger, release in 200 ms or less.
+- **Why:** The renders are still images, so neither you nor the AI can see motion in them. These rules are concrete enough to measure, and they are also where "feels right" comes from: an ease-in dropdown feels slower than an ease-out one of the same length. The first run found two real problems in today's tokens: the dropdown eases in-out (it starts slow while appearing), and hover uses CSS's built-in ease-out, which is too weak to feel intentional.
+- **Alternatives:** Render short clips and judge motion by eye. That's closer to the real feeling, and it's worth adding later, but it's slower to judge and harder for the AI.
+- **Trade-offs:** The rules are generic. They don't know that XR may want different timing (for example, slower follow motion to avoid motion sickness), so `anchor.follow.*` is deliberately left out of them.
+
 ### 1. Pairwise, not scoring
 - **Decision:** Judges compare two variants at a time ("which is better?") instead of rating each one 1 to 10.
 - **Why:** People and models are much more consistent at comparing than at scoring. A "7" drifts with mood and context; "A beats B" doesn't. It's the same reason a designer reviews two directions side by side instead of rating one in isolation. LMArena and most design-arena setups use pairs for this reason.

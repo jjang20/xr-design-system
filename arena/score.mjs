@@ -5,7 +5,7 @@
 // Run: npm run score -- button-thickness
 import { writeFileSync } from 'node:fs';
 import { loadExperiment, readJson, readJsonl } from './lib/experiment.mjs';
-import { barVerdicts, RUBRIC } from './lib/bar.mjs';
+import { barVerdicts, EYE_ROWS as RUBRIC } from './lib/bar.mjs';
 
 const { exp, variants, file } = loadExperiment(process.argv[2]);
 const checks = readJson(file('checks.json'), {});
@@ -93,6 +93,12 @@ for (const [j, rows] of Object.entries(tables)) {
   md.push(`## ${j === 'human' ? 'Your votes (decide)' : `${j} (advisory)`}`, '', '| variant | win | tie | loss | strength |', '|---|---|---|---|---|');
   for (const r of rows) md.push(`| ${r.name} | ${r.win} | ${r.tie} | ${r.loss} | ${r.strength.toFixed(2)} |`);
   if (agreement[j]) md.push('', `Agreed with you on ${agreement[j].agreed} of ${agreement[j].pairs} pairs. Flipped its answer when the sides were swapped ${agreement[j].positionBias} time(s).`);
+  md.push('');
+}
+const system = readJson(file('system.json'), { motion: [] });
+if (system.motion.length) {
+  md.push('## The system vs the motion bar', '', 'These are about tokens this experiment did not vary, so they did not block it. They block a visionOS-level system.', '');
+  for (const f of system.motion) md.push(`- ${f.level}: \`${f.path}\` ${f.detail}`);
   md.push('');
 }
 md.push('## Checks', '');

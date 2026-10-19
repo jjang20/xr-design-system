@@ -13,7 +13,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod';
 import { z } from 'zod';
 import { loadExperiment, readJson, appendJsonl, pairs } from './lib/experiment.mjs';
-import { RUBRIC, PASS_SCORE, referenceImages, mediaType } from './lib/bar.mjs';
+import { EYE_ROWS as RUBRIC, PASS_SCORE, referenceImages, mediaType } from './lib/bar.mjs';
 
 const MODEL = process.env.ARENA_JUDGE_MODEL || 'claude-opus-5-5';
 const DRY = process.argv.includes('--dry-run');

@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { loadExperiment, readJson, appendJsonl, pairs } from './lib/experiment.mjs';
 import { serveStatic } from './lib/server.mjs';
-import { RUBRIC, referenceImages, mediaType } from './lib/bar.mjs';
+import { EYE_ROWS as RUBRIC, referenceImages, mediaType } from './lib/bar.mjs';
 
 const { exp, variants, file } = loadExperiment(process.argv[2]);
 const checks = readJson(file('checks.json'), null);

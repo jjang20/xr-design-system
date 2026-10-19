@@ -8,15 +8,21 @@ import { ARENA } from './experiment.mjs';
 
 // Scored 1-5. 4 = would not look out of place in a shipping visionOS app.
 // 5 = better than that. A variant passes only with 4+ on every row.
+// Rows marked by: 'code' can't be seen in a still render, so check.mjs
+// measures them from the tokens instead (motion rules in lib/motion.mjs,
+// from Emil Kowalski's design-engineering practice).
 export const PASS_SCORE = 4;
 export const RUBRIC = [
   { id: 'material', text: 'Surfaces read as a designed material (frosted glass with vibrancy, or a deliberate solid), not default 3D shading.' },
   { id: 'light', text: 'Lighting is soft and consistent with the surroundings; highlights and contact shadows ground the object in the room.' },
   { id: 'shape', text: 'Corners, edges and proportions are refined and consistent (continuous curvature, even radii); nothing looks like a raw primitive.' },
   { id: 'type', text: 'Labels and icons are crisp and legible with clear hierarchy. A control with no label or icon counts as unfinished.' },
-  { id: 'states', text: 'Hover and press look intentional and refined, not like debug highlights or outlines.' },
+  { id: 'states', text: 'Hover and press look intentional and refined, not like debug highlights or outlines. Press feedback is subtle and physical (a slight compression, like scale 0.97 on a 2D button), never a jump.' },
   { id: 'depth', text: 'Layering, spacing and depth placement feel deliberate, like one designed scene rather than parts placed in a viewport.' },
+  { id: 'cohesion', text: 'Every detail agrees with the others: radii, shadows, glow, spacing and states feel made by one hand. The small unseen details are right, so nothing draws attention to itself.' },
+  { id: 'motion', by: 'code', text: 'Entering motion starts fast (strong custom ease-out, never ease-in or a built-in CSS curve); UI motion stays under 300 ms; press tracks the finger; release is snappy (200 ms or less).' },
 ];
+export const EYE_ROWS = RUBRIC.filter(r => r.by !== 'code');
 
 // Reference images: your own captures of the level you want to reach
 // (visionOS screenshots you take, or the best Contour render so far). They
