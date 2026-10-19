@@ -35,4 +35,6 @@ for (const path of varied) {
 }
 saveTokens(tokens);
 execFileSync('node', [fileURLToPath(new URL('../scripts/check-tokens.mjs', import.meta.url))], { stdio: ['ignore', 'ignore', 'inherit'] });
-console.log('\ntokens.json updated and valid. Review with `git diff tokens.json`, then commit when you are happy.');
+// Rebuild dist/ so code, CSS and Figma pick up the promoted value too.
+execFileSync('node', [fileURLToPath(new URL('../scripts/build-tokens.mjs', import.meta.url))], { stdio: ['ignore', 'ignore', 'inherit'] });
+console.log('\ntokens.json updated and valid, dist/ rebuilt. Review with `git diff tokens.json dist/`, then commit when you are happy.');
