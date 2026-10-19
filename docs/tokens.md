@@ -97,7 +97,7 @@ mm tokens are physical and convert directly (`mm / 1000`). deg tokens are angles
 
 ## Sizing by anchor (provisional)
 
-dmm × distance is only half the rule. The anchor decides *which* distance and *when* it is measured (see [decisions §20](decisions.md), §20):
+dmm × distance is only half the rule. The anchor decides *which* distance and *when* it is measured (see [decisions.md](decisions.md), §20):
 
 ```js
 const { anchor, size } = tokens;
