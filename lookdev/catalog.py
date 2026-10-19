@@ -18,7 +18,9 @@ ROOT = os.path.dirname(HERE)
 ap = argparse.ArgumentParser()
 ap.add_argument('--state', default='hover', choices=['rest', 'hover', 'press', 'levels'])
 ap.add_argument('--hover', default='lens', choices=['lens', 'bubble'])  # hover style
-ap.add_argument('--bubble', default='2.2,10,0.08')  # height mm, ramp mm, crown roughness
+ap.add_argument('--bubble', default='2.2,10,0.08')
+ap.add_argument('--clear', type=float, default=0.5)  # how much the bubble thins toward the bead's clear glass
+ap.add_argument('--profile', default='pillow', choices=['pillow', 'plateau'])  # height mm, ramp mm, crown roughness
 ap.add_argument('--view', default='front', choices=['front', 'angle'])
 ap.add_argument('--samples', type=int, default=96)
 ap.add_argument('--res', default='1600x1000')
@@ -42,6 +44,8 @@ T_WINDOW, T_LENS = 0.008, 0.004  # material.t.regular / thin
 LIFT = 0.005  # DEFAULTS.look.lensLift
 BUBBLE_H, BUBBLE_RAMP, BUBBLE_ROUGH = (float(v) for v in args.bubble.split(','))
 BUBBLE_H /= 1000; BUBBLE_RAMP /= 1000
+PROFILE = args.profile
+BUBBLE_CLEAR = args.clear
 
 # ---------------------------------------------------------------- scene
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -113,6 +117,12 @@ def glass(name, tint, rough, absorb, coat=0.0):
     attr = nodes.new('ShaderNodeAttribute'); attr.attribute_name = 'gloss'
     mr = nodes.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = rough; mr.inputs['To Max'].default_value = BUBBLE_ROUGH
     links.new(attr.outputs['Fac'], mr.inputs['Value']); links.new(mr.outputs['Result'], p.inputs['Roughness'])
+    # ...and it thins out like the icon bead's clear glass.
+    tm = nodes.new('ShaderNodeMix'); tm.data_type = 'RGBA'
+    tm.inputs['A'].default_value = (*tint, 1); tm.inputs['B'].default_value = (0.9, 0.9, 0.91, 1)
+    fm = nodes.new('ShaderNodeMath'); fm.operation = 'MULTIPLY'; fm.inputs[1].default_value = BUBBLE_CLEAR
+    links.new(attr.outputs['Fac'], fm.inputs[0]); links.new(fm.outputs[0], tm.inputs['Factor'])
+    links.new(tm.outputs['Result'], p.inputs['Base Color'])
     inv = nodes.new('ShaderNodeMath'); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
     links.new(attr.outputs['Fac'], inv.inputs[1])
     fb = nodes.new('ShaderNodeMath'); fb.operation = 'MULTIPLY'; fb.inputs[1].default_value = 0.04
@@ -201,8 +211,12 @@ def inflate(ob, cx, cy, hw, hh, r, height, dent=None, step=0.0006):
     gl = {}
     for v in {v for f in front() for v in f.verts}:
         d = sd_round_rect(v.co.x - cx, v.co.y - cy, hw, hh, r)
+        # A pillow, curved everywhere like the icon bead: a dome across the
+        # row's short side (an elliptical arc, so the edge is steep and the
+        # top keeps rounding), eased into the window by a small meniscus.
+        u = min(max(-d / hh, 0.0), 1.0)
+        dome = math.sqrt(max(0.0, 1.0 - (1.0 - u) ** 2)) if PROFILE == 'pillow' else 0.88 + 0.12 * u
         k = smootherstep((0.15 * BUBBLE_RAMP - d) / BUBBLE_RAMP)
-        dome = 0.88 + 0.12 * min(max(-d / min(hw, hh), 0.0), 1.0)
         z = height * k * dome
         if dent:
             dx, dy, dr, dd = dent
