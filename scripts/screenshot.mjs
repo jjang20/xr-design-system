@@ -11,8 +11,8 @@ const executablePath = process.env.CHROMIUM_PATH
 const server = await createServer({ configFile: new URL('../vite.config.js', import.meta.url).pathname, logLevel: 'error' });
 await server.listen(0);
 const url = server.resolvedUrls.local[0];
-const browser = await chromium.launch({ executablePath, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+const browser = await chromium.launch({ executablePath, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
 const errors = [];
 page.on('pageerror', e => errors.push(e.message));
 page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
@@ -24,12 +24,12 @@ const shot = async name => { await page.screenshot({ path: `shots/${name}.png` }
 
 try {
   await page.goto(url);
-  await page.waitForFunction(() => window.contour);
-  await wait(800);
+  await page.waitForFunction(() => window.contour, null, { timeout: 60000 });
+  await wait(3000); // fonts and icons load
   await shot('01-overview');
 
-  // Hover the firm button, then press and hold it.
-  const firm = await screenOf('window.contour.buttons[1]');
+  // Hover the Place button, then press and hold it.
+  const firm = await screenOf('window.contour.buttons[0]');
   await page.mouse.move(firm.x, firm.y);
   await wait(300);
   await shot('02-button-hover');
@@ -53,11 +53,11 @@ try {
     await page.mouse.down();
     await wait(60);
     await page.mouse.up();
-    await wait(450);
+    await wait(3500);
   };
   await openRow(0);
   await shot('05-packaging-level-1');
-  await openRow(2);
+  await openRow(1);
   await shot('06-packaging-level-2');
 
   // Hover near the dock to magnify.

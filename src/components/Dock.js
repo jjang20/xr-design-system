@@ -11,51 +11,18 @@
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { slabGeometry, frameGeometry, surfaceMaterial, flatMaterial } from '../core/surface.js';
-import { springStep, wrapAngle } from '../core/spring.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, makeText } from '../core/look.js';
+import { springStep } from '../core/spring.js';
+import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { Button } from './Button.js';
 
-// dock.magnify.falloff = cosine: scale = 1 + (max - 1) * cos(d / radius * pi/2).
-export function magnifyScale(d, radius, max) {
-  if (d >= radius) return 1;
-  return 1 + (max - 1) * Math.cos((d / radius) * Math.PI / 2);
-}
-
-// Lazy follow on yaw: waits `delay` seconds of a sustained turn beyond
-// `threshold`, then springs to the body direction. Pure state machine.
-export class LazyFollow {
-  constructor({ delay, omega, threshold, settle = (2 * Math.PI) / 180 }) {
-    Object.assign(this, { delay, omega, threshold, settle });
-    this.yaw = { x: 0, v: 0 };
-    this.target = 0;
-    this.waited = 0;
-    this.following = false;
-    this.started = false;
-  }
-  update(dt, bodyYaw) {
-    if (!this.started) {
-      this.started = true;
-      this.yaw.x = this.target = bodyYaw;
-      return this.yaw.x;
-    }
-    const off = Math.abs(wrapAngle(bodyYaw - this.yaw.x));
-    if (!this.following) {
-      this.waited = off > this.threshold ? this.waited + dt : 0;
-      if (this.waited >= this.delay) this.following = true;
-    }
-    if (this.following) {
-      this.target = this.yaw.x + wrapAngle(bodyYaw - this.yaw.x);
-      if (off < this.settle && Math.abs(this.yaw.v) < 0.05) { this.following = false; this.waited = 0; }
-    }
-    return springStep(this.yaw, this.target, this.omega, dt);
-  }
-}
+export { magnifyScale, LazyFollow };
 
 export class Dock extends THREE.Group {
   /**
    * @param {object} T tokens
    * @param {object} o
-   * @param {{label: string, color?: number}[]} o.apps
+   * @param {{label: string, icon?: string, color?: number}[]} o.apps
    * @param {number} [o.distance] body-lock distance in m
    */
   constructor(T, o) {
@@ -77,20 +44,26 @@ export class Dock extends THREE.Group {
     this.posStarted = false;
     this.rotation.order = 'YXZ';
 
+    // App icons: round, tinted, with a glyph. Names appear on hover.
+    const dmm = v => (v / 1000) * dist;
     this.icons = o.apps.map(app => {
-      const b = new Button(T, { label: app.label, thickness: 'regular', density: 'firm', distance: dist, color: app.color });
+      const b = new Button(T, { icon: app.icon, shape: 'circle', variant: 'tinted', color: app.color, thickness: 'regular', density: 'firm', distance: dist });
       b.addEventListener('select', () => this.dispatchEvent({ type: 'select', app }));
+      const name = makeText(app.label, { size: dmm(13), weight: 500, opacity: 0 });
+      name.position.set(0, -b.h / 2 - dmm(14), b.t);
+      b.add(name);
+      b.nameText = name;
       this.add(b);
       return b;
     });
     this.side = this.icons[0].w;
     this.tBase = T.get('material.t.thick');
-    this.base = new THREE.Mesh(new THREE.BufferGeometry(), surfaceMaterial(T, DEFAULTS.color.surface));
+    this.pad = dmm(14);
+    this.base = new THREE.Mesh(new THREE.BufferGeometry(), bodyMaterial(T, { color: DEFAULTS.color.window }));
     this.base.position.z = -this.tBase;
     this.add(this.base);
-    this.outlineW = T.dmm('surface.outline.mr', dist);
-    this.baseOutline = new THREE.Mesh(new THREE.BufferGeometry(), flatMaterial(DEFAULTS.color.outline, 0.85));
-    this.add(this.baseOutline);
+    this.baseFx = new THREE.Mesh(new THREE.BufferGeometry(), faceMaterial(T, { w: 1, h: 1, r: 0.5, distance: dist }));
+    this.add(this.baseFx);
     this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * (this.side + this.gap));
     this.scales = this.icons.map(() => 1);
     this.layout();
@@ -107,14 +80,18 @@ export class Dock extends THREE.Group {
       icon.position.set(x + widths[i] / 2, (s - 1) * this.side / 2, 0);
       x += widths[i] + this.gap;
     });
-    const w = total + this.gap * 2, h = this.side + this.gap * 2;
-    if (this._baseW !== w) {
+    // The capsule platter stretches with the magnified row (rebuilt in 2 mm steps).
+    const w = total + this.pad * 2, h = this.side + this.pad * 2;
+    if (this._baseW === undefined || Math.abs(this._baseW - w) > 0.002) {
       this._baseW = w;
       this.base.geometry.dispose();
-      this.base.geometry = slabGeometry(w, h, this.tBase);
-      this.baseOutline.geometry.dispose();
-      this.baseOutline.geometry = frameGeometry(w, h, this.outlineW);
-      this.baseOutline.position.z = -this.tBase + 0.0002;
+      this.base.geometry = bodyGeometry(w, h, this.tBase, h / 2);
+      this.baseFx.geometry.dispose();
+      this.baseFx.geometry = new THREE.PlaneGeometry(w, h);
+      const u = this.baseFx.material.uniforms;
+      u.uSize.value.set(w, h);
+      u.uRadius.value = h / 2;
+      this.baseFx.position.z = 0.0002;
     }
   }
 
@@ -156,6 +133,9 @@ export class Dock extends THREE.Group {
       return s;
     });
     this.layout();
-    this.icons.forEach(i => i.update(dt));
+    for (const icon of this.icons) {
+      icon.update(dt);
+      icon.nameText.fillOpacity = icon.hover;
+    }
   }
 }

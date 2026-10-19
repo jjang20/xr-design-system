@@ -36,9 +36,13 @@ export class InputSystem {
     el.addEventListener('pointerdown', e => {
       el.setPointerCapture(e.pointerId);
       this.mouse.pressed = true;
+      this.mouse.seen = false;
       this.mouse.looking = !this.mouse.state.hover; // drag on empty space turns your view
     });
-    el.addEventListener('pointerup', () => { this.mouse.pressed = false; this.mouse.looking = false; });
+    // A click shorter than one frame still counts: keep it pressed until a frame has seen it.
+    el.addEventListener('pointerup', () => {
+      if (this.mouse.seen) { this.mouse.pressed = false; this.mouse.looking = false; } else this.mouse.upPending = true;
+    });
     el.addEventListener('wheel', e => {
       if (this.mouse.state.hover) { e.preventDefault(); this.mouse.wheel += -Math.sign(e.deltaY); }
     }, { passive: false });
@@ -119,6 +123,8 @@ export class InputSystem {
       const wheel = this.mouse.wheel;
       this.mouse.wheel = 0;
       this.rayStep(this.mouse, this.raycaster.ray.clone(), this.mouse.pressed && !this.mouse.looking, wheel, items);
+      this.mouse.seen = true;
+      if (this.mouse.upPending) { this.mouse.upPending = false; this.mouse.pressed = false; this.mouse.looking = false; }
     } else {
       this.mouse.state = {};
     }

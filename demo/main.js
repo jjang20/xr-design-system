@@ -1,95 +1,111 @@
-// Demo scene: every core component at real-world scale, usable with a mouse
-// on desktop and with hands or controllers in a headset.
+// Demo: a Room planner scene. Every core component at real-world scale,
+// usable with a mouse on desktop and with hands or controllers in a headset.
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import tokenJson from '../tokens.json';
 import {
-  createTokens, flattenTokens, Button, ZSlider, PackagingPanel, PACKAGING_MODES, Dock, InputSystem, unlockAudio,
+  createTokens, Button, ZSlider, PackagingPanel, PACKAGING_MODES, Dock, InputSystem, unlockAudio, makePlatter,
 } from '../src/index.js';
+import { buildRoom } from './room.js';
 
 const T = createTokens(tokenJson);
 const EYE = 1.6; // m, standing eye height for the desktop camera
+const D = 0.6; // m, placement distance the dmm sizes are computed for
 
 // Renderer, scene, camera ----------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.02, 50);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.6;
+renderer.toneMappingExposure = 0.95;
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.02, 50);
 camera.position.set(0, EYE, 0);
 camera.rotation.order = 'YXZ';
-const look = { yaw: 0, pitch: -0.22 };
+const look = { yaw: 0, pitch: -0.13 };
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x404650, 1.6));
-const sun = new THREE.DirectionalLight(0xffffff, 1.4);
-sun.position.set(0.6, 2.5, 1.2);
-scene.add(sun);
-
-// A plain room, so the objects have something to sit in front of.
-// Hidden in mixed reality, where the real room shows through.
-const room = new THREE.Group();
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x2a2d33 }));
-floor.rotation.x = -Math.PI / 2;
-room.add(floor);
-const grid = new THREE.GridHelper(20, 20, 0x555a63, 0x3a3e45);
-grid.position.y = 0.001;
-room.add(grid);
-const wall = new THREE.Mesh(new THREE.PlaneGeometry(20, 6), new THREE.MeshStandardMaterial({ color: 0xbfc3c9 }));
-wall.position.set(0, 3, -2.2);
-room.add(wall);
-const desk = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.04, 0.6), new THREE.MeshStandardMaterial({ color: 0x8a6a4a }));
-desk.position.set(0, 0.74, -0.75);
-room.add(desk);
+const { room, setLamp } = buildRoom();
 scene.add(room);
-scene.background = new THREE.Color(0x15171b);
 
-// Components -----------------------------------------------------------------
-const log = document.getElementById('log');
-const say = text => { log.textContent = text; };
-const facing = (obj, x, y, z) => { obj.position.set(x, y, z); obj.lookAt(0, EYE, 0); scene.add(obj); return obj; };
+// UI ---------------------------------------------------------------------------
+const toast = document.getElementById('log');
+const say = text => { toast.textContent = text; };
+const place = (obj, x, y, z) => { obj.position.set(x, y, z); obj.lookAt(0, EYE, 0); scene.add(obj); return obj; };
+const dmm = v => (v / 1000) * D;
 
-// Buttons: the three densities, plus a disabled one (always rigid).
-const buttons = [
-  ['Soft', { density: 'soft' }],
-  ['Firm', { density: 'firm' }],
-  ['Rigid', { density: 'rigid' }],
-  ['Off', { disabled: true }],
-].map(([label, o], i) => {
-  const b = new Button(T, { label, ...o });
-  b.addEventListener('select', () => say(`Pressed ${label}`));
-  return facing(b, -0.22, 1.62 - i * 0.055, -0.55);
-});
-
-const panel = facing(new PackagingPanel(T, {
-  title: 'Settings',
+// Catalog window: packaging, three levels deep.
+const catalog = place(new PackagingPanel(T, {
+  title: 'Catalog',
+  subtitle: 'Living room · 4 categories',
   items: [
-    { label: 'Sound', items: [
-      { label: 'Volume' }, { label: 'Spatial audio' },
-      { label: 'Output', items: [{ label: 'Headset' }, { label: 'Speaker', items: [{ label: 'Left' }, { label: 'Right' }] }] },
+    { label: 'Sofas', icon: 'sofa', items: [
+      { label: 'Lounge 3-seat', icon: 'sofa', sublabel: '214 × 96 cm' },
+      { label: 'Modular', icon: 'layers', items: [
+        { label: 'Corner unit', icon: 'square-dashed', sublabel: '96 × 96 cm' },
+        { label: 'Ottoman', icon: 'square-dashed', items: [{ label: 'Round', icon: 'square-dashed' }, { label: 'Square', icon: 'square-dashed' }] },
+      ] },
+      { label: 'Loveseat', icon: 'sofa', sublabel: '152 × 90 cm' },
     ] },
-    { label: 'Display', items: [{ label: 'Brightness' }, { label: 'Passthrough' }] },
-    { label: 'Hands', items: [{ label: 'Poke' }, { label: 'Pinch' }] },
-    { label: 'About' },
+    { label: 'Chairs', icon: 'armchair', items: [{ label: 'Lounge chair', icon: 'armchair', sublabel: '78 × 82 cm' }, { label: 'Dining chair', icon: 'armchair', sublabel: '46 × 52 cm' }] },
+    { label: 'Tables', icon: 'table-2', items: [{ label: 'Coffee table', icon: 'table-2', sublabel: '100 × 55 cm' }, { label: 'Side table', icon: 'table-2', sublabel: '45 × 45 cm' }] },
+    { label: 'Lighting', icon: 'lamp-floor', items: [{ label: 'Floor lamp', icon: 'lamp-floor', sublabel: '165 cm' }] },
   ],
-}), 0, 1.56, -0.62);
-panel.addEventListener('open', e => say(`Opened ${e.item.label} (level ${e.level})`));
-panel.addEventListener('back', e => say(`Back to level ${e.level}`));
-panel.addEventListener('select', e => say(`Selected ${e.item.label}`));
+  distance: D,
+}), -0.02, 1.62, -0.68);
+catalog.addEventListener('open', e => say(`Opened ${e.item.label}`));
+catalog.addEventListener('back', () => say('Back'));
+catalog.addEventListener('select', e => say(`${e.item.label} selected`));
 
-const slider = facing(new ZSlider(T, { label: 'Volume', value: 0.4 }), 0.22, 1.5, -0.52);
-slider.rotateY(-0.55); // turned a little, so the push axis is visible on a flat screen
-slider.addEventListener('detent', e => say(`Z-Slider detent ${e.index}`));
+// Toolbar ornament under the window: the three densities side by side.
+const ornament = new THREE.Group();
+const ornW = dmm(60 * 3 + 150 + 8 * 4 + 28), ornH = dmm(60 + 20);
+const plat = makePlatter(T, { w: ornW, h: ornH, r: ornH / 2, distance: D, thickness: 'regular' });
+ornament.add(plat);
+const tools = [
+  { label: 'Place', icon: 'plus', variant: 'primary', shape: 'capsule', width: 150, density: 'firm' },
+  { icon: 'rotate-3d', shape: 'circle', density: 'soft', name: 'Rotate (soft)' },
+  { icon: 'lock', shape: 'circle', density: 'rigid', name: 'Lock (rigid)' },
+  { icon: 'trash-2', shape: 'circle', disabled: true, name: 'Delete' },
+];
+let tx = -ornW / 2 + dmm(10);
+const toolButtons = tools.map(o => {
+  const b = new Button(T, { ...o, thickness: 'regular', distance: D });
+  tx += b.w / 2 + dmm(4);
+  b.position.set(tx, 0, plat.userData.front);
+  tx += b.w / 2 + dmm(4);
+  b.addEventListener('select', () => say(`${o.label ?? o.name}`));
+  ornament.add(b);
+  return b;
+});
+place(ornament, -0.02, 1.455, -0.66);
 
+// Z-Slider: lamp brightness. Push away = brighter.
+const slider = place(new ZSlider(T, { label: 'Lamp', icon: 'sun', value: 0.4, distance: D }), 0.215, 1.53, -0.6);
+slider.rotateY(-0.45); // turned a little, so the push axis is visible on a flat screen
+setLamp(0.4);
+slider.addEventListener('change', e => setLamp(e.value));
+
+// Dock: body-locked below your view.
 const dock = new Dock(T, {
   apps: [
-    { label: 'Mail', color: 0x2f6fb0 }, { label: 'Web', color: 0x2f8f6a }, { label: 'Photos', color: 0xb05a2f },
-    { label: 'Music', color: 0x9a3fa0 }, { label: 'Notes', color: 0x8f7d2f },
+    { label: 'Planner', icon: 'house', color: 0x2f7cf6 },
+    { label: 'Measure', icon: 'ruler', color: 0xe08a1e },
+    { label: 'Scan', icon: 'scan', color: 0x23a26d },
+    { label: 'Photos', icon: 'image', color: 0xd9455f },
+    { label: 'Settings', icon: 'settings', color: 0x6b6f78 },
   ],
 });
-dock.addEventListener('select', e => say(`Opened ${e.app.label} from the dock`));
+dock.addEventListener('select', e => say(`Opened ${e.app.label}`));
 scene.add(dock);
 
 const input = new InputSystem({ T, renderer, camera, scene });
@@ -99,21 +115,14 @@ const modes = document.getElementById('modes');
 for (const m of PACKAGING_MODES) {
   const b = document.createElement('button');
   b.textContent = m;
-  b.setAttribute('aria-pressed', String(m === panel.mode));
+  b.setAttribute('aria-pressed', String(m === catalog.mode));
   b.onclick = () => {
-    panel.setMode(m);
+    catalog.setMode(m);
     for (const x of modes.children) x.setAttribute('aria-pressed', String(x === b));
   };
   modes.append(b);
 }
-const table = document.getElementById('tokens');
-for (const [name, t] of flattenTokens(tokenJson)) {
-  const row = table.insertRow();
-  if (t.provisional) row.className = 'p';
-  row.innerHTML = `<td class="e" title="evidence">${t.evidence}</td><td>${t.provisional ? '~ ' : ''}${name}</td><td class="v">${typeof t.raw === 'object' ? JSON.stringify(t.raw) : t.raw}${t.unit ?? ''}</td>`;
-}
 
-// Desktop: drag empty space or use arrow keys to turn.
 input.onLook = (dx, dy) => {
   look.yaw -= dx * 0.004;
   look.pitch = THREE.MathUtils.clamp(look.pitch - dy * 0.004, -1.2, 1.2);
@@ -134,16 +143,15 @@ const xrButton = document.getElementById('xr');
   const xr = navigator.xr;
   const mode = xr && (await xr.isSessionSupported('immersive-ar').catch(() => false)) ? 'immersive-ar'
     : xr && (await xr.isSessionSupported('immersive-vr').catch(() => false)) ? 'immersive-vr' : null;
-  if (!mode) { xrButton.textContent = 'No headset found: open this page in a headset browser'; return; }
+  if (!mode) { xrButton.textContent = 'Open in a headset browser for XR'; return; }
   xrButton.disabled = false;
   xrButton.textContent = mode === 'immersive-ar' ? 'Enter mixed reality' : 'Enter VR';
   xrButton.onclick = async () => {
     unlockAudio();
     const session = await xr.requestSession(mode, { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
     room.visible = mode !== 'immersive-ar';
-    scene.background = mode === 'immersive-ar' ? null : scene.background;
     await renderer.xr.setSession(session);
-    session.addEventListener('end', () => { room.visible = true; scene.background = new THREE.Color(0x15171b); });
+    session.addEventListener('end', () => { room.visible = true; });
   };
 })();
 
@@ -159,16 +167,16 @@ renderer.setAnimationLoop(time => {
   camera.updateMatrixWorld();
 
   input.update();
-  buttons.forEach(b => b.update(dt));
+  toolButtons.forEach(b => b.update(dt));
   slider.update(dt);
-  panel.update(dt);
+  catalog.update(dt);
   dock.update(dt, camera, input.handPoints);
   renderer.render(scene, camera);
 });
 
 // Hooks for automated screenshots and checks (scripts/screenshot.mjs).
 window.contour = {
-  T, camera, panel, slider, dock, buttons, look,
+  T, camera, panel: catalog, slider, dock, buttons: toolButtons, look,
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);
     return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };

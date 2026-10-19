@@ -6,16 +6,16 @@ export const DEFAULTS = {
   // Proposed token: placement.distance.near (arm's reach for poke).
   distance: 0.6, // m
 
-  // Corner radius as a fraction of the shorter face side. Proposed: shape.radius.
-  cornerRatio: 0.18,
-
   // Hover fade out. Only motion.hover.in exists; out mirrors it for now.
   hoverOutSameAsIn: true,
 
+  // Corner radii in dmm. Proposed: shape.radius.{window,control}.
+  radius: { window: 30, control: 16 },
+
   // Packaging panel layout. Proposed: size.panel.width, size.row.height.
-  panelWidth: 260, // dmm
-  rowHeight: 48, // dmm (above size.target.min = 32)
-  panelPadding: 16, // dmm (reuses size.gap.min's value)
+  panelWidth: 300, // dmm
+  rowHeight: 56, // dmm (above size.target.min = 32)
+  panelPadding: 18, // dmm
 
   // Dock: how far the body has to turn before the dock starts its lazy follow.
   // Without a dead zone every small head movement restarts the delay timer.
@@ -24,16 +24,28 @@ export const DEFAULTS = {
   // Body-lock distance of the dock. Proposed: anchor.distance.
   dockDistance: 0.55, // m
 
+  // Appearance. Proposed: a look.* token group once tested in MR.
+  look: {
+    bevelRatio: 0.28, // edge bevel as a fraction of thickness
+    shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)
+    rimStrength: 0.16, // luminous edge brightness
+    plainHoverFill: 0.55, // list rows: fill opacity on hover (invisible at rest)
+  },
+
   // Colours. Contour has no colour tokens yet (MR-first: colour is the open problem).
   color: {
-    surface: 0x23262d,
-    surfaceRaised: 0x2d313a,
-    plate: 0x565c66, // lighter, so the Z-Slider's contact shadow reads on it
-    text: '#f4f6fa',
-    textMuted: '#a7adb8',
-    accent: 0x7cc4ff,
-    outline: 0xf4f6fa,
+    window: 0x1e2025, // platters: neutral dark graphite, opaque (surface.opacity.base)
+    control: 0x3e4047, // secondary buttons
+    controlHover: 0x5a5c63,
+    row: 0x5a5c63, // list row hover fill
+    accent: 0x2f7cf6, // primary actions
+    metal: 0xc9ccd2, // Z-Slider knob
+    plate: 0x34363c,
+    glow: 0xffffff,
+    text: '#ffffff',
+    textSecondary: '#aeb2ba',
+    textTertiary: '#80848c',
+    disabled: 0x3a3c42,
     shadow: 0x000000,
-    disabled: 0x3a3d44,
   },
 };

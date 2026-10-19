@@ -15,28 +15,19 @@ import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { Label, setGroupOpacity } from '../core/surface.js';
+import { makeText, setGroupOpacity } from '../core/look.js';
+import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
 
-export const PACKAGING_MODES = ['compress', 'replace', 'protrude'];
-
-// Where level `level` sits when level `active` is the one in front.
-// Pure, so it can be tested and reused by other renderers.
-export function packagingPose(p, mode, level, active) {
-  const d = active - level;
-  if (d < 0) return null; // closed
-  const fade = d === 0 ? 1 : Math.max(p.opacityMin, p.opacityStart - (d - 1) * p.opacityStep);
-  if (mode === 'replace') return { z: 0, y: 0, scale: 1, opacity: d === 0 ? 1 : 0 };
-  if (mode === 'protrude') return { z: level * p.recedeZ, y: 0, scale: 1, opacity: fade };
-  return { z: -d * p.recedeZ, y: d * p.recedeY, scale: 1 - d * p.recedeScale, opacity: fade };
-}
+export { PACKAGING_MODES, packagingPose };
 
 export class PackagingPanel extends THREE.Group {
   /**
    * @param {object} T tokens
    * @param {object} o
    * @param {string} o.title
-   * @param {{label: string, items?: object[]}[]} o.items
+   * @param {string} [o.subtitle]
+   * @param {{label: string, icon?: string, sublabel?: string, items?: object[]}[]} o.items
    * @param {'compress'|'replace'|'protrude'} [o.mode] default packaging.parent.mode
    * @param {number} [o.distance]
    */
@@ -58,7 +49,7 @@ export class PackagingPanel extends THREE.Group {
       opacityMin: T.get('packaging.parent.recede.opacity.min'),
     };
     this.levels = [];
-    this.open({ label: o.title, items: o.items }, null);
+    this.open({ label: o.title, subtitle: o.subtitle, items: o.items }, null);
   }
 
   get active() { return this.levels.filter(l => !l.closing).length - 1; }
@@ -73,36 +64,53 @@ export class PackagingPanel extends THREE.Group {
     const T = this.T, dist = this.distance;
     const dmm = v => (v / 1000) * dist;
     const pad = dmm(DEFAULTS.panelPadding);
-    const gap = T.dmm('size.gap.min', dist) * 0.5;
+    const gap = dmm(2);
     const rowH = dmm(DEFAULTS.rowHeight);
-    const titleH = dmm(22);
+    const headerH = dmm(item.subtitle ? 58 : 44);
     const items = item.items ?? [];
     const W = dmm(DEFAULTS.panelWidth);
-    const H = pad * 2 + titleH + gap + items.length * rowH + Math.max(0, items.length - 1) * gap;
+    const H = pad * 2 + headerH + items.length * rowH + Math.max(0, items.length - 1) * gap;
 
     const group = new THREE.Group();
-    // The panel itself is a rigid, thick object: structural, barely gives.
-    const panel = new Button(T, { width: DEFAULTS.panelWidth, height: H / dist * 1000, thickness: 'thick', density: 'rigid', distance: dist, color: DEFAULTS.color.surface });
+    // The window itself is a rigid, thick object: structural, barely gives.
+    // Once it has receded it becomes the way back (the breadcrumb).
+    const panel = new Button(T, {
+      width: DEFAULTS.panelWidth, height: H / dist * 1000, radius: DEFAULTS.radius.window,
+      thickness: 'thick', density: 'rigid', variant: 'window', distance: dist,
+    });
     group.add(panel);
-    const tPanel = panel.t;
+    const front = panel.t + 0.0006;
 
-    const title = new Label(item.label, { height: titleH * 0.75, align: 'left', color: DEFAULTS.color.textMuted, maxWidth: W - pad * 2 });
-    title.position.set(-W / 2 + pad + title.width / 2, H / 2 - pad - titleH / 2, tPanel + 0.0005);
+    // Header: large title, optional subtitle.
+    const top = H / 2 - pad;
+    const title = makeText(item.label, { size: dmm(24), weight: 700, anchorX: 'left' });
+    title.position.set(-W / 2 + pad + dmm(6), top - dmm(16), front);
     group.add(title);
+    if (item.subtitle) {
+      const sub = makeText(item.subtitle, { size: dmm(14), weight: 400, anchorX: 'left', color: DEFAULTS.color.textSecondary });
+      sub.position.set(-W / 2 + pad + dmm(6), top - dmm(40), front);
+      group.add(sub);
+    }
 
     const rows = items.map((child, i) => {
       const canOpen = !!child.items?.length;
       const tooDeep = canOpen && levelIndex >= this.maxDepth;
       const row = new Button(T, {
-        label: canOpen ? `${child.label}  +` : child.label,
+        label: child.label,
+        sublabel: child.sublabel ?? (canOpen ? `${child.items.length} ${child.items.length === 1 ? 'item' : 'items'}` : undefined),
+        icon: child.icon,
+        accessory: canOpen ? 'chevron' : null,
+        layout: 'row',
+        variant: 'plain',
         width: DEFAULTS.panelWidth - DEFAULTS.panelPadding * 2,
         height: DEFAULTS.rowHeight,
+        radius: DEFAULTS.radius.control,
         thickness: 'thin',
         density: 'firm',
         distance: dist,
         disabled: tooDeep,
       });
-      row.position.set(0, H / 2 - pad - titleH - gap - rowH / 2 - i * (rowH + gap), tPanel);
+      row.position.set(0, top - headerH - rowH / 2 - i * (rowH + gap), panel.t);
       row.addEventListener('select', () => {
         if (canOpen && !tooDeep) this.open(child, row);
         else this.dispatchEvent({ type: 'select', item: child });
@@ -129,7 +137,8 @@ export class PackagingPanel extends THREE.Group {
       const p = sourceRow.position;
       level.from = {
         z: parent.anim.cur.z + p.z, y: parent.anim.cur.y + p.y, x: p.x,
-        sx: sourceRow.w / level.size.W, sy: sourceRow.h / level.size.H, opacity: 0,
+        // Uniform scale, so text is never squashed while it grows out of the row.
+        sx: sourceRow.w / level.size.W, sy: sourceRow.w / level.size.W, opacity: 0,
       };
     }
     level.anim = { cur: level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1 }, t: 1 };

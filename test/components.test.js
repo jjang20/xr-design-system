@@ -8,9 +8,9 @@ import { Hysteresis } from '../src/core/Hysteresis.js';
 import { PressModel } from '../src/core/PressModel.js';
 import { cubicBezier } from '../src/core/easing.js';
 import { springStep } from '../src/core/spring.js';
-import { packagingPose } from '../src/components/PackagingPanel.js';
-import { magnifyScale, LazyFollow } from '../src/components/Dock.js';
-import { detentIndex, shadowAt } from '../src/components/ZSlider.js';
+import { packagingPose } from '../src/core/packaging.js';
+import { magnifyScale, LazyFollow } from '../src/core/follow.js';
+import { detentIndex, shadowAt } from '../src/core/detent.js';
 
 const json = JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url)));
 const T = createTokens(json);

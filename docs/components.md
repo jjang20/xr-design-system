@@ -12,9 +12,23 @@ npm run dev            # desktop browser: http://localhost:5173
 npm run dev:headset    # https on your network, for a headset browser
 ```
 
-On desktop the mouse acts as a far ray: hover, click to press, wheel or drag to push the Z-Slider, drag empty space (or ← →) to turn. In a headset, a hand closer than 35 cm to a component pokes it with the index fingertip, and further away it uses a ray with pinch. Edit `tokens.json` while the dev server runs and the page reloads with the new values.
+The demo is a Room planner scene: a Catalog window (packaging), a toolbar under it (buttons in all three densities), a Lamp knob (Z-Slider, which really dims the floor lamp) and the Dock. On desktop the mouse acts as a far ray: hover, click to press, wheel or drag to push the Z-Slider, drag empty space (or ← →) to turn. In a headset, a hand closer than 35 cm to a component pokes it with the index fingertip, and further away it uses a ray with pinch. Edit `tokens.json` while the dev server runs and the page reloads with the new values.
 
 Other commands: `npm test` (token check + interaction logic tests), `npm run shot` (renders the demo in headless Chromium and saves screenshots of each state to `shots/`), `npm run build` (static site in `site/`).
+
+## How it looks
+
+Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/core/look.js). The aim is the finish of a shipping visionOS app while keeping Contour's own rules (opaque, thick objects).
+
+- **Solid, bevelled objects.** Every surface is a rounded shape extruded to its token thickness with soft bevelled edges, shaded lighter at the top the way overhead light falls on a real object. Pressing compresses the solid; the face content (text, icons) moves with it.
+- **Luminous edge.** The MR outline (`surface.outline.mr`, 1 dmm) is drawn as a thin light rim, brighter at the top, instead of a hard white line.
+- **Hover light.** A soft highlight follows the hand or pointer across the face, plus the edge glow (`feedback.glow.edge`), both faded by `motion.hover.in`. All face effects come from one distance-field shader, so edges stay crisp at any distance.
+- **Text and icons.** Inter, rendered as signed-distance-field text (sharp at any distance and angle). Icons are Lucide outlines.
+- **List rows** are invisible at rest and fill in on hover, like visionOS lists, so a window reads as one calm surface.
+
+Appearance options on `Button`: `shape` (`rounded`, `capsule`, `circle`), `variant` (`secondary`, `primary`, `plain`, `tinted`, `window`), `icon`, `label`, `sublabel`, `accessory: 'chevron'`, `layout: 'row'`. `makePlatter()` draws a non-interactive window or toolbar background.
+
+**Why not glass?** visionOS windows are frosted glass that blurs the room behind them. In WebXR mixed reality the camera image of your room never reaches the page (the headset composites it underneath), so a web app cannot blur it. A "glass" material would show the room sharp and unblurred behind text, which is the readability failure Contour's opaque-surface decision exists to avoid. So Contour gets its depth from thickness, bevels, light and shadow instead of blur.
 
 ## Using a component
 
@@ -70,7 +84,7 @@ How each input moves it: a fingertip can only **push** the face (like a real kno
 
 A list whose rows open into a child panel that grows out of the row, instead of sliding in from the side.
 
-![Two levels open in compress mode: the parents recede up and back as a breadcrumb](images/packaging-compress.png)
+![Three levels open in compress mode: the parents recede up and back as a breadcrumb](images/packaging-compress.png)
 
 | Behaviour | Tokens |
 |---|---|
@@ -115,12 +129,13 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 | Value | Now | Why it's needed | Proposed token |
 |---|---|---|---|
 | Placement distance for dmm | 0.6 m | dmm needs a distance to become metres | `placement.distance.near` |
-| Corner radius | 18 % of the short side | every slab has corners | `shape.radius` |
+| Corner radius | window 30, control 16 dmm | every surface has corners | `shape.radius.*` |
 | Hover fade out | same as in | only `motion.hover.in` exists | `motion.hover.out.*` |
-| Panel width, row height, padding | 260 / 48 / 16 dmm | the packaging panel's layout | `size.panel.width`, `size.row.height` |
+| Panel width, row height, padding | 300 / 56 / 18 dmm | the packaging panel's layout | `size.panel.width`, `size.row.height` |
 | Dock follow threshold | 20° | without it, every small head move restarts the delay | `anchor.follow.threshold` |
 | Dock distance | 0.55 m | body-lock needs a distance | `anchor.distance` |
-| Colours | dark surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
+| Bevel, top shading, rim brightness, row hover fill | see `look` | appearance of every surface | `look.*` |
+| Colours | dark graphite surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
 
 ## Known limits
 
