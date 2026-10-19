@@ -20,11 +20,12 @@ Other commands: `npm test` (token check + interaction logic tests), `npm run sho
 
 Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/core/look.js). The bar is a shipping visionOS app. The Catalog window has been rebuilt to [the Catalog spec](catalog-spec.md); the toolbar, Z-Slider and Dock still use the round-1 look and come next.
 
-- **Glass windows.** A window is a flat glass sheet that shows the room behind it blurred, darkened and slightly desaturated, with a thin specular edge brightest at the top left. It reads the room from the backdrop's light map along the view ray, so it works per eye in a headset with no extra render pass.
+- **Glass windows.** A window is a thick glass slab with a fully rounded rim. It shows the room behind it frosted and darkened, refracts it at the rim, reflects the room in front (strongest at the rim), and has a fine frost grain. It reads the room from the backdrop's light map along the view ray, so it works per eye in a headset with no extra render pass.
 - **Adaptive scrim.** Over a bright part of the room the glass darkens just enough to keep white text legible, up to `surface.scrim.max`.
+- **Contact shadows.** Layers that float in front of a window (a child level, a lifted row) cast soft shadows on it, softer the further away they are.
 - **Thick controls.** Buttons and knobs are rounded solids extruded to their token thickness. Pressing compresses the solid and the face content moves with it. Thickness says "pressable", so windows don't have it.
-- **List rows** are invisible at rest; on hover a soft white platter lifts under the pointer, and on press the content shrinks slightly. No outlines.
-- **Type ramp.** Inter as signed-distance-field text, on the ramp in `DEFAULTS.type`. Secondary text is white at 72 %, not grey, so it stays legible over glass (vibrancy). Icons are Lucide outlines in round badges.
+- **List rows** are invisible at rest. On hover a light glass lens lifts out of the window, carrying the row with it; on press it moves back and shrinks slightly. Icons sit in glass beads.
+- **Type ramp.** Inter as signed-distance-field text, on Apple's visionOS ramp converted at 1 pt ≈ 0.73 dmm (`DEFAULTS.type`). Secondary text is white at 72 %, not grey, so it stays legible over glass (vibrancy).
 - **Backdrop.** On desktop and in VR the scene is a photographed interior (Poly Haven "lebombo", CC0), also used as the light. In mixed reality your real room replaces it.
 
 Appearance options on `Button`: `shape` (`rounded`, `capsule`, `circle`), `variant` (`secondary`, `primary`, `plain`, `glass`, `tinted`, `window`), `icon`, `label`, `sublabel`, `accessory: 'chevron'`, `layout: 'row'`. `makePlatter()` draws a non-interactive toolbar background.
@@ -130,14 +131,14 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 | Value | Now | Why it's needed | Proposed token |
 |---|---|---|---|
 | Placement distance for dmm | 0.6 m | dmm needs a distance to become metres | `placement.distance.near` |
-| Corner radius | window 40, row 20, control 16 dmm | every surface has corners | `shape.radius.*` |
+| Corner radius | window 34, row 15, control 12 dmm | every surface has corners | `shape.radius.*` |
 | Hover fade out | same as in | only `motion.hover.in` exists | `motion.hover.out.*` |
-| Panel layout | width 320, row 60, padding 24 dmm, and the gaps in [the spec](catalog-spec.md) | the packaging panel's layout | `size.panel.*`, `size.row.*` |
-| Type ramp | title 29 / headline 17 / body 17 / subheadline 15 / footnote 13 dmm | text needs sizes, weights and tracking | `type.*` |
+| Panel layout | width 240, row 48, padding 18 dmm, and the gaps in [the spec](catalog-spec.md) | the packaging panel's layout | `size.panel.*`, `size.row.*` |
+| Type ramp | title 21 / headline 12.4 / body 12.4 / subheadline 11 / footnote 9.5 dmm (Apple's kit × 0.73) | text needs sizes, weights and tracking | `type.*` |
 | Text emphasis | white at 100 / 72 / 50 % | contrast on glass | `color.text.*` |
 | Dock follow threshold | 20° | without it, every small head move restarts the delay | `anchor.follow.threshold` |
 | Dock distance | 0.55 m | body-lock needs a distance | `anchor.distance` |
-| Glass blur and see-through, row platter, badge, separator | see `look` | appearance of windows and rows | `look.*` |
+| Glass (blur, refraction, Fresnel, grain, veil), lens lift, contact shadows, text shadow | see `look` | appearance of windows and rows | `look.*` |
 | Colours | dark graphite surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
 
 ## Known limits
