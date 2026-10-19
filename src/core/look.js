@@ -9,6 +9,7 @@ import interSemibold from '@fontsource/inter/files/inter-latin-600-normal.woff?u
 import interBold from '@fontsource/inter/files/inter-latin-700-normal.woff?url';
 import { ICONS } from './icons.js';
 import { DEFAULTS } from './defaults.js';
+import { clamp } from './easing.js';
 
 const FONTS = { 400: interRegular, 500: interMedium, 600: interSemibold, 700: interBold };
 const L = DEFAULTS.look;
@@ -131,6 +132,192 @@ export function faceMaterial(T, { w, h, r, distance, rimStrength = L.rimStrength
   });
 }
 
+// ---------------------------------------------------------------------------
+// Glass (windows)
+//
+// A flat sheet that shows the backdrop directly behind it, blurred, darkened
+// and slightly desaturated, with a thin specular edge brightest at the top.
+// It samples the scene's backdrop (a prefiltered environment map) along the
+// view ray, so it works per eye in a headset and needs no extra render pass.
+// It blurs the backdrop only, not other objects in front of it; that is also
+// why glass never shows another glass sheet through it (no light glass on
+// light glass). In mixed reality a web page can't read the passthrough
+// camera, so with no backdrop the sheet becomes a tinted surface at
+// surface.opacity.base.
+
+const backdrop = {
+  envMap: { value: null },
+  uEnvRot: { value: new THREE.Matrix3() },
+  uEnvIntensity: { value: 1 },
+  uHasEnv: { value: 0 },
+};
+const glassMaterials = new Set();
+
+function cubeUVDefines(tex) {
+  const h = tex?.image?.height;
+  if (!h) return {};
+  const maxMip = Math.log2(h) - 2;
+  return {
+    ENVMAP_TYPE_CUBE_UV: '',
+    CUBEUV_TEXEL_WIDTH: 1 / (3 * Math.max(2 ** maxMip, 7 * 16)),
+    CUBEUV_TEXEL_HEIGHT: 1 / h,
+    CUBEUV_MAX_MIP: maxMip.toFixed(1),
+  };
+}
+
+// Point every glass sheet at the backdrop (a PMREM texture), or at nothing
+// (mixed reality). `rotation` is the backdrop's Euler rotation.
+export function setBackdrop(pmremTexture, { rotation, intensity = 1 } = {}) {
+  backdrop.envMap.value = pmremTexture;
+  backdrop.uHasEnv.value = pmremTexture ? 1 : 0;
+  backdrop.uEnvIntensity.value = intensity;
+  // three.js samples environments with the inverse of the scene rotation.
+  if (rotation) {
+    const e = new THREE.Euler(-rotation.x, -rotation.y, -rotation.z, rotation.order);
+    backdrop.uEnvRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(e));
+  }
+  for (const m of glassMaterials) {
+    m.defines = cubeUVDefines(pmremTexture);
+    m.needsUpdate = true;
+  }
+}
+export function setBackdropIntensity(v) { backdrop.uEnvIntensity.value = v; }
+
+const GLASS_VERT = /* glsl */`
+  varying vec2 vP;
+  varying vec3 vWorld;
+  uniform vec2 uSize;
+  void main() {
+    vP = (uv - 0.5) * uSize;
+    vec4 w = modelMatrix * vec4(position, 1.0);
+    vWorld = w.xyz;
+    gl_Position = projectionMatrix * viewMatrix * w;
+  }`;
+const GLASS_FRAG = /* glsl */`
+  varying vec2 vP;
+  varying vec3 vWorld;
+  uniform vec2 uSize;
+  uniform float uRadius, uRim, uOpacity, uDim, uHover, uSpotRadius, uBlur, uSolidOpacity;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax;
+  uniform vec2 uSpot;
+  uniform vec3 uTint;
+  uniform float uSee;
+  uniform mat3 uEnvRot;
+  #ifdef ENVMAP_TYPE_CUBE_UV
+    uniform sampler2D envMap;
+    #include <cube_uv_reflection_fragment>
+  #endif
+  float sdRoundRect(vec2 p, vec2 b, float r) {
+    vec2 q = abs(p) - b + r;
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+  }
+  void main() {
+    float d = sdRoundRect(vP, uSize * 0.5, uRadius);
+    float aa = fwidth(d);
+    float inside = 1.0 - smoothstep(-aa, aa, d);
+    if (inside <= 0.0) discard;
+    vec2 n = vP / (uSize * 0.5);              // -1..1 across the sheet
+    float top = n.y * 0.5 + 0.5;
+
+    vec3 col = uTint;
+    float alpha = uSolidOpacity;
+    #ifdef ENVMAP_TYPE_CUBE_UV
+      vec3 dir = uEnvRot * normalize(vWorld - cameraPosition);
+      vec3 bg = textureCubeUV(envMap, dir, uBlur).rgb * uEnvIntensity;
+      float lum = dot(bg, vec3(0.2126, 0.7152, 0.0722));
+      bg = mix(vec3(lum), bg, 0.8);            // a little less colour than the room
+      bg = bg / (1.0 + lum * 1.2);             // compress bright walls more than dark corners
+      col = mix(uTint, bg, uSee);
+      // Adaptive scrim: over a bright room (a sunny window) darken just
+      // enough to keep white text legible, up to surface.scrim.max.
+      float lc = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax);
+      alpha = 1.0;
+    #endif
+    col *= mix(1.0, 0.55, uDim);               // pushed-back levels read darker, not see-through
+    col += vec3(0.018) * top;                   // light falling from above
+
+    // Specular edge: a thin bright line, strongest at the top left.
+    float edge = 1.0 - smoothstep(0.0, uRim + aa, -d);
+    float lit = clamp(0.55 * n.y - 0.35 * n.x + 0.45, 0.0, 1.0);
+    col += vec3(1.0) * edge * mix(0.06, 0.55, lit * lit);
+    float inner = 1.0 - smoothstep(uRim, uRim * 6.0 + aa, -d);
+    col += vec3(1.0) * inner * 0.02 * lit;
+
+    // Hover (receded levels are pressable): a soft spot under the pointer.
+    float s = 1.0 - smoothstep(0.0, uSpotRadius, length(vP - uSpot));
+    col += vec3(1.0) * s * s * uHover * 0.06;
+
+    gl_FragColor = vec4(col, inside * alpha * uOpacity);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+  }`;
+
+export function glassMaterial(T, { w, h, r, distance }) {
+  const m = new THREE.ShaderMaterial({
+    vertexShader: GLASS_VERT, fragmentShader: GLASS_FRAG,
+    transparent: true, depthWrite: true,
+    defines: cubeUVDefines(backdrop.envMap.value),
+    uniforms: {
+      ...backdrop,
+      uSize: { value: new THREE.Vector2(w, h) },
+      uRadius: { value: Math.min(r, w / 2, h / 2) },
+      uRim: { value: T.dmm('surface.outline.mr', distance) },
+      uBlur: { value: L.glass.blur },
+      uSee: { value: L.glass.see },
+      uMaxLum: { value: L.glass.maxLum },
+      uScrimMax: { value: T.get('surface.scrim.max') },
+      uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
+      uSolidOpacity: { value: T.get('surface.opacity.base') },
+      uDim: { value: 0 },
+      uHover: { value: 0 },
+      uSpot: { value: new THREE.Vector2() },
+      uSpotRadius: { value: Math.max(w, h) * 0.5 },
+      uOpacity: { value: 1 },
+    },
+  });
+  glassMaterials.add(m);
+  return m;
+}
+
+// List-row platter: invisible at rest, a soft white lift on hover, a little
+// brighter while pressed. No outline.
+const PLATTER_FRAG = /* glsl */`
+  varying vec2 vP;
+  uniform vec2 uSize;
+  uniform float uRadius, uHover, uPress, uSpotRadius, uOpacity, uRest;
+  uniform vec2 uSpot;
+  uniform vec3 uK; // hover fill, spot, press fill
+  float sdRoundRect(vec2 p, vec2 b, float r) {
+    vec2 q = abs(p) - b + r;
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+  }
+  void main() {
+    float d = sdRoundRect(vP, uSize * 0.5, uRadius);
+    float aa = fwidth(d);
+    float inside = 1.0 - smoothstep(-aa, aa, d);
+    float s = 1.0 - smoothstep(0.0, uSpotRadius, length(vP - uSpot));
+    float a = uRest + uHover * (uK.x + s * s * uK.y) + uPress * uK.z;
+    gl_FragColor = vec4(vec3(1.0), a * inside * uOpacity);
+  }`;
+
+export function platterMaterial({ w, h, r, rest = 0 }) {
+  const P = L.platter;
+  return new THREE.ShaderMaterial({
+    vertexShader: FACE_VERT, fragmentShader: PLATTER_FRAG,
+    transparent: true, depthWrite: false,
+    uniforms: {
+      uSize: { value: new THREE.Vector2(w, h) },
+      uRadius: { value: Math.min(r, w / 2, h / 2) },
+      uHover: { value: 0 }, uPress: { value: 0 }, uRest: { value: rest },
+      uSpot: { value: new THREE.Vector2() },
+      uSpotRadius: { value: Math.max(w, h) * 0.6 },
+      uK: { value: new THREE.Vector3(P.hover, P.spot, P.press) },
+      uOpacity: { value: 1 },
+    },
+  });
+}
+
 export function flatMaterial(color, opacity = 1, extra = {}) {
   return new THREE.MeshBasicMaterial({
     color, transparent: true, opacity, depthWrite: false,
@@ -141,7 +328,14 @@ export function flatMaterial(color, opacity = 1, extra = {}) {
 // ---------------------------------------------------------------------------
 // Text (signed-distance-field text: sharp at any distance and angle)
 
-export function makeText(str, { size, weight = 500, color = DEFAULTS.color.text, opacity = 1, anchorX = 'center', maxWidth } = {}) {
+// Text styles come from the type ramp (DEFAULTS.type): pass `style` and
+// `distance`, or a raw `size` in metres.
+export function makeText(str, { style, distance = DEFAULTS.distance, size, weight, tracking, color = DEFAULTS.color.text, opacity = 1, anchorX = 'center', maxWidth } = {}) {
+  const ramp = style ? DEFAULTS.type[style] : null;
+  if (style && !ramp) throw new Error(`Contour: no text style "${style}"`);
+  size ??= ramp ? (ramp.size / 1000) * distance : undefined;
+  weight ??= ramp?.weight ?? 500;
+  tracking ??= ramp?.tracking ?? 0;
   const t = new Text();
   t.text = str;
   t.font = FONTS[weight] ?? FONTS[500];
@@ -149,7 +343,7 @@ export function makeText(str, { size, weight = 500, color = DEFAULTS.color.text,
   t.color = color;
   t.anchorX = anchorX;
   t.anchorY = 'middle';
-  t.letterSpacing = size > 0.008 ? -0.01 : 0;
+  t.letterSpacing = tracking;
   if (maxWidth) { t.maxWidth = maxWidth; t.overflowWrap = 'break-word'; t.whiteSpace = 'nowrap'; }
   t.fillOpacity = opacity;
   t.userData.baseOpacity = opacity;
@@ -177,7 +371,7 @@ function iconTexture(name) {
     tex.needsUpdate = true;
   };
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-    svg.replace(/stroke="currentColor"/, 'stroke="#ffffff"').replace(/stroke-width="2"/, 'stroke-width="1.75"')
+    svg.replace(/stroke="currentColor"/, 'stroke="#ffffff"')
       .replace(/width="24"/, 'width="256"').replace(/height="24"/, 'height="256"'));
   iconCache.set(name, tex);
   return tex;
@@ -209,18 +403,27 @@ export function softTexture() {
 // ---------------------------------------------------------------------------
 // Fading a whole group (packaging levels)
 
-export function setGroupOpacity(root, k) {
+// `dim` (0..1) is for levels pushed behind another: glass darkens instead of
+// turning see-through, and content fades part way.
+export function setGroupOpacity(root, k, dim = 0) {
+  // Content fades in later than the glass and out sooner, so two levels'
+  // text never shows through each other mid-transition.
+  const content = k * k * (1 - 0.45 * dim);
+  const sheet = Math.min(1, k * 2.5);
   root.traverse(o => {
     o.visible = k > 0.001;
+    // Secondary header text (a subtitle) goes once its level is pushed back.
+    const hide = o.userData.hideWhenDim ? clamp(1 - dim * 3, 0, 1) : 1;
     if (o.isMesh && o.text !== undefined && 'fillOpacity' in o) {
-      o.fillOpacity = (o.userData.baseOpacity ?? 1) * k;
+      o.fillOpacity = (o.userData.baseOpacity ?? 1) * content * hide;
       return;
     }
     const m = o.material;
     if (!m || Array.isArray(m)) return;
-    if (m.uniforms?.uOpacity) m.uniforms.uOpacity.value = k;
+    if (m.uniforms?.uDim) { m.uniforms.uOpacity.value = sheet; m.uniforms.uDim.value = dim; }
+    else if (m.uniforms?.uOpacity) m.uniforms.uOpacity.value = content;
     else {
-      m.opacity = (m.userData.baseOpacity ?? 1) * k;
+      m.opacity = (m.userData.baseOpacity ?? 1) * content;
       m.transparent = true;
     }
   });

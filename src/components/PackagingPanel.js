@@ -13,9 +13,10 @@
 // plus everything Button uses.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
-import { cubicBezier, clamp, lerp } from '../core/easing.js';
+import { clamp } from '../core/easing.js';
+import { springStep } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { makeText, setGroupOpacity } from '../core/look.js';
+import { makeText, flatMaterial, setGroupOpacity } from '../core/look.js';
 import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
 
@@ -38,8 +39,9 @@ export class PackagingPanel extends THREE.Group {
     this.distance = o.distance ?? DEFAULTS.distance;
     this.mode = o.mode ?? T.get('packaging.parent.mode');
     this.maxDepth = T.get('packaging.depth.max');
-    this.duration = T.get('motion.expand.dropdown.duration');
-    this.ease = cubicBezier(T.get('motion.expand.dropdown.easing'));
+    // Spring response (Apple's term: one undamped oscillation) is the
+    // dropdown duration token; the curve token no longer applies.
+    this.omega = (2 * Math.PI) / T.get('motion.expand.dropdown.duration');
     this.pose = {
       recedeZ: T.get('packaging.parent.recede.z'),
       recedeY: T.get('packaging.parent.recede.y'),
@@ -63,34 +65,41 @@ export class PackagingPanel extends THREE.Group {
   buildLevel(item, levelIndex) {
     const T = this.T, dist = this.distance;
     const dmm = v => (v / 1000) * dist;
-    const pad = dmm(DEFAULTS.panelPadding);
-    const gap = dmm(2);
-    const rowH = dmm(DEFAULTS.rowHeight);
-    const headerH = dmm(item.subtitle ? 58 : 44);
+    const D = DEFAULTS;
+    const W = dmm(D.panelWidth);
+    const rowH = dmm(D.rowHeight);
+    const titleH = dmm(D.type.title.size * 1.2);
+    const subH = item.subtitle ? dmm(D.subtitleGap + D.type.subheadline.size * 1.3) : 0;
+    const headerH = titleH + subH + dmm(D.headerGap);
     const items = item.items ?? [];
-    const W = dmm(DEFAULTS.panelWidth);
-    const H = pad * 2 + headerH + items.length * rowH + Math.max(0, items.length - 1) * gap;
+    const H = dmm(D.panelPadTop + D.panelPadBottom) + headerH + items.length * rowH;
 
     const group = new THREE.Group();
-    // The window itself is a rigid, thick object: structural, barely gives.
-    // Once it has receded it becomes the way back (the breadcrumb).
+    // The window is glass and rigid: structural, it barely gives. Once it
+    // has receded it becomes the way back (the breadcrumb).
     const panel = new Button(T, {
-      width: DEFAULTS.panelWidth, height: H / dist * 1000, radius: DEFAULTS.radius.window,
-      thickness: 'thick', density: 'rigid', variant: 'window', distance: dist,
+      width: D.panelWidth, height: H / dist * 1000, radius: D.radius.window,
+      thickness: 'thin', density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);
-    const front = panel.t + 0.0006;
+    const front = panel.t + 0.0004;
+    const left = -W / 2 + dmm(D.panelPadding);
 
-    // Header: large title, optional subtitle.
-    const top = H / 2 - pad;
-    const title = makeText(item.label, { size: dmm(24), weight: 700, anchorX: 'left' });
-    title.position.set(-W / 2 + pad + dmm(6), top - dmm(16), front);
+    // Header: title, optional subtitle.
+    let y = H / 2 - dmm(D.panelPadTop);
+    const title = makeText(item.label, { style: 'title', distance: dist, anchorX: 'left' });
+    title.anchorY = 'top';
+    title.position.set(left, y, front);
     group.add(title);
+    y -= titleH;
     if (item.subtitle) {
-      const sub = makeText(item.subtitle, { size: dmm(14), weight: 400, anchorX: 'left', color: DEFAULTS.color.textSecondary });
-      sub.position.set(-W / 2 + pad + dmm(6), top - dmm(40), front);
+      const sub = makeText(item.subtitle, { style: 'subheadline', distance: dist, anchorX: 'left', opacity: D.emphasis.secondary });
+      sub.anchorY = 'top';
+      sub.userData.hideWhenDim = true;
+      sub.position.set(left, y - dmm(D.subtitleGap), front);
       group.add(sub);
     }
+    const listTop = H / 2 - dmm(D.panelPadTop) - headerH;
 
     const rows = items.map((child, i) => {
       const canOpen = !!child.items?.length;
@@ -102,20 +111,28 @@ export class PackagingPanel extends THREE.Group {
         accessory: canOpen ? 'chevron' : null,
         layout: 'row',
         variant: 'plain',
-        width: DEFAULTS.panelWidth - DEFAULTS.panelPadding * 2,
-        height: DEFAULTS.rowHeight,
-        radius: DEFAULTS.radius.control,
+        width: D.panelWidth - D.rowInset * 2,
+        height: D.rowHeight,
+        radius: D.radius.row,
         thickness: 'thin',
         density: 'firm',
         distance: dist,
         disabled: tooDeep,
       });
-      row.position.set(0, top - headerH - rowH / 2 - i * (rowH + gap), panel.t);
+      row.position.set(0, listTop - rowH / 2 - i * rowH, panel.t);
       row.addEventListener('select', () => {
         if (canOpen && !tooDeep) this.open(child, row);
         else this.dispatchEvent({ type: 'select', item: child });
       });
       group.add(row);
+      // Hairline between rows, starting where the label starts.
+      if (i > 0) {
+        const x0 = row.labelX ?? (-row.w / 2), x1 = W / 2 - dmm(D.panelPadding);
+        const line = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, dmm(1)), flatMaterial(0xffffff, D.look.separator));
+        line.position.set((x0 + x1) / 2, row.position.y + rowH / 2, front - 0.0002);
+        line.renderOrder = 2;
+        group.add(line);
+      }
       return row;
     });
 
@@ -131,17 +148,19 @@ export class PackagingPanel extends THREE.Group {
   open(item, sourceRow) {
     const index = this.active + 1;
     const level = this.buildLevel(item, index);
-    // Start the child inside the row it comes out of.
+    // Start the child inside the row it comes out of, and close back into it.
     if (sourceRow) {
       const parent = this.levels[index - 1];
-      const p = sourceRow.position;
+      const p = sourceRow.position, c = parent.cur;
+      const k = (sourceRow.w / level.size.W) * c.sx;
       level.from = {
-        z: parent.anim.cur.z + p.z, y: parent.anim.cur.y + p.y, x: p.x,
+        x: p.x * c.sx, y: c.y + p.y * c.sy, z: c.z + p.z,
         // Uniform scale, so text is never squashed while it grows out of the row.
-        sx: sourceRow.w / level.size.W, sy: sourceRow.w / level.size.W, opacity: 0,
+        sx: k, sy: k, opacity: 0, dim: 0,
       };
     }
-    level.anim = { cur: level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1 }, t: 1 };
+    level.cur = { ...(level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1, dim: 0 }) };
+    level.vel = Object.fromEntries(KEYS.map(k => [k, 0]));
     this.levels.push(level);
     this.add(level.group);
     this.retarget();
@@ -159,15 +178,14 @@ export class PackagingPanel extends THREE.Group {
   retarget() {
     const active = this.active;
     this.levels.forEach((l, i) => {
-      let to;
       if (l.closing) {
-        to = l.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 0 };
-        to = { ...to, opacity: 0 };
+        l.to = { ...(l.from ?? l.cur), opacity: 0, dim: 0 };
       } else {
+        // Pushed-back levels darken (dim) rather than turn see-through.
         const p = packagingPose(this.pose, this.mode, i, active);
-        to = { x: 0, y: p.y, z: p.z, sx: p.scale, sy: p.scale, opacity: p.opacity };
+        const vanish = this.mode === 'replace' && i < active;
+        l.to = { x: 0, y: p.y, z: p.z, sx: p.scale, sy: p.scale, opacity: vanish ? 0 : 1, dim: i < active ? 1 - p.opacity : 0 };
       }
-      l.anim = { from: { ...l.anim.cur }, to, cur: l.anim.cur, t: 0 };
       // Only the front level's rows take input; receded panels act as "back".
       const front = i === active && !l.closing;
       l.rows.forEach(r => { r.enabled = front; });
@@ -179,19 +197,27 @@ export class PackagingPanel extends THREE.Group {
     for (const l of this.levels) {
       l.panel.update(dt);
       l.rows.forEach(r => r.update(dt));
-      const a = l.anim;
-      a.t = clamp(a.t + dt / this.duration, 0, 1);
-      const k = this.ease(a.t);
-      const c = {};
-      for (const key of ['x', 'y', 'z', 'sx', 'sy', 'opacity']) c[key] = lerp(a.from[key] ?? 0, a.to[key] ?? 0, k);
-      a.cur = c;
+      // Every channel is a critically damped spring: it starts from where
+      // the level is now, keeps its speed if retargeted mid-way, and never
+      // overshoots (nothing was thrown).
+      let moving = false;
+      for (const k of KEYS) {
+        const st = { x: l.cur[k], v: l.vel[k] };
+        springStep(st, l.to[k], this.omega, dt);
+        l.cur[k] = st.x; l.vel[k] = st.v;
+        if (Math.abs(st.x - l.to[k]) > 1e-4 || Math.abs(st.v) > 1e-3) moving = true;
+      }
+      l.settled = !moving;
+      const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
-      setGroupOpacity(l.group, c.opacity);
+      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1));
     }
     // Remove levels that finished closing.
-    const done = this.levels.filter(l => l.closing && l.anim.t >= 1);
+    const done = this.levels.filter(l => l.closing && (l.settled || l.cur.opacity < 0.01));
     for (const l of done) this.remove(l.group);
     if (done.length) this.levels = this.levels.filter(l => !done.includes(l));
   }
 }
+
+const KEYS = ['x', 'y', 'z', 'sx', 'sy', 'opacity', 'dim'];

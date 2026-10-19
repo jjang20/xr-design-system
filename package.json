@@ -10,7 +10,8 @@
     "dev:headset": "vite --mode headset",
     "build": "vite build",
     "test": "node scripts/check-tokens.mjs > /dev/null && node --test test/*.test.js",
-    "shot": "node scripts/screenshot.mjs"
+    "shot": "node scripts/screenshot.mjs",
+    "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",

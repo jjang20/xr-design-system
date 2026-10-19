@@ -12,23 +12,24 @@ npm run dev            # desktop browser: http://localhost:5173
 npm run dev:headset    # https on your network, for a headset browser
 ```
 
-The demo is a Room planner scene: a Catalog window (packaging), a toolbar under it (buttons in all three densities), a Lamp knob (Z-Slider, which really dims the floor lamp) and the Dock. On desktop the mouse acts as a far ray: hover, click to press, wheel or drag to push the Z-Slider, drag empty space (or ← →) to turn. In a headset, a hand closer than 35 cm to a component pokes it with the index fingertip, and further away it uses a ray with pinch. Edit `tokens.json` while the dev server runs and the page reloads with the new values.
+The demo is a Room planner scene in a photographed living room: a Catalog window (packaging), a toolbar under it (buttons in all three densities), a Lamp knob (Z-Slider, which dims the room) and the Dock. On desktop the mouse acts as a far ray: hover, click to press, wheel or drag to push the Z-Slider, drag empty space (or ← →) to turn. In a headset, a hand closer than 35 cm to a component pokes it with the index fingertip, and further away it uses a ray with pinch. Edit `tokens.json` while the dev server runs and the page reloads with the new values.
 
-Other commands: `npm test` (token check + interaction logic tests), `npm run shot` (renders the demo in headless Chromium and saves screenshots of each state to `shots/`), `npm run build` (static site in `site/`).
+Other commands: `npm test` (token check + interaction logic tests), `npm run shot` (renders the demo in headless Chromium and saves screenshots of each state to `shots/`), `npm run bench` (renders the Catalog window alone at a fixed framing in every state, to `shots/bench/`, for scored rounds against the visionOS bar), `npm run build` (static site in `site/`).
 
 ## How it looks
 
-Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/core/look.js). The aim is the finish of a shipping visionOS app while keeping Contour's own rules (opaque, thick objects).
+Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/core/look.js). The bar is a shipping visionOS app. The Catalog window has been rebuilt to [the Catalog spec](catalog-spec.md); the toolbar, Z-Slider and Dock still use the round-1 look and come next.
 
-- **Solid, bevelled objects.** Every surface is a rounded shape extruded to its token thickness with soft bevelled edges, shaded lighter at the top the way overhead light falls on a real object. Pressing compresses the solid; the face content (text, icons) moves with it.
-- **Luminous edge.** The MR outline (`surface.outline.mr`, 1 dmm) is drawn as a thin light rim, brighter at the top, instead of a hard white line.
-- **Hover light.** A soft highlight follows the hand or pointer across the face, plus the edge glow (`feedback.glow.edge`), both faded by `motion.hover.in`. All face effects come from one distance-field shader, so edges stay crisp at any distance.
-- **Text and icons.** Inter, rendered as signed-distance-field text (sharp at any distance and angle). Icons are Lucide outlines.
-- **List rows** are invisible at rest and fill in on hover, like visionOS lists, so a window reads as one calm surface.
+- **Glass windows.** A window is a flat glass sheet that shows the room behind it blurred, darkened and slightly desaturated, with a thin specular edge brightest at the top left. It reads the room from the backdrop's light map along the view ray, so it works per eye in a headset with no extra render pass.
+- **Adaptive scrim.** Over a bright part of the room the glass darkens just enough to keep white text legible, up to `surface.scrim.max`.
+- **Thick controls.** Buttons and knobs are rounded solids extruded to their token thickness. Pressing compresses the solid and the face content moves with it. Thickness says "pressable", so windows don't have it.
+- **List rows** are invisible at rest; on hover a soft white platter lifts under the pointer, and on press the content shrinks slightly. No outlines.
+- **Type ramp.** Inter as signed-distance-field text, on the ramp in `DEFAULTS.type`. Secondary text is white at 72 %, not grey, so it stays legible over glass (vibrancy). Icons are Lucide outlines in round badges.
+- **Backdrop.** On desktop and in VR the scene is a photographed interior (Poly Haven "lebombo", CC0), also used as the light. In mixed reality your real room replaces it.
 
-Appearance options on `Button`: `shape` (`rounded`, `capsule`, `circle`), `variant` (`secondary`, `primary`, `plain`, `tinted`, `window`), `icon`, `label`, `sublabel`, `accessory: 'chevron'`, `layout: 'row'`. `makePlatter()` draws a non-interactive window or toolbar background.
+Appearance options on `Button`: `shape` (`rounded`, `capsule`, `circle`), `variant` (`secondary`, `primary`, `plain`, `glass`, `tinted`, `window`), `icon`, `label`, `sublabel`, `accessory: 'chevron'`, `layout: 'row'`. `makePlatter()` draws a non-interactive toolbar background.
 
-**Why not glass?** visionOS windows are frosted glass that blurs the room behind them. In WebXR mixed reality the camera image of your room never reaches the page (the headset composites it underneath), so a web app cannot blur it. A "glass" material would show the room sharp and unblurred behind text, which is the readability failure Contour's opaque-surface decision exists to avoid. So Contour gets its depth from thickness, bevels, light and shadow instead of blur.
+**Glass in mixed reality.** WebXR never gives the page the camera image of your room, so in mixed reality the glass cannot blur it. There the sheet falls back to a tinted surface at `surface.opacity.base`, which keeps text readable over any room. On desktop, in VR and in the arena, it is real frosted glass.
 
 ## Using a component
 
@@ -90,11 +91,11 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 |---|---|
 | What the parent does: compress, replace or protrude | `packaging.parent.mode` (switchable with `setMode()`) |
 | Compress: back 50 mm, up 35 mm, 8 % smaller per level | `packaging.parent.recede.z / y / scale` |
-| Parent silhouettes fade 0.6 → −0.14 per level, never below 0.3 | `packaging.parent.recede.opacity.*` |
+| Parents darken 0.6 → −0.14 per level, never below 0.3 (they don't turn see-through) | `packaging.parent.recede.opacity.*` |
 | Up to 3 levels deep; deeper rows show as disabled | `packaging.depth.max` |
-| Open and close transition | `motion.expand.dropdown.*` |
+| Open and close: a critically damped spring, response = the dropdown duration | `motion.expand.dropdown.duration` |
 
-Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: the silhouettes are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The panel itself is a `rigid`, `thick` object; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
+Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
 
 ## Dock
 
@@ -129,17 +130,21 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 | Value | Now | Why it's needed | Proposed token |
 |---|---|---|---|
 | Placement distance for dmm | 0.6 m | dmm needs a distance to become metres | `placement.distance.near` |
-| Corner radius | window 30, control 16 dmm | every surface has corners | `shape.radius.*` |
+| Corner radius | window 40, row 20, control 16 dmm | every surface has corners | `shape.radius.*` |
 | Hover fade out | same as in | only `motion.hover.in` exists | `motion.hover.out.*` |
-| Panel width, row height, padding | 300 / 56 / 18 dmm | the packaging panel's layout | `size.panel.width`, `size.row.height` |
+| Panel layout | width 320, row 60, padding 24 dmm, and the gaps in [the spec](catalog-spec.md) | the packaging panel's layout | `size.panel.*`, `size.row.*` |
+| Type ramp | title 29 / headline 17 / body 17 / subheadline 15 / footnote 13 dmm | text needs sizes, weights and tracking | `type.*` |
+| Text emphasis | white at 100 / 72 / 50 % | contrast on glass | `color.text.*` |
 | Dock follow threshold | 20° | without it, every small head move restarts the delay | `anchor.follow.threshold` |
 | Dock distance | 0.55 m | body-lock needs a distance | `anchor.distance` |
-| Bevel, top shading, rim brightness, row hover fill | see `look` | appearance of every surface | `look.*` |
+| Glass blur and see-through, row platter, badge, separator | see `look` | appearance of windows and rows | `look.*` |
 | Colours | dark graphite surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
 
 ## Known limits
 
-- **Adaptive scrim is not implemented.** `surface.scrim.*` needs the contrast of the real background behind each panel, which needs camera access WebXR doesn't give by default. Surfaces use the fixed `surface.opacity.base` and the MR outline for now.
+- **The adaptive scrim works only where the page can see the room** (desktop, VR, arena). In mixed reality it would need the camera image, which WebXR doesn't give by default; there the glass uses the fixed `surface.opacity.base`.
+- **Glass blurs the backdrop, not other 3D objects.** An object between the window and the room (a placed sofa) won't show through the glass. Fine for windows over a room; a real blur pass would be needed for objects.
+- **The backdrop photo is 1k**, so the room looks softly out of focus. Higher-resolution interiors weren't reachable from the build environment.
 - **Not yet tried on a headset.** Desktop rendering and the interaction logic are tested; hand poke and pinch follow the WebXR Hand Input spec but need a real device check, especially the follow and hover values tagged G.
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
 

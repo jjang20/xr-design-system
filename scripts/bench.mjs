@@ -1,0 +1,61 @@
+// Renders the bench (demo/bench.html) in each state the arena bar judges,
+// at a fixed framing, to shots/bench/. Run: npm run bench
+import { createServer } from 'vite';
+import { chromium } from 'playwright-core';
+import { mkdirSync, existsSync } from 'node:fs';
+
+const executablePath = process.env.CHROMIUM_PATH
+  ?? ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find(existsSync);
+const server = await createServer({ configFile: new URL('../vite.config.js', import.meta.url).pathname, logLevel: 'error' });
+await server.listen(0);
+const browser = await chromium.launch({ executablePath, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+const errors = [];
+page.on('pageerror', e => errors.push(e.message));
+page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+const out = 'shots/bench';
+mkdirSync(out, { recursive: true });
+const wait = ms => page.waitForTimeout(ms);
+const shot = async name => { await page.screenshot({ path: `${out}/${name}.png` }); console.log(`${out}/${name}.png`, await page.evaluate(() => { const P = window.contour.panel; return `level ${P.active}`; })); };
+// Software rendering is slow and frames are clamped to 50 ms of animation,
+// so wait for the panel to settle instead of a fixed time.
+const settled = active => page.waitForFunction(a => {
+  const P = window.contour.panel;
+  return P.active === a && P.levels.every(l => l.settled);
+}, active, { timeout: 120000, polling: 200 });
+const rowAt = i => page.evaluate(i => window.contour.screenOf(window.contour.panel.levels.at(-1).rows[i]), i);
+
+try {
+  await page.goto(server.resolvedUrls.local[0] + 'bench.html' + (process.argv[2] ?? ''));
+  await page.waitForFunction(() => window.ready, null, { timeout: 60000 });
+  await wait(2500);
+  await shot('1-rest');
+  let p = await rowAt(0);
+  await page.mouse.move(p.x + 40, p.y);
+  await wait(400);
+  await shot('2-hover');
+  await page.mouse.down();
+  await wait(60);
+  await shot('3-press');
+  await page.mouse.up();
+  await wait(90);
+  await shot('4-opening');
+  await settled(1);
+  await page.mouse.move(20, 20);
+  await wait(600);
+  await shot('5-level-2');
+  p = await rowAt(1);
+  await page.mouse.move(p.x + 40, p.y);
+  await wait(400);
+  await page.mouse.down();
+  await wait(60);
+  await page.mouse.up();
+  await settled(2);
+  await page.mouse.move(20, 20);
+  await wait(600);
+  await shot('6-level-3');
+} finally {
+  await browser.close();
+  await server.close();
+}
+if (errors.length) { console.error(errors.join('\n')); process.exit(1); }

@@ -29,6 +29,10 @@ import i_layers from 'lucide-static/icons/layers.svg?raw';
 import i_scan from 'lucide-static/icons/scan.svg?raw';
 import i_squareDashed from 'lucide-static/icons/square-dashed.svg?raw';
 import i_house from 'lucide-static/icons/house.svg?raw';
+import i_blocks from 'lucide-static/icons/blocks.svg?raw';
+import i_box from 'lucide-static/icons/box.svg?raw';
+import i_circle from 'lucide-static/icons/circle.svg?raw';
+import i_square from 'lucide-static/icons/square.svg?raw';
 
 export const ICONS = {
   'sofa': i_sofa,
@@ -59,4 +63,8 @@ export const ICONS = {
   'scan': i_scan,
   'square-dashed': i_squareDashed,
   'house': i_house,
+  'blocks': i_blocks,
+  'box': i_box,
+  'circle': i_circle,
+  'square': i_square,
 };

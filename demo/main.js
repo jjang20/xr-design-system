@@ -1,12 +1,13 @@
-// Demo: a Room planner scene. Every core component at real-world scale,
-// usable with a mouse on desktop and with hands or controllers in a headset.
+// Demo: a Room planner scene in a real (photographed) room. Every core
+// component at real-world scale, usable with a mouse on desktop and with
+// hands or controllers in a headset.
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import tokenJson from '../tokens.json';
 import {
   createTokens, Button, ZSlider, PackagingPanel, PACKAGING_MODES, Dock, InputSystem, unlockAudio, makePlatter,
 } from '../src/index.js';
-import { buildRoom } from './room.js';
+import { loadBackdrop } from './backdrop.js';
+import { catalogItems } from './catalog-data.js';
 
 const T = createTokens(tokenJson);
 const EYE = 1.6; // m, standing eye height for the desktop camera
@@ -17,25 +18,19 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.NeutralToneMapping;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.xr.enabled = true;
 renderer.xr.setReferenceSpaceType('local-floor');
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.6;
-renderer.toneMappingExposure = 0.95;
 
 const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.02, 50);
 camera.position.set(0, EYE, 0);
 camera.rotation.order = 'YXZ';
 const look = { yaw: 0, pitch: -0.13 };
 
-const { room, setLamp } = buildRoom();
-scene.add(room);
+const room = await loadBackdrop(renderer, scene);
+const setLamp = v => room.setBrightness(v);
 
 // UI ---------------------------------------------------------------------------
 const toast = document.getElementById('log');
@@ -47,19 +42,7 @@ const dmm = v => (v / 1000) * D;
 const catalog = place(new PackagingPanel(T, {
   title: 'Catalog',
   subtitle: 'Living room · 4 categories',
-  items: [
-    { label: 'Sofas', icon: 'sofa', items: [
-      { label: 'Lounge 3-seat', icon: 'sofa', sublabel: '214 × 96 cm' },
-      { label: 'Modular', icon: 'layers', items: [
-        { label: 'Corner unit', icon: 'square-dashed', sublabel: '96 × 96 cm' },
-        { label: 'Ottoman', icon: 'square-dashed', items: [{ label: 'Round', icon: 'square-dashed' }, { label: 'Square', icon: 'square-dashed' }] },
-      ] },
-      { label: 'Loveseat', icon: 'sofa', sublabel: '152 × 90 cm' },
-    ] },
-    { label: 'Chairs', icon: 'armchair', items: [{ label: 'Lounge chair', icon: 'armchair', sublabel: '78 × 82 cm' }, { label: 'Dining chair', icon: 'armchair', sublabel: '46 × 52 cm' }] },
-    { label: 'Tables', icon: 'table-2', items: [{ label: 'Coffee table', icon: 'table-2', sublabel: '100 × 55 cm' }, { label: 'Side table', icon: 'table-2', sublabel: '45 × 45 cm' }] },
-    { label: 'Lighting', icon: 'lamp-floor', items: [{ label: 'Floor lamp', icon: 'lamp-floor', sublabel: '165 cm' }] },
-  ],
+  items: catalogItems,
   distance: D,
 }), -0.02, 1.62, -0.68);
 catalog.addEventListener('open', e => say(`Opened ${e.item.label}`));
@@ -149,9 +132,9 @@ const xrButton = document.getElementById('xr');
   xrButton.onclick = async () => {
     unlockAudio();
     const session = await xr.requestSession(mode, { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
-    room.visible = mode !== 'immersive-ar';
+    room.show(mode !== 'immersive-ar');
     await renderer.xr.setSession(session);
-    session.addEventListener('end', () => { room.visible = true; });
+    session.addEventListener('end', () => room.show(true));
   };
 })();
 

@@ -9,5 +9,8 @@ export default defineConfig(({ mode }) => ({
   base: './',
   plugins: mode === 'headset' ? [basicSsl()] : [],
   server: { host: mode === 'headset' },
-  build: { outDir: '../site', emptyOutDir: true, chunkSizeWarningLimit: 1000 },
+  build: {
+    outDir: '../site', emptyOutDir: true, chunkSizeWarningLimit: 1000, target: 'es2022',
+    rollupOptions: { input: { main: 'demo/index.html', bench: 'demo/bench.html' } },
+  },
 }));

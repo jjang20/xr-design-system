@@ -18,7 +18,7 @@ import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, makeText, makeIcon } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, platterMaterial, flatMaterial, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
 
@@ -32,7 +32,7 @@ export class Button extends Interactable {
    * @param {'chevron'|null} [o.accessory]
    * @param {'center'|'row'} [o.layout='center']
    * @param {'rounded'|'capsule'|'circle'} [o.shape='rounded']
-   * @param {'secondary'|'primary'|'plain'|'window'|'tinted'} [o.variant='secondary']
+   * @param {'secondary'|'primary'|'plain'|'glass'|'window'|'tinted'} [o.variant='secondary']
    * @param {number} [o.color]      fill colour override (tinted variant)
    * @param {'soft'|'firm'|'rigid'} [o.density='firm']
    * @param {'thin'|'regular'|'thick'} [o.thickness='regular']
@@ -77,24 +77,37 @@ export class Button extends Interactable {
     this.hovered = false;
     this.spot = new THREE.Vector2();
 
-    // Body: the compressible solid.
+    // Body: the compressible solid. Two variants draw differently:
+    //   glass  a window: a flat glass sheet at the front (see glassMaterial)
+    //   plain  a list row: no solid, a platter that only shows on hover
     const fill = this.disabled ? C.disabled
-      : o.color ?? { primary: C.accent, plain: C.row, window: C.window, tinted: C.control }[this.variant] ?? C.control;
-    this.restOpacity = this.variant === 'plain' ? 0 : undefined;
-    this.body = new THREE.Mesh(bodyGeometry(this.w, this.h, this.t, this.r), bodyMaterial(T, { color: fill, opacity: this.restOpacity }));
-    this.body.castShadow = this.variant === 'window';
+      : o.color ?? { primary: C.accent, window: C.window, tinted: C.control }[this.variant] ?? C.control;
+    const plane = (z) => new THREE.PlaneGeometry(this.w, this.h).translate(0, 0, z);
+    if (this.variant === 'glass') {
+      this.body = new THREE.Mesh(plane(this.t), glassMaterial(T, { w: this.w, h: this.h, r: this.r, distance }));
+      this.body.renderOrder = 1;
+      this.skin = this.body.material;
+    } else if (this.variant === 'plain') {
+      this.body = new THREE.Mesh(plane(this.t * 0.5), platterMaterial({ w: this.w, h: this.h, r: this.r }));
+      this.body.renderOrder = 2;
+      this.skin = this.body.material;
+    } else {
+      this.body = new THREE.Mesh(bodyGeometry(this.w, this.h, this.t, this.r), bodyMaterial(T, { color: fill }));
+      this.body.castShadow = this.variant === 'window';
+    }
     this.add(this.body);
     this.hitMeshes.push(this.body);
-    if (this.variant === 'plain') this.body.material.depthWrite = false;
 
     // Face: everything that sits on the front and moves with it when pressed.
     this.face = new THREE.Group();
     this.add(this.face);
-    this.fx = new THREE.Mesh(new THREE.PlaneGeometry(this.w, this.h),
-      faceMaterial(T, { w: this.w, h: this.h, r: this.r, distance, rimStrength: this.variant === 'plain' ? 0 : undefined }));
-    this.fx.position.z = 0.0002;
-    this.fx.renderOrder = 2;
-    this.face.add(this.fx);
+    if (!this.skin) {
+      this.fx = new THREE.Mesh(new THREE.PlaneGeometry(this.w, this.h), faceMaterial(T, { w: this.w, h: this.h, r: this.r, distance }));
+      this.fx.position.z = 0.0002;
+      this.fx.renderOrder = 2;
+      this.face.add(this.fx);
+      this.skin = this.fx.material;
+    }
     this.buildContent(o, dmm);
     this.layoutFront();
   }
@@ -103,32 +116,40 @@ export class Button extends Interactable {
     const dim = this.disabled ? 0.4 : 1;
     const z = 0.0004;
     if (o.layout === 'row') {
-      // Icon, label (+ sublabel) left-aligned, accessory on the right.
-      const pad = dmm(14);
+      // Icon badge, label (+ detail) left-aligned, chevron on the right.
+      const E = DEFAULTS.emphasis;
+      const pad = dmm(DEFAULTS.panelPadding - DEFAULTS.rowInset);
       let x = -this.w / 2 + pad;
       if (o.icon) {
-        const s = dmm(22);
-        const icon = makeIcon(o.icon, s, { opacity: dim });
-        icon.position.set(x + s / 2, 0, z);
+        const b = dmm(DEFAULTS.badge);
+        const badge = new THREE.Mesh(new THREE.CircleGeometry(b / 2, 48), flatMaterial(0xffffff, DEFAULTS.look.badgeFill * dim));
+        badge.position.set(x + b / 2, 0, z * 0.5);
+        badge.renderOrder = 3;
+        this.face.add(badge);
+        const icon = makeIcon(o.icon, dmm(DEFAULTS.badgeGlyph), { opacity: dim });
+        icon.position.set(x + b / 2, 0, z);
         this.face.add(icon);
-        x += s + dmm(12);
+        x += b + dmm(DEFAULTS.badgeGap);
       }
       const hasSub = !!o.sublabel;
-      const label = makeText(o.label ?? '', { size: dmm(17), weight: 500, anchorX: 'left', opacity: dim });
-      label.position.set(x, hasSub ? dmm(8) : 0, z);
+      const label = makeText(o.label ?? '', { style: 'headline', distance: this.distance, anchorX: 'left', opacity: dim });
+      // Label and detail centred as a pair: half of each line's height apart.
+      const lineGap = (DEFAULTS.type.headline.size + DEFAULTS.type.footnote.size) * 0.6 / 2;
+      label.position.set(x, hasSub ? dmm(lineGap) : 0, z);
       this.face.add(label);
       if (hasSub) {
-        const sub = makeText(o.sublabel, { size: dmm(13), weight: 400, anchorX: 'left', color: C.textSecondary, opacity: dim });
-        sub.position.set(x, -dmm(10), z);
+        const sub = makeText(o.sublabel, { style: 'footnote', distance: this.distance, anchorX: 'left', opacity: E.secondary * dim });
+        sub.position.set(x, -dmm(lineGap), z);
         this.face.add(sub);
       }
       if (o.accessory === 'chevron') {
-        const s = dmm(18);
-        const chev = makeIcon('chevron-right', s, { color: C.textTertiary, opacity: dim });
-        chev.position.set(this.w / 2 - pad - s / 2 + dmm(4), 0, z);
+        const s = dmm(DEFAULTS.chevron);
+        const chev = makeIcon('chevron-right', s, { opacity: E.tertiary * dim });
+        chev.position.set(this.w / 2 - pad - s / 2, 0, z);
         this.face.add(chev);
       }
       this.label = label;
+      this.labelX = x;
       return;
     }
     // Centered: icon, label, or icon above label.
@@ -210,17 +231,13 @@ export class Button extends Interactable {
 
     // The highlight spot drifts after the pointer instead of jumping.
     if (best) this.spot.lerp(new THREE.Vector2(best.point.x, best.point.y), 1 - Math.exp(-dt * 18));
-    const u = this.fx.material.uniforms;
+    const u = this.skin.uniforms;
     u.uHover.value = hover;
-    u.uPress.value = this.press.amount;
+    if (u.uPress) u.uPress.value = this.press.amount;
     u.uSpot.value.copy(this.spot);
-
-    // Plain rows are invisible at rest and fill in on hover, like a list row.
-    if (this.variant === 'plain') {
-      const o = hover * DEFAULTS.look.plainHoverFill * (1 - 0.25 * this.press.amount);
-      this.body.material.userData.baseOpacity = o;
-      this.body.material.opacity = o;
-    }
+    // Rows have no visible thickness, so press also reads as a slight shrink
+    // of the content (Emil Kowalski: 0.95 to 0.98 on press).
+    if (this.variant === 'plain') this.face.scale.setScalar(1 - 0.03 * this.press.amount);
     this.layoutFront();
   }
 }

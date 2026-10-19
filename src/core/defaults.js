@@ -9,13 +9,38 @@ export const DEFAULTS = {
   // Hover fade out. Only motion.hover.in exists; out mirrors it for now.
   hoverOutSameAsIn: true,
 
-  // Corner radii in dmm. Proposed: shape.radius.{window,control}.
-  radius: { window: 30, control: 16 },
+  // Corner radii in dmm. Proposed: shape.radius.{window,row,control}.
+  radius: { window: 40, row: 20, control: 16 },
 
-  // Packaging panel layout. Proposed: size.panel.width, size.row.height.
-  panelWidth: 300, // dmm
-  rowHeight: 56, // dmm (above size.target.min = 32)
-  panelPadding: 18, // dmm
+  // Packaging panel layout in dmm (docs/catalog-spec.md).
+  // Proposed: size.panel.*, size.row.*.
+  panelWidth: 320,
+  rowHeight: 60, // above size.target.min = 32
+  panelPadding: 24, // sides
+  panelPadTop: 26,
+  panelPadBottom: 14,
+  rowInset: 10, // hover platter inset from the window edge
+  badge: 34, // icon badge circle
+  badgeGlyph: 18,
+  badgeGap: 12, // badge to label
+  chevron: 15,
+  subtitleGap: 6, // title to subtitle
+  headerGap: 18, // header to list
+
+  // Type ramp: size in dmm, weight, tracking in em. One step heavier than a
+  // flat screen, because text over glass needs more presence (vibrancy).
+  // Proposed: type.{title,headline,body,subheadline,footnote}.
+  type: {
+    title: { size: 29, weight: 700, tracking: -0.02 },
+    headline: { size: 17, weight: 600, tracking: 0 },
+    body: { size: 17, weight: 500, tracking: 0 },
+    subheadline: { size: 15, weight: 500, tracking: 0 },
+    footnote: { size: 13, weight: 500, tracking: 0.01 },
+  },
+  // Text emphasis as white at an opacity, not grey (vibrancy).
+  // Chosen for contrast on glass (docs/catalog-spec.md): secondary text 4.5:1,
+  // tertiary graphics (chevrons) 3:1.
+  emphasis: { primary: 1, secondary: 0.72, tertiary: 0.5 },
 
   // Dock: how far the body has to turn before the dock starts its lazy follow.
   // Without a dead zone every small head movement restarts the delay timer.
@@ -29,11 +54,19 @@ export const DEFAULTS = {
     bevelRatio: 0.28, // edge bevel as a fraction of thickness
     shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)
     rimStrength: 0.16, // luminous edge brightness
-    plainHoverFill: 0.55, // list rows: fill opacity on hover (invisible at rest)
+    // Window glass: how blurred (0..1, prefiltered roughness), how much of
+    // the room shows through (the rest is glassTint), and the brightest the
+    // glass may get (linear luminance) before the adaptive scrim darkens it.
+    glass: { blur: 0.62, see: 0.45, maxLum: 0.085 },
+    // Row platter: white opacity on hover, extra under the pointer, extra on press.
+    platter: { hover: 0.1, spot: 0.06, press: 0.07 },
+    badgeFill: 0.14, // icon badge: white opacity
+    separator: 0.08, // hairline between rows: white opacity
   },
 
   // Colours. Contour has no colour tokens yet (MR-first: colour is the open problem).
   color: {
+    glassTint: 0x1b1c20, // glass where it doesn't show the room (and the MR fallback)
     window: 0x1e2025, // platters: neutral dark graphite, opaque (surface.opacity.base)
     control: 0x3e4047, // secondary buttons
     controlHover: 0x5a5c63,
