@@ -213,9 +213,14 @@ export function glassBeadGeometry(diameter, height) {
 }
 
 const GLASS_VERT = /* glsl */`
-  varying vec3 vWorld, vNormal, vLocal;
+  varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   void main() {
     vLocal = position;
+    // The slab's own axes in world space, for the surface frost and to tell
+    // the flat face from the rounded rim.
+    vAxisX = normalize(mat3(modelMatrix) * vec3(1.0, 0.0, 0.0));
+    vAxisY = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
+    vAxisZ = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));
     vec4 w = modelMatrix * vec4(position, 1.0);
     vWorld = w.xyz;
     vNormal = normalize(mat3(modelMatrix) * normal);
@@ -235,9 +240,9 @@ const GLASS_VERT = /* glsl */`
 //   contact       soft shadows from what floats in front of it (a child
 //                 level, a lifted row lens), so layers sit in space
 const GLASS_FRAG = /* glsl */`
-  varying vec3 vWorld, vNormal, vLocal;
+  varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
-  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo;
   uniform mat3 uEnvRot;
@@ -261,6 +266,18 @@ const GLASS_FRAG = /* glsl */`
   void main() {
     vec3 V = normalize(vWorld - cameraPosition);
     vec3 N = normalize(vNormal);
+    // Face vs rim: the flat face is frosted; the rounded rim is polished, so
+    // it refracts the room in clear bands (as in the path-traced reference).
+    float rim01 = 1.0 - smoothstep(0.35, 0.92, abs(dot(N, vAxisZ)));
+    // Frost: the face is a field of tiny bumps (about 1 mm), so highlights
+    // and the refracted room break up the way acid-etched glass does.
+    vec2 fp = vLocal.xy / uFrostScale;
+    float e = 0.35;
+    vec2 slope = vec2(vnoise(fp + vec2(e, 0.0)) - vnoise(fp - vec2(e, 0.0)),
+                      vnoise(fp + vec2(0.0, e)) - vnoise(fp - vec2(0.0, e))) / (2.0 * e);
+    slope += 0.5 * vec2(vnoise(fp * 3.1 + vec2(e, 7.0)) - vnoise(fp * 3.1 - vec2(e, -7.0)),
+                        vnoise(fp * 3.1 + vec2(7.0, e)) - vnoise(fp * 3.1 - vec2(-7.0, e))) / (2.0 * e);
+    N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01));
     float cosT = clamp(dot(-V, N), 0.0, 1.0);
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
@@ -269,17 +286,18 @@ const GLASS_FRAG = /* glsl */`
     vec3 refl = vec3(0.0);
     #ifdef ENVMAP_TYPE_CUBE_UV
       vec3 Tdir = refract(V, N, 1.0 / uIor);
-      vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, uBlur).rgb * uEnvIntensity;
+      vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, mix(uBlur, uBlur * 0.3, rim01)).rgb * uEnvIntensity;
       // Beer-Lambert absorption: light loses energy along its path through
       // the glass. The path is longest where the ray crosses at a slant, so
       // the rounded rim and a bead's edge read darker, as in the path-traced
       // reference (lookdev/). The room keeps its own colour.
       float cosR = clamp(-dot(Tdir, N), 0.15, 1.0);
-      col = bg * uAlbedo * exp(-uAbsorb * uThick / cosR);
+      col = bg * uAlbedo * exp(-uAbsorb * uThick * (1.0 - 0.6 * rim01) / cosR);
       // Adaptive scrim: over a bright room darken just enough to keep white
-      // text legible, up to surface.scrim.max.
+      // text legible, up to surface.scrim.max. The rim carries no text, so
+      // it keeps the room's light.
       float lc = dot(col, LUMA);
-      col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax);
+      col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
       refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur).rgb * uEnvIntensity;
       refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
@@ -350,6 +368,8 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uKey: { value: K.key },
       uMaxLum: { value: K.maxLum },
       uEdge: { value: K.edge },
+      uFrost: { value: K.frost },
+      uFrostScale: { value: G.frostScale },
       uScrimMax: { value: T.get('surface.scrim.max') },
       uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
       uSolidOpacity: { value: T.get('surface.opacity.base') },
