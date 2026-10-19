@@ -68,6 +68,18 @@ const metres = (dmm, distanceM) => dmm / 1000 * distanceM;
 
 mm tokens are physical and convert directly (`mm / 1000`). deg tokens are angles from the eye.
 
+## Known conflict: sticky press
+
+`proximity.poke.release` asks the finger to pull back 3 mm from the press point before a press ends. The press itself only travels `density ratio × t`. When the travel is shorter than 3 mm, the finger has to lift *above* the resting surface before the button lets go, so it feels sticky.
+
+| | thin 4 mm | regular 8 mm | thick 16 mm |
+|---|---|---|---|
+| soft 0.6 | 2.4 mm ✗ | 4.8 mm | 9.6 mm |
+| firm 0.4 | 1.6 mm ✗ | 3.2 mm (only 0.2 mm spare) | 6.4 mm |
+| rigid 0.15 | 0.6 mm ✗ | 1.2 mm ✗ | 2.4 mm ✗ |
+
+A 6 mm firm button (2.4 mm travel) fails too. `scripts/check-tokens.mjs` prints a warning for every failing pair. Rigid is mostly for disabled and structural elements, so its failures matter less. Not resolved in v0.1; see [decisions.md](decisions.md#8-hysteresis-on-every-threshold).
+
 ## Values on the site that are not tokens
 
 The lab's per-background scrim values (white wall 0.05, wooden desk 0.18, bookshelf 0.35) are demo fixtures picked inside `surface.scrim.min`–`max`, not tokens. Real scrim should be computed from measured contrast against `surface.contrast.min`.
