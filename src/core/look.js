@@ -216,23 +216,24 @@ export function glassBeadGeometry(diameter, height) {
   return g;
 }
 
-// Embossed bubble: the front face swells over a rounded rect (a hovered
-// row). Height profile: a plateau with a soft shoulder and a slight dome,
-// like a balloon pressing the glass out from inside.
+// Embossed bubble: the front skin inflates over a rounded rect (a hovered
+// row), like a fluid-filled tactile display. Cross-section is a circular
+// arc, so the row reads as an inflated tube, with a soft fillet at the foot.
+// A negative height is a dimple (pressed).
 const BULGE_GLSL = /* glsl */`
   uniform vec4 uBulgeRect;   // centre xy, half size zw (local)
-  uniform vec4 uBulgeParam;  // corner radius, height, shoulder width, front z
+  uniform vec4 uBulgeParam;  // corner radius, height (signed), foot fillet, front z
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
   }
+  float bulgeD(vec2 p) { return sdRoundRect(p - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x); }
   float bulgeH(vec2 p) {
-    if (uBulgeParam.y <= 0.0) return 0.0;
-    float s = uBulgeParam.z;
-    float d = sdRoundRect(p - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x);
-    float k = 1.0 - smoothstep(-s, s * 0.6, d);
-    vec2 q = (p - uBulgeRect.xy) / (uBulgeRect.zw + s);
-    return uBulgeParam.y * k * (1.0 - 0.35 * dot(q * q, vec2(0.25, 1.0)));
+    if (uBulgeParam.y == 0.0) return 0.0;
+    float d = bulgeD(p);
+    float t = clamp(-d / min(uBulgeRect.z, uBulgeRect.w), 0.0, 1.0);
+    float arc = sqrt(1.0 - (1.0 - t) * (1.0 - t));
+    return uBulgeParam.y * arc * smoothstep(-0.5 * uBulgeParam.z, uBulgeParam.z, -d);
   }`;
 
 const GLASS_VERT = /* glsl */`
@@ -273,7 +274,7 @@ const GLASS_FRAG = /* glsl */`
   varying float vFront;
   ${BULGE_GLSL}
   uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
-  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uBulgeAo;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uBulgeAo, uGloss;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo;
   uniform mat3 uEnvRot;
@@ -293,22 +294,24 @@ const GLASS_FRAG = /* glsl */`
   void main() {
     vec3 V = normalize(vWorld - cameraPosition);
     vec3 N = normalize(vNormal);
-    // The bubble's slope, exact per pixel (the mesh is only a few mm fine).
-    float bulgeAo = 0.0, bulgeSlope = 0.0;
-    if (vFront > 0.5 && uBulgeParam.y > 0.0) {
-      float e = 0.0004;
-      vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
-                    bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
-      N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
-      bulgeSlope = clamp(length(g) * 3.0, 0.0, 1.0);
-      // A soft crease where the bubble meets the flat glass.
-      float s = uBulgeParam.z;
-      float d = sdRoundRect(vLocal.xy - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x);
-      bulgeAo = exp(-pow((d - 0.45 * s) / (0.4 * s), 2.0)) * clamp(uBulgeParam.y / 0.002, 0.0, 1.0);
-    }
     // Face vs rim: the flat face is frosted; the rounded rim is polished, so
     // it refracts the room in clear bands (as in the path-traced reference).
     float rim01 = 1.0 - smoothstep(0.35, 0.92, abs(dot(N, vAxisZ)));
+    // The bubble: slope exact per pixel (the mesh is only a few mm fine).
+    // Its skin is stretched smooth and glossy, it shades toward the light,
+    // and a soft crease sits at its foot.
+    float bub = 0.0, bulgeAo = 0.0, bulgeShade = 1.0;
+    if (vFront > 0.5 && uBulgeParam.y != 0.0) {
+      float e = 0.0003;
+      vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
+                    bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
+      N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
+      float k = clamp(abs(uBulgeParam.y) / 0.002, 0.0, 1.0);
+      bub = smoothstep(0.0, 0.35, abs(bulgeH(vLocal.xy) / uBulgeParam.y)) * k;
+      bulgeShade = 1.0 + 0.3 * clamp(dot(-g, vec2(-0.45, 0.8)), -1.0, 1.0);
+      float d = bulgeD(vLocal.xy);
+      bulgeAo = exp(-pow(d / uBulgeParam.z, 2.0)) * k;
+    }
     // Frost: the face is a field of tiny bumps (about 1 mm), so highlights
     // and the refracted room break up the way acid-etched glass does.
     vec2 fp = vLocal.xy / uFrostScale;
@@ -317,8 +320,8 @@ const GLASS_FRAG = /* glsl */`
                       vnoise(fp + vec2(0.0, e)) - vnoise(fp - vec2(0.0, e))) / (2.0 * e);
     slope += 0.5 * vec2(vnoise(fp * 3.1 + vec2(e, 7.0)) - vnoise(fp * 3.1 - vec2(e, -7.0)),
                         vnoise(fp * 3.1 + vec2(7.0, e)) - vnoise(fp * 3.1 - vec2(-7.0, e))) / (2.0 * e);
-    // The bubble's shoulder is stretched smooth, like a balloon's skin.
-    N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01) * (1.0 - bulgeSlope));
+    // An inflated bubble's skin is stretched smooth.
+    N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01) * (1.0 - uGloss * bub));
     float cosT = clamp(dot(-V, N), 0.0, 1.0);
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
@@ -339,7 +342,7 @@ const GLASS_FRAG = /* glsl */`
       // it keeps the room's light.
       float lc = dot(col, LUMA);
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
-      refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur).rgb * uEnvIntensity;
+      refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur * (1.0 - 0.7 * uGloss * bub)).rgb * uEnvIntensity;
       refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
     #endif
@@ -366,7 +369,7 @@ const GLASS_FRAG = /* glsl */`
       col *= 1.0 - s * P.z;
     }
 
-    col *= 1.0 - uBulgeAo * bulgeAo;
+    col *= (1.0 - uBulgeAo * bulgeAo) * mix(1.0, bulgeShade, bub);
     col *= mix(1.0, 0.42, uDim);               // pushed-back levels go dark, not see-through
 
     // Reflection (Fresnel) and the key light on the curved rim.
@@ -376,6 +379,8 @@ const GLASS_FRAG = /* glsl */`
     float spec = pow(max(dot(N, H), 0.0), 90.0);
     float rim = 1.0 - cosT;
     col += vec3(1.0) * spec * uKey * (0.3 + rim);
+    // A crisp highlight on the inflated skin, as on a wet, stretched membrane.
+    col += vec3(1.0) * pow(max(dot(N, H), 0.0), 220.0) * uKey * 2.0 * uGloss * bub;
     // Rim light: curved glass edges gather light, brightest along the top.
     col += vec3(1.0) * pow(rim, 3.0) * uKey * 0.5 * (0.35 + 0.65 * clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
 
@@ -423,6 +428,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uBulgeRect: { value: new THREE.Vector4() },
       uBulgeParam: { value: new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')) },
       uBulgeAo: { value: L.emboss.ao },
+      uGloss: { value: L.emboss.gloss },
       uShadowRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uOpacity: { value: 1 },
@@ -440,12 +446,12 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
   m.uniforms.uShadowParam.value[i].set(r, S.minSoft + gap * S.softPerGap, amount, gap * S.dropPerGap);
 }
 
-// Embossed bubble on a glass material: the front face swells `height`
-// metres over a rounded rect (local coordinates), with a soft shoulder.
-export function setBulge(m, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, shoulder = L.emboss.shoulder / 1000 } = {}) {
+// Embossed bubble on a glass material: the front skin rises `height` metres
+// (negative: a dimple) over a rounded rect in local coordinates.
+export function setBulge(m, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, foot = L.emboss.foot / 1000 } = {}) {
   m.uniforms.uBulgeRect.value.set(x, y, hw, hh);
   const p = m.uniforms.uBulgeParam.value;
-  p.set(r, height, shoulder, p.w);
+  p.set(r, height, foot, p.w);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {

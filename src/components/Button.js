@@ -190,13 +190,25 @@ export class Button extends Interactable {
     // A row lens rises out of the window on hover; pressing pushes it back.
     const lift = this.lift ? this.lift * (this.hover ?? 0) : 0;
     this.body.position.z = lift;
-    this.face.position.z = this.emboss ? this.bulge + 0.0004 : front + lift;
+    this.face.position.z = this.emboss ? Math.max(0, this.bulge) + 0.0004 : front + lift;
   }
 
-  // Emboss style: how far the window swells under this row. Pressing pushes
-  // the bubble back flat, like pressing a balloon.
-  get bulge() {
-    return Math.max(0, this.lift * (this.hover ?? 0) - this.press.depth);
+  // Emboss style: how far the window swells under this row (negative is a
+  // dimple). Driven by a slightly underdamped spring in update(), like a
+  // fluid-filled skin (see docs/catalog-spec.md, "Bubble").
+  get bulge() { return this.bz ?? 0; }
+
+  stepBulge(dt) {
+    const E = DEFAULTS.look.emboss;
+    // Hover inflates; pressing pushes the bubble through flat into a shallow
+    // dimple (E.dimple of its height), like a key giving way.
+    const target = this.hovered && !this.disabled ? this.lift * (1 - (1 + E.dimple) * this.press.amount) : 0;
+    const w = 2 * Math.PI / E.response, z = E.damping;
+    this.bz ??= 0; this.bv ??= 0;
+    for (let i = 0, n = 4, h = dt / n; i < n; i++) {
+      this.bv += (-w * w * (this.bz - target) - 2 * z * w * this.bv) * h;
+      this.bz += this.bv * h;
+    }
   }
 
   // Distance from a local point to the face rectangle at the front plane.
@@ -254,8 +266,12 @@ export class Button extends Interactable {
     if (u.uPress) u.uPress.value = this.press.amount;
     if (this.variant === 'plain') u.uFade.value = hover;
     u.uSpot.value.copy(this.spot);
-    // A pressed lens also shrinks slightly (Emil Kowalski: 0.95 to 0.98).
-    if (this.variant === 'plain') {
+    if (this.emboss) {
+      this.stepBulge(dt);
+      // Content under a clear bubble is magnified a touch, like through a lens.
+      this.face.scale.setScalar(1 + DEFAULTS.look.emboss.magnify * Math.max(0, this.bz) / this.lift);
+    } else if (this.variant === 'plain') {
+      // A pressed lens also shrinks slightly (Emil Kowalski: 0.95 to 0.98).
       const k = 1 - 0.025 * this.press.amount;
       this.face.scale.setScalar(k);
       this.body.scale.x = this.body.scale.y = k;

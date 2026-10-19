@@ -40,18 +40,24 @@ scene.add(panel);
 
 const input = new InputSystem({ T, renderer, camera, scene });
 const timer = new THREE.Timer();
-renderer.setAnimationLoop(time => {
-  timer.update(time);
-  const dt = Math.min(timer.getDelta(), 0.05);
+const step = dt => {
   scene.updateMatrixWorld();
   camera.updateMatrixWorld();
   input.update();
   panel.update(dt);
+};
+// ?manual: time only moves when the recorder calls tick(), so motion can be
+// captured frame by frame on a slow software renderer.
+if (q.has('manual')) renderer.setAnimationLoop(() => renderer.render(scene, camera));
+else renderer.setAnimationLoop(time => {
+  timer.update(time);
+  step(Math.min(timer.getDelta(), 0.05));
   renderer.render(scene, camera);
 });
 
 window.contour = {
   panel, camera,
+  tick(frames = 1, dt = 1 / 60) { for (let i = 0; i < frames; i++) step(dt); renderer.render(scene, camera); },
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);
     return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };

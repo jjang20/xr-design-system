@@ -245,13 +245,14 @@ export class PackagingPanel extends THREE.Group {
         });
       } else setContactShadow(m, 0);
       let lifted = null;
-      for (const r of l.rows) if (r.hover > (lifted?.hover ?? 0.001)) lifted = r;
+      // The most raised row (a bubble keeps moving after hover ends).
+      const raised = r => r.emboss ? Math.abs(r.bulge) / r.lift : r.hover;
+      for (const r of l.rows) if (raised(r) > (lifted ? raised(lifted) : 0.001)) lifted = r;
       if (lifted?.emboss) {
         // Emboss: the window itself swells under the row (no lens, no shadow).
-        const sh = DEFAULTS.look.emboss.shoulder / 1000;
         setBulge(m, {
-          x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2 - sh / 2, hh: lifted.h / 2 - sh / 2,
-          r: Math.max(0, lifted.r - sh / 2), height: lifted.bulge,
+          x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2,
+          r: lifted.r, height: lifted.bulge,
         });
         setContactShadow(m, 1);
       } else if (lifted) {
@@ -264,7 +265,8 @@ export class PackagingPanel extends THREE.Group {
       // Hairlines next to a lifted row step aside, as in visionOS lists.
       for (const line of l.separators) {
         const j = line.userData.between;
-        const near = Math.max(l.rows[j - 1]?.hover ?? 0, l.rows[j]?.hover ?? 0);
+        const lift = r => r ? (r.emboss ? clamp(Math.abs(r.bulge) / r.lift, 0, 1) : r.hover) : 0;
+        const near = Math.max(lift(l.rows[j - 1]), lift(l.rows[j]));
         line.material.opacity = DEFAULTS.look.separator * (1 - near) * clamp(p.opacity, 0, 1) * (1 - p.dim);
       }
     });

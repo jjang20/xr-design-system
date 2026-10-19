@@ -74,11 +74,19 @@ export const DEFAULTS = {
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
-    // lensLift; 'emboss' swells the window glass itself into a soft bubble
-    // under the row (height, shoulder width in mm; ao darkens the crease).
+    // lensLift; 'emboss' inflates the window's skin into a bubble under the
+    // row, like a fluid-filled tactile display (Jihoon's reference).
     hoverStyle: 'lens',
     lensLift: 5, // mm
-    emboss: { height: 3, shoulder: 6, ao: 0.14 },
+    emboss: {
+      height: 3.5, // mm at the ridge
+      foot: 2.5, // mm: the fillet where the bubble meets the flat skin
+      dimple: 0.3, // pressed fully, it sinks to this fraction of its height below flat
+      response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
+      magnify: 0.03, // content under the bubble grows this much at full height
+      ao: 0.18, // crease darkening at the foot
+      gloss: 0.6, // how much smoother and shinier the inflated skin is
+    },
     // Contact shadows between floating layers: softness grows with the gap,
     // and the shadow drops below the caster (light from above).
     contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.55, lens: 0.4 },
