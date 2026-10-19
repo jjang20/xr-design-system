@@ -252,7 +252,10 @@ export class PackagingPanel extends THREE.Group {
         // Emboss: the window itself swells under the row (no lens, no shadow).
         setBulge(m, {
           x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2,
-          r: lifted.r, height: lifted.bulge,
+          // Corners concentric with the window's (window radius minus the
+          // row inset), so the bubble follows the window's shape.
+          r: Math.min(lifted.h / 2, lifted.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row),
+          height: lifted.bulge,
         });
         setContactShadow(m, 1);
       } else if (lifted) {

@@ -79,13 +79,13 @@ export const DEFAULTS = {
     hoverStyle: 'lens',
     lensLift: 5, // mm
     emboss: {
-      height: 3.5, // mm at the ridge
-      foot: 2.5, // mm: the fillet where the bubble meets the flat skin
+      height: 6, // mm at the crown; 4–6 reads as a bubble (Jihoon, lookdev/ pillow)
+      ramp: 4, // mm: the meniscus where the window glass rises into the bubble
       dimple: 0.3, // pressed fully, it sinks to this fraction of its height below flat
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
-      magnify: 0.03, // content under the bubble grows this much at full height
-      ao: 0.18, // crease darkening at the foot
-      gloss: 0.6, // how much smoother and shinier the inflated skin is
+      magnify: 0.015, // content under the bubble grows this much at full height
+      gloss: 0.8, // how much smoother and shinier the inflated skin is
+      clear: 0.5, // how far its glass thins toward an icon bead's clear glass
     },
     // Contact shadows between floating layers: softness grows with the gap,
     // and the shadow drops below the caster (light from above).

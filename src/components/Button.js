@@ -203,7 +203,9 @@ export class Button extends Interactable {
     // Hover inflates; pressing pushes the bubble through flat into a shallow
     // dimple (E.dimple of its height), like a key giving way.
     const target = this.hovered && !this.disabled ? this.lift * (1 - (1 + E.dimple) * this.press.amount) : 0;
-    const w = 2 * Math.PI / E.response, z = E.damping;
+    // Deflating settles without a wobble (critically damped), so leaving a
+    // row stays quiet; only inflating carries the fluid settle.
+    const w = 2 * Math.PI / E.response, z = target === 0 ? 1 : E.damping;
     this.bz ??= 0; this.bv ??= 0;
     for (let i = 0, n = 4, h = dt / n; i < n; i++) {
       this.bv += (-w * w * (this.bz - target) - 2 * z * w * this.bv) * h;
