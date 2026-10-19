@@ -16,7 +16,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
 ap = argparse.ArgumentParser()
-ap.add_argument('--state', default='hover', choices=['rest', 'hover', 'levels'])
+ap.add_argument('--state', default='hover', choices=['rest', 'hover', 'press', 'levels'])
+ap.add_argument('--hover', default='lens', choices=['lens', 'bubble'])  # hover style
+ap.add_argument('--bubble', default='2.2,10,0.08')  # height mm, ramp mm, crown roughness
 ap.add_argument('--view', default='front', choices=['front', 'angle'])
 ap.add_argument('--samples', type=int, default=96)
 ap.add_argument('--res', default='1600x1000')
@@ -38,6 +40,8 @@ D = dict(panelWidth=240, rowHeight=48, panelPadding=18, panelPadTop=19, panelPad
 TYPE = dict(title=(21, 700), headline=(12.4, 600), subheadline=(11, 500), footnote=(9.5, 500))
 T_WINDOW, T_LENS = 0.008, 0.004  # material.t.regular / thin
 LIFT = 0.005  # DEFAULTS.look.lensLift
+BUBBLE_H, BUBBLE_RAMP, BUBBLE_ROUGH = (float(v) for v in args.bubble.split(','))
+BUBBLE_H /= 1000; BUBBLE_RAMP /= 1000
 
 # ---------------------------------------------------------------- scene
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -104,6 +108,15 @@ def glass(name, tint, rough, absorb, coat=0.0):
     noise = nodes.new('ShaderNodeTexNoise'); noise.inputs['Scale'].default_value = 900; noise.inputs['Detail'].default_value = 4
     bump = nodes.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.04; bump.inputs['Distance'].default_value = 0.0002
     links.new(noise.outputs['Fac'], bump.inputs['Height']); links.new(bump.outputs['Normal'], p.inputs['Normal'])
+    # A bubble's skin is stretched glossy: the mesh attribute 'gloss' (0 flat,
+    # 1 on the crown) blends the frost away and drops the roughness.
+    attr = nodes.new('ShaderNodeAttribute'); attr.attribute_name = 'gloss'
+    mr = nodes.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = rough; mr.inputs['To Max'].default_value = BUBBLE_ROUGH
+    links.new(attr.outputs['Fac'], mr.inputs['Value']); links.new(mr.outputs['Result'], p.inputs['Roughness'])
+    inv = nodes.new('ShaderNodeMath'); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
+    links.new(attr.outputs['Fac'], inv.inputs[1])
+    fb = nodes.new('ShaderNodeMath'); fb.operation = 'MULTIPLY'; fb.inputs[1].default_value = 0.04
+    links.new(inv.outputs[0], fb.inputs[0]); links.new(fb.outputs[0], bump.inputs['Strength'])
     return m
 
 
@@ -155,6 +168,51 @@ def slab(name, w, h, r, t, mat, parent=ui):
     me.materials.append(mat)
     for p in me.polygons: p.use_smooth = True
     return ob
+
+
+def smootherstep(t):
+    t = min(max(t, 0.0), 1.0); return t * t * t * (t * (t * 6 - 15) + 10)
+
+
+def sd_round_rect(x, y, hw, hh, r):
+    qx, qy = abs(x) - hw + r, abs(y) - hh + r
+    return min(max(qx, qy), 0.0) + math.hypot(max(qx, 0.0), max(qy, 0.0)) - r
+
+
+def inflate(ob, cx, cy, hw, hh, r, height, dent=None, step=0.0006):
+    """The window's own front skin swells over a rounded rect: a seamless,
+    tangent ramp (a meniscus) up to a low, slightly domed crown. `dent`
+    (x, y, radius, depth) pushes a finger-sized dimple into it."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    ob.modifiers.clear(); old = ob.data; ob.data = me; bpy.data.meshes.remove(old)
+    t = max(v.co.z for v in me.vertices)
+    bm = bmesh.new(); bm.from_mesh(me)
+    front = lambda: [f for f in bm.faces if f.normal.z > 0.999 and min(v.co.z for v in f.verts) > t - 1e-6]
+    pad = BUBBLE_RAMP * 0.5
+    def cut(co, no):
+        fs = front(); es = list({e for f in fs for e in f.edges}); vs = list({v for f in fs for v in f.verts})
+        bmesh.ops.bisect_plane(bm, geom=fs + es + vs, plane_co=co, plane_no=no)
+    x = cx - hw - pad
+    while x <= cx + hw + pad: cut((x, 0, 0), (1, 0, 0)); x += step
+    y = cy - hh - pad
+    while y <= cy + hh + pad: cut((0, y, 0), (0, 1, 0)); y += step
+    bmesh.ops.triangulate(bm, faces=front())
+    gl = {}
+    for v in {v for f in front() for v in f.verts}:
+        d = sd_round_rect(v.co.x - cx, v.co.y - cy, hw, hh, r)
+        k = smootherstep((0.15 * BUBBLE_RAMP - d) / BUBBLE_RAMP)
+        dome = 0.88 + 0.12 * min(max(-d / min(hw, hh), 0.0), 1.0)
+        z = height * k * dome
+        if dent:
+            dx, dy, dr, dd = dent
+            z -= dd * math.exp(-((v.co.x - dx) ** 2 + (v.co.y - dy) ** 2) / (dr * dr)) * k
+        v.co.z += z; gl[v.index] = k
+    bm.to_mesh(me); bm.free()
+    a = me.attributes.new('gloss', 'FLOAT', 'POINT')
+    for i, k in gl.items(): a.data[i].value = k
+    for pl in me.polygons: pl.use_smooth = True
+    return t
 
 
 def bead(name, d, height, mat, parent):
@@ -236,10 +294,21 @@ def level(item, z, scale, dim, hovered=None, header_only=False):
         for i, r in enumerate(rows):
             cy = listTop - rowH / 2 - i * rowH
             lift = r['label'] == hovered
+            bubble = lift and args.hover == 'bubble'
             row = link(bpy.data.objects.new(f"row-{r['label']}", None), root)
-            row.location = (0, cy, T_WINDOW + (LIFT if lift else 0.0002))
-            fz = T_LENS + 0.0003 if lift else 0.0003
-            if lift:
+            pressed = args.state == 'press'
+            if bubble:
+                # The window itself swells under the row; a pressed bubble
+                # flattens and dimples under the finger.
+                hgt = BUBBLE_H * (0.3 if pressed else 1.0)
+                dent = (-rw / 2 + dmm(120), cy, dmm(24), BUBBLE_H * 0.55) if pressed else None
+                inflate(win, 0, cy, rw / 2, rowH / 2, rowH / 2, hgt, dent)
+                row.location = (0, cy, T_WINDOW + hgt * 0.95 + 0.0002)
+                fz = 0.0003
+            else:
+                row.location = (0, cy, T_WINDOW + (LIFT if lift else 0.0002))
+                fz = T_LENS + 0.0003 if lift else 0.0003
+            if lift and not bubble:
                 slab('lens', rw, rowH, dmm(D['rRow']), T_LENS, M_LENS, row)
             pad = dmm(D['panelPadding'] - D['rowInset'])
             x = -rw / 2 + pad
@@ -270,8 +339,8 @@ def find(items, label):
     return next(i for i in items if i['label'] == label)
 
 
-if args.state in ('rest', 'hover'):
-    level(CATALOG, 0, 1, 0, hovered='Sofas' if args.state == 'hover' else None)
+if args.state in ('rest', 'hover', 'press'):
+    level(CATALOG, 0, 1, 0, hovered=None if args.state == 'rest' else 'Sofas')
 else:
     # Three levels, as packaging.parent.recede.* poses them (compress mode).
     sofas = find(CATALOG['items'], 'Sofas'); modular = find(sofas['items'], 'Modular')
