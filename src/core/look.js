@@ -237,9 +237,9 @@ const GLASS_VERT = /* glsl */`
 const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal;
   uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
-  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uSee, uIor, uF0, uGrain, uVeil, uKey;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge;
   uniform vec2 uSpot;
-  uniform vec3 uTint;
+  uniform vec3 uTint, uAlbedo;
   uniform mat3 uEnvRot;
   uniform vec4 uShadowRect[2];   // centre xy, half size zw (local)
   uniform vec4 uShadowParam[2];  // radius, softness, amount, drop
@@ -270,10 +270,12 @@ const GLASS_FRAG = /* glsl */`
     #ifdef ENVMAP_TYPE_CUBE_UV
       vec3 Tdir = refract(V, N, 1.0 / uIor);
       vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, uBlur).rgb * uEnvIntensity;
-      float lum = dot(bg, LUMA);
-      bg = mix(vec3(lum), bg, 0.6);            // keep a hint of the room's colour
-      bg = bg / (1.0 + lum * 1.2);
-      col = mix(uTint, bg, uSee);
+      // Beer-Lambert absorption: light loses energy along its path through
+      // the glass. The path is longest where the ray crosses at a slant, so
+      // the rounded rim and a bead's edge read darker, as in the path-traced
+      // reference (lookdev/). The room keeps its own colour.
+      float cosR = clamp(-dot(Tdir, N), 0.15, 1.0);
+      col = bg * uAlbedo * exp(-uAbsorb * uThick / cosR);
       // Adaptive scrim: over a bright room darken just enough to keep white
       // text legible, up to surface.scrim.max.
       float lc = dot(col, LUMA);
@@ -287,6 +289,11 @@ const GLASS_FRAG = /* glsl */`
     float grain = hash(floor(vLocal.xy / 0.0004)) - 0.5;
     float cloud = vnoise(vLocal.xy / 0.03) - 0.5;
     col *= 1.0 + grain * uGrain + cloud * uGrain * 2.5;
+
+    // Curved edges look through more of the darker glass beneath and bend
+    // the view far off-axis, so a bead or lens reads as a droplet with a
+    // dark rim (seen in the path-traced reference).
+    col *= 1.0 - uEdge * pow(1.0 - cosT, 2.0);
 
     // Light glass: a milky veil, a touch brighter toward the top.
     col += vec3(uVeil) * (0.75 + 0.5 * clamp(N.y + 0.5, 0.0, 1.0));
@@ -314,7 +321,7 @@ const GLASS_FRAG = /* glsl */`
 
     // Hover (receded levels are pressable): a soft light under the pointer.
     float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
-    col += vec3(1.0) * sp * sp * uHover * 0.05;
+    col += vec3(1.0) * sp * sp * uHover * 0.025;
 
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
@@ -323,7 +330,7 @@ const GLASS_FRAG = /* glsl */`
 
 // kind: 'window' (dark structural glass), 'lens' (light glass that lifts
 // out of a window on hover), 'bead' (icon badge).
-export function glassMaterial(T, { w, h, kind = 'window' }) {
+export function glassMaterial(T, { w, h, t, kind = 'window' }) {
   const G = L.glass, K = G[kind];
   const m = new THREE.ShaderMaterial({
     vertexShader: GLASS_VERT, fragmentShader: GLASS_FRAG,
@@ -333,13 +340,16 @@ export function glassMaterial(T, { w, h, kind = 'window' }) {
       ...backdrop,
       uBlur: { value: G.blur },
       uReflBlur: { value: G.reflBlur },
-      uSee: { value: G.see },
+      uAbsorb: { value: G.absorb },
+      uThick: { value: t ?? T.get('material.t.regular') },
+      uAlbedo: { value: new THREE.Color(...K.albedo) },
       uIor: { value: G.ior },
       uF0: { value: G.f0 },
       uGrain: { value: K.grain },
       uVeil: { value: K.veil },
       uKey: { value: K.key },
-      uMaxLum: { value: G.maxLum },
+      uMaxLum: { value: K.maxLum },
+      uEdge: { value: K.edge },
       uScrimMax: { value: T.get('surface.scrim.max') },
       uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
       uSolidOpacity: { value: T.get('surface.opacity.base') },

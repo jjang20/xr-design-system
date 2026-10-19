@@ -83,14 +83,14 @@ export class Button extends Interactable {
     const fill = this.disabled ? C.disabled
       : o.color ?? { primary: C.accent, window: C.window, tinted: C.control }[this.variant] ?? C.control;
     if (this.variant === 'glass') {
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h }));
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t }));
       this.body.renderOrder = 1;
       this.skin = this.body.material;
     } else if (this.variant === 'plain') {
       // A light glass lens: invisible at rest, it lifts out of the window
       // on hover, carrying the row's content with it.
       this.lift = DEFAULTS.look.lensLift / 1000;
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, kind: 'lens' }));
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'lens' }));
       this.body.renderOrder = 2;
       this.skin = this.body.material;
     } else {
@@ -125,7 +125,7 @@ export class Button extends Interactable {
       if (o.icon) {
         const b = dmm(DEFAULTS.badge);
         const bh = b * DEFAULTS.look.beadHeight;
-        const bead = new THREE.Mesh(glassBeadGeometry(b, bh), glassMaterial(this.T, { w: b, h: b, kind: 'bead' }));
+        const bead = new THREE.Mesh(glassBeadGeometry(b, bh), glassMaterial(this.T, { w: b, h: b, t: bh, kind: 'bead' }));
         bead.position.set(x + b / 2, 0, 0);
         bead.renderOrder = 2.5; // after the row lens, before text and icons
         this.face.add(bead);

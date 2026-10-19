@@ -56,11 +56,40 @@ async function run(query, prefix, { states = true } = {}) {
   await shot(`${prefix}6-level-3`);
 }
 
+// `npm run bench -- lookdev`: the framings of the Blender reference frames
+// (lookdev/catalog.py), so the live glass can be compared side by side.
+async function lookdev(extra) {
+  await page.setViewportSize({ width: 1400, height: 1000 });
+  for (const [view, fov, name] of [['', 17, 'hover-front'], ['angle', 22, 'hover-angle'], ['angle', 26, 'levels-angle']]) {
+    await page.goto(server.resolvedUrls.local[0] + `bench.html?fov=${fov}&view=${view}&${extra}`);
+    await page.waitForFunction(() => window.ready, null, { timeout: 60000 });
+    await wait(2500);
+    if (name.startsWith('hover')) {
+      const p = await rowAt(0);
+      await page.mouse.move(p.x + 40, p.y);
+      await wait(800);
+    } else {
+      for (const i of [0, 1]) {
+        const p = await rowAt(i);
+        await page.mouse.move(p.x + 40, p.y); await wait(300);
+        await page.mouse.down(); await wait(60); await page.mouse.up();
+        await settled(i + 1);
+      }
+      await page.mouse.move(5, 5); await wait(800);
+    }
+    await page.screenshot({ path: `${out}/live-${name}.png` });
+    console.log(`${out}/live-${name}.png`);
+  }
+}
+
 try {
-  const extra = process.argv[2] ?? '';
-  await run('?' + extra, '');
-  // From 35° to the side: thickness, lift and layering.
-  await run('?view=angle&' + extra, 'angle-', { states: false });
+  if (process.argv[2] === 'lookdev') await lookdev(process.argv[3] ?? '');
+  else {
+    const extra = process.argv[2] ?? '';
+    await run('?' + extra, '');
+    // From 35° to the side: thickness, lift and layering.
+    await run('?view=angle&' + extra, 'angle-', { states: false });
+  }
 } finally {
   await browser.close();
   await server.close();

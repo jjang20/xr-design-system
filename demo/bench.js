@@ -1,6 +1,6 @@
 // Bench: one component at a fixed framing over a real room, for scored
 // rounds against the visionOS bar (docs/catalog-spec.md).
-// Query: ?rot=<backdrop yaw> &state=<rest|hover|open1|open2> &see=&blur= (lab overrides)
+// Query: ?rot=<backdrop yaw> &view=angle &fov=<deg> &absorb=&blur= (lab overrides)
 import * as THREE from 'three';
 import tokenJson from '../tokens.json';
 import { createTokens, PackagingPanel, InputSystem } from '../src/index.js';
@@ -9,7 +9,7 @@ import { DEFAULTS } from '../src/core/defaults.js';
 import { catalogItems } from './catalog-data.js';
 
 const q = new URLSearchParams(location.search);
-if (q.has('see')) DEFAULTS.look.glass.see = Number(q.get('see'));
+if (q.has('absorb')) DEFAULTS.look.glass.absorb = Number(q.get('absorb'));
 if (q.has('blur')) DEFAULTS.look.glass.blur = Number(q.get('blur'));
 const T = createTokens(tokenJson);
 const D = 0.6, EYE = 1.6;
@@ -21,7 +21,8 @@ renderer.toneMapping = THREE.NeutralToneMapping;
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.02, 50);
+// ?fov= narrows the view to match the path-traced reference frames (lookdev/).
+const camera = new THREE.PerspectiveCamera(Number(q.get('fov') ?? 40), innerWidth / innerHeight, 0.02, 50);
 camera.position.set(0, EYE, 0);
 // ?view=angle looks at the window from 35° to the side, to show thickness and layering.
 if (q.get('view') === 'angle') {

@@ -59,16 +59,18 @@ export const DEFAULTS = {
     bevelRatio: 0.28, // edge bevel as a fraction of thickness
     shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)
     rimStrength: 0.16, // luminous edge brightness
-    // Glass (docs/catalog-spec.md). blur and reflBlur are prefiltered
-    // roughness (0..1); see is how much of the room shows through (the rest
-    // is glassTint); maxLum is the brightest the glass may get (linear
-    // luminance) before the adaptive scrim darkens it.
+    // Glass (docs/catalog-spec.md), matched to the path-traced reference in
+    // lookdev/. blur and reflBlur are prefiltered roughness (0..1); absorb is
+    // the absorption density (1/m, Beer-Lambert) and albedo the glass colour;
+    // maxLum is the brightest the glass may get (linear luminance) before the
+    // adaptive scrim darkens it.
     glass: {
-      blur: 0.5, reflBlur: 0.16, see: 0.45, maxLum: 0.085, ior: 1.45, f0: 0.04,
-      // Per kind: frost grain, milky veil, key-light highlight.
-      window: { grain: 0.04, veil: 0, key: 0.55 },
-      lens: { grain: 0.03, veil: 0.045, key: 0.8 },
-      bead: { grain: 0.02, veil: 0.06, key: 0.9 },
+      blur: 0.36, reflBlur: 0.16, absorb: 40, ior: 1.45, f0: 0.04,
+      // Per kind: colour, brightest luminance (keeps secondary text at
+      // 4.5:1), rim darkening, frost grain, milky veil, key-light highlight.
+      window: { albedo: [0.6, 0.57, 0.53], maxLum: 0.15, edge: 0.15, grain: 0.04, veil: 0, key: 0.55 },
+      lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, grain: 0.03, veil: 0, key: 0.8 },
+      bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, grain: 0.02, veil: 0.02, key: 0.9 },
     },
     // Hovered row: a light glass lens lifts out of the window by this much.
     lensLift: 5, // mm

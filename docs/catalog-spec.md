@@ -27,6 +27,17 @@ Judged against the arena bar (material, light, shape, type, states, depth, cohes
 | Back layers interfere with the front | Pushed-back levels still showed their lists. | A pushed-back level shows only its darkened title. |
 | Too 2D; hover only changed a colour | Hover was a flat white fill. | Hover lifts a light glass lens out of the window, carrying the row with it and casting a shadow. Icons sit in glass beads. |
 
+## Round 4: lookdev against a path-traced reference
+
+Jihoon asked for professional light, texture and modelling tools. GPT Image 2.5 (through Figma AI) made concept targets, and Blender (Cycles path tracing, `lookdev/`) rendered the real Catalog geometry with physically correct glass in the same room. The live shader was then matched to the Blender frames side by side (`npm run bench -- lookdev`).
+
+| What the reference showed | Live change |
+|---|---|
+| The glass keeps the room's warm colour; it's darker because it absorbs light, not because it's grey. | Transmission is Beer-Lambert absorption (`look.glass.absorb`, per-kind `albedo`) instead of a desaturated mix. |
+| Curved edges (window rim, beads, lens) look darker at the edge, like droplets. | A rim darkening term per kind (`edge`). |
+| The hovered lens is clear, defined by its edge and shadow, not a milky fill. | No veil on the lens, a softer hover glow. |
+| In front of a sunlit window, pure physical glass makes text unreadable. | The adaptive scrim stays: per-kind `maxLum` holds secondary text at 4.5 : 1. |
+
 ## Spec
 
 ### Backdrop
@@ -89,6 +100,8 @@ Measured on the round 3 bench renders (WCAG contrast of white text against the g
 
 | Where the window sits | Glass luminance | Primary text | Secondary text (72 %) |
 |---|---|---|---|
+| Round 4, lit wall: window | 0.12 to 0.13 | 5.9 to 6.1 : 1 | 4.5 to 4.7 : 1 |
+| Round 4, lit wall: hovered lens | 0.11 to 0.12 | 6.1 to 6.4 : 1 | 4.7 to 5.0 : 1 |
 | In front of a lit wall | 0.086 to 0.10 | 7.0 to 7.7 : 1 | 4.6 to 5.0 : 1 |
 | In front of a sunlit window (round 2) | 0.12 to 0.15 | 5.2 to 6.1 : 1 | 3.6 to 4.1 : 1 |
 
