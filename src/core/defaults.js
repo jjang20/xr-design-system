@@ -9,33 +9,38 @@ export const DEFAULTS = {
   // Hover fade out. Only motion.hover.in exists; out mirrors it for now.
   hoverOutSameAsIn: true,
 
+  // Layout follows Apple's visionOS 26 kit, converted with 1 pt ≈ 0.73 dmm
+  // (Apple's stated 60 pt ≈ 4.4 cm at 1 m; see the research notes, 5b).
+
   // Corner radii in dmm. Proposed: shape.radius.{window,row,control}.
-  radius: { window: 40, row: 20, control: 16 },
+  radius: { window: 34, row: 15, control: 12 }, // 46 / 20 / 16 pt
 
   // Packaging panel layout in dmm (docs/catalog-spec.md).
   // Proposed: size.panel.*, size.row.*.
-  panelWidth: 320,
-  rowHeight: 60, // above size.target.min = 32
-  panelPadding: 24, // sides
-  panelPadTop: 26,
-  panelPadBottom: 14,
-  rowInset: 10, // hover platter inset from the window edge
-  badge: 34, // icon badge circle
-  badgeGlyph: 18,
-  badgeGap: 12, // badge to label
-  chevron: 15,
-  subtitleGap: 6, // title to subtitle
-  headerGap: 18, // header to list
+  panelWidth: 240, // ≈ 330 pt
+  rowHeight: 48, // hit size: the proposed size.target.hit.min (44–48)
+  panelPadding: 18, // sides, ≈ 24 pt
+  panelPadTop: 19,
+  panelPadBottom: 8,
+  rowInset: 7, // row lens inset from the window edge
+  badge: 26, // icon bead, ≈ 36 pt
+  badgeGlyph: 14,
+  badgeGap: 9, // bead to label
+  chevron: 11,
+  subtitleGap: 3, // title to subtitle
+  headerGap: 12, // header to list
 
-  // Type ramp: size in dmm, weight, tracking in em. One step heavier than a
-  // flat screen, because text over glass needs more presence (vibrancy).
+  // Type ramp: size in dmm, weight, tracking in em. Apple's visionOS kit:
+  // LargeTitle 29 pt Bold, Headline 17 pt Bold, Body 17 pt Medium,
+  // Callout 15 pt Semibold, Footnote 13 pt Medium; nothing lighter than
+  // Medium. Inter runs a little heavy, so Bold becomes Semibold for rows.
   // Proposed: type.{title,headline,body,subheadline,footnote}.
   type: {
-    title: { size: 29, weight: 700, tracking: -0.02 },
-    headline: { size: 17, weight: 600, tracking: 0 },
-    body: { size: 17, weight: 500, tracking: 0 },
-    subheadline: { size: 15, weight: 500, tracking: 0 },
-    footnote: { size: 13, weight: 500, tracking: 0.01 },
+    title: { size: 21, weight: 700, tracking: -0.01 },
+    headline: { size: 12.4, weight: 600, tracking: 0 },
+    body: { size: 12.4, weight: 500, tracking: 0 },
+    subheadline: { size: 11, weight: 500, tracking: 0 },
+    footnote: { size: 9.5, weight: 500, tracking: 0.01 },
   },
   // Text emphasis as white at an opacity, not grey (vibrancy).
   // Chosen for contrast on glass (docs/catalog-spec.md): secondary text 4.5:1,
@@ -54,13 +59,26 @@ export const DEFAULTS = {
     bevelRatio: 0.28, // edge bevel as a fraction of thickness
     shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)
     rimStrength: 0.16, // luminous edge brightness
-    // Window glass: how blurred (0..1, prefiltered roughness), how much of
-    // the room shows through (the rest is glassTint), and the brightest the
-    // glass may get (linear luminance) before the adaptive scrim darkens it.
-    glass: { blur: 0.62, see: 0.45, maxLum: 0.085 },
-    // Row platter: white opacity on hover, extra under the pointer, extra on press.
-    platter: { hover: 0.1, spot: 0.06, press: 0.07 },
-    badgeFill: 0.14, // icon badge: white opacity
+    // Glass (docs/catalog-spec.md). blur and reflBlur are prefiltered
+    // roughness (0..1); see is how much of the room shows through (the rest
+    // is glassTint); maxLum is the brightest the glass may get (linear
+    // luminance) before the adaptive scrim darkens it.
+    glass: {
+      blur: 0.5, reflBlur: 0.16, see: 0.45, maxLum: 0.085, ior: 1.45, f0: 0.04,
+      // Per kind: frost grain, milky veil, key-light highlight.
+      window: { grain: 0.04, veil: 0, key: 0.55 },
+      lens: { grain: 0.03, veil: 0.045, key: 0.8 },
+      bead: { grain: 0.02, veil: 0.06, key: 0.9 },
+    },
+    // Hovered row: a light glass lens lifts out of the window by this much.
+    lensLift: 5, // mm
+    // Contact shadows between floating layers: softness grows with the gap,
+    // and the shadow drops below the caster (light from above).
+    contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.55, lens: 0.4 },
+    // Icon badge: a glass bead this high (fraction of its diameter).
+    beadHeight: 0.22,
+    // Text sits on glass with a faint shadow, so it reads as on the surface.
+    textShadow: { blur: 0.3, offset: 0.05, opacity: 0.22 }, // fractions of font size
     separator: 0.08, // hairline between rows: white opacity
   },
 

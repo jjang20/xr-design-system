@@ -3,11 +3,13 @@
 // because XR has no frame edge to slide in from.
 //
 // When a child opens, the parent does one of three things (packaging.parent.mode):
-//   compress  moves back, up and smaller, and fades to a silhouette (lab default)
+//   compress  moves back, up and smaller, and darkens (lab default)
 //   replace   fades out in place
 //   protrude  stays, and the child comes forward
 // Receded parents stay visible and pressable: they are the breadcrumb
-// (wayfinding). Press one to go back to it.
+// (wayfinding). Press one to go back to it. The level in front casts a soft
+// contact shadow on the one behind, and a hovered row lifts out as a glass
+// lens that shadows its window.
 //
 // Tokens used: packaging.*, motion.expand.dropdown.*, material.*, size.*,
 // plus everything Button uses.
@@ -16,7 +18,7 @@ import { markComponent } from '../core/Interactable.js';
 import { clamp } from '../core/easing.js';
 import { springStep } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { makeText, flatMaterial, setGroupOpacity } from '../core/look.js';
+import { makeText, flatMaterial, setGroupOpacity, setContactShadow } from '../core/look.js';
 import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
 
@@ -79,7 +81,7 @@ export class PackagingPanel extends THREE.Group {
     // has receded it becomes the way back (the breadcrumb).
     const panel = new Button(T, {
       width: D.panelWidth, height: H / dist * 1000, radius: D.radius.window,
-      thickness: 'thin', density: 'rigid', variant: 'glass', distance: dist,
+      thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);
     const front = panel.t + 0.0004;
@@ -101,6 +103,7 @@ export class PackagingPanel extends THREE.Group {
     }
     const listTop = H / 2 - dmm(D.panelPadTop) - headerH;
 
+    const separators = [];
     const rows = items.map((child, i) => {
       const canOpen = !!child.items?.length;
       const tooDeep = canOpen && levelIndex >= this.maxDepth;
@@ -125,13 +128,18 @@ export class PackagingPanel extends THREE.Group {
         else this.dispatchEvent({ type: 'select', item: child });
       });
       group.add(row);
+      // A pushed-back level shows only its title: its list would compete
+      // with the level in front.
+      row.traverse(o => { if (o !== row.body) o.userData.hideWhenDim = true; });
       // Hairline between rows, starting where the label starts.
       if (i > 0) {
         const x0 = row.labelX ?? (-row.w / 2), x1 = W / 2 - dmm(D.panelPadding);
-        const line = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, dmm(1)), flatMaterial(0xffffff, D.look.separator));
+        const line = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, dmm(0.75)), flatMaterial(0xffffff, D.look.separator));
         line.position.set((x0 + x1) / 2, row.position.y + rowH / 2, front - 0.0002);
         line.renderOrder = 2;
+        line.userData.between = i; // hidden while the row above or below is lifted
         group.add(line);
+        separators.push(line);
       }
       return row;
     });
@@ -141,7 +149,7 @@ export class PackagingPanel extends THREE.Group {
       if (idx < this.active) this.back(idx);
     });
 
-    return { item, group, panel, rows, size: { W, H } };
+    return { item, group, panel, rows, separators, size: { W, H } };
   }
 
   // Open a child level out of `sourceRow` (null for the root).
@@ -213,10 +221,44 @@ export class PackagingPanel extends THREE.Group {
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1));
     }
+    this.updateLight();
     // Remove levels that finished closing.
     const done = this.levels.filter(l => l.closing && (l.settled || l.cur.opacity < 0.01));
     for (const l of done) this.remove(l.group);
     if (done.length) this.levels = this.levels.filter(l => !done.includes(l));
+  }
+
+  // Contact shadows: each window gets one from the level in front of it and
+  // one from its lifted row lens, so the layers read as objects in space.
+  updateLight() {
+    const S = DEFAULTS.look.contactShadow;
+    this.levels.forEach((l, i) => {
+      const m = l.panel.body.material, p = l.cur;
+      const next = this.levels[i + 1];
+      if (next) {
+        const c = next.cur;
+        const k = c.sx / p.sx;
+        setContactShadow(m, 0, {
+          x: (c.x - p.x) / p.sx, y: (c.y - p.y) / p.sy,
+          hw: next.size.W / 2 * k, hh: next.size.H / 2 * k,
+          r: next.panel.r * k, gap: Math.max(0, c.z - p.z), amount: S.child * clamp(c.opacity, 0, 1),
+        });
+      } else setContactShadow(m, 0);
+      let lifted = null;
+      for (const r of l.rows) if (r.hover > (lifted?.hover ?? 0.001)) lifted = r;
+      if (lifted) {
+        setContactShadow(m, 1, {
+          x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2, r: lifted.r,
+          gap: lifted.lift * lifted.hover + lifted.t, amount: S.lens * lifted.hover,
+        });
+      } else setContactShadow(m, 1);
+      // Hairlines next to a lifted row step aside, as in visionOS lists.
+      for (const line of l.separators) {
+        const j = line.userData.between;
+        const near = Math.max(l.rows[j - 1]?.hover ?? 0, l.rows[j]?.hover ?? 0);
+        line.material.opacity = DEFAULTS.look.separator * (1 - near) * clamp(p.opacity, 0, 1) * (1 - p.dim);
+      }
+    });
   }
 }
 

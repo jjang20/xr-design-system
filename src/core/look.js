@@ -3,6 +3,7 @@
 // are candidates for future tokens live in DEFAULTS.look.
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff?url';
 import interMedium from '@fontsource/inter/files/inter-latin-500-normal.woff?url';
 import interSemibold from '@fontsource/inter/files/inter-latin-600-normal.woff?url';
@@ -183,26 +184,65 @@ export function setBackdrop(pmremTexture, { rotation, intensity = 1 } = {}) {
 }
 export function setBackdropIntensity(v) { backdrop.uEnvIntensity.value = v; }
 
+// A solid glass slab: a rounded outline whose edge is a full round (like a
+// lens), so the rim bends and reflects the room the way thick glass does.
+// Front face at z = t, back at z = 0. Normals are smoothed across the face
+// and the rounded edge, so reflections slide along it without facets.
+export function glassSlabGeometry(w, h, t, r) {
+  const b = Math.min(t / 2, r * 0.8, Math.min(w, h) * 0.25);
+  const shape = roundedRectShape(w - b * 2, h - b * 2, Math.max(0.0001, r - b));
+  let g = new THREE.ExtrudeGeometry(shape, {
+    depth: Math.max(1e-5, t - b * 2),
+    bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 10,
+    curveSegments: 40,
+  });
+  g.translate(0, 0, b);
+  g.deleteAttribute('uv');
+  g.deleteAttribute('normal');
+  g = mergeVertices(g, 1e-7);
+  g.computeVertexNormals();
+  return g;
+}
+
+// A glass bead (icon badge): a low dome that catches light like a droplet.
+export function glassBeadGeometry(diameter, height) {
+  const g = new THREE.SphereGeometry(diameter / 2, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+  g.rotateX(Math.PI / 2);
+  g.scale(1, 1, height / (diameter / 2));
+  return g;
+}
+
 const GLASS_VERT = /* glsl */`
-  varying vec2 vP;
-  varying vec3 vWorld;
-  uniform vec2 uSize;
+  varying vec3 vWorld, vNormal, vLocal;
   void main() {
-    vP = (uv - 0.5) * uSize;
+    vLocal = position;
     vec4 w = modelMatrix * vec4(position, 1.0);
     vWorld = w.xyz;
+    vNormal = normalize(mat3(modelMatrix) * normal);
     gl_Position = projectionMatrix * viewMatrix * w;
   }`;
+
+// Glass is drawn from what a real slab does with light:
+//   transmission  the room behind, seen through the slab (refracted, so the
+//                 rounded rim bends it like a lens) and frosted (blurred)
+//   reflection    the room in front, mirrored by the surface; faint face-on,
+//                 strong at grazing angles (Fresnel), so the rim glows
+//   key light     a soft highlight from above-left on the curved rim
+//   frost grain   a fine static grain in the surface, so it reads as a
+//                 material rather than a flat colour
+//   veil          light glass (a hovered row lens, a bead) is the same glass
+//                 plus a thin milky layer
+//   contact       soft shadows from what floats in front of it (a child
+//                 level, a lifted row lens), so layers sit in space
 const GLASS_FRAG = /* glsl */`
-  varying vec2 vP;
-  varying vec3 vWorld;
-  uniform vec2 uSize;
-  uniform float uRadius, uRim, uOpacity, uDim, uHover, uSpotRadius, uBlur, uSolidOpacity;
-  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax;
+  varying vec3 vWorld, vNormal, vLocal;
+  uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uSee, uIor, uF0, uGrain, uVeil, uKey;
   uniform vec2 uSpot;
   uniform vec3 uTint;
-  uniform float uSee;
   uniform mat3 uEnvRot;
+  uniform vec4 uShadowRect[2];   // centre xy, half size zw (local)
+  uniform vec4 uShadowParam[2];  // radius, softness, amount, drop
   #ifdef ENVMAP_TYPE_CUBE_UV
     uniform sampler2D envMap;
     #include <cube_uv_reflection_fragment>
@@ -211,68 +251,105 @@ const GLASS_FRAG = /* glsl */`
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
   }
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float vnoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+  }
+  const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
   void main() {
-    float d = sdRoundRect(vP, uSize * 0.5, uRadius);
-    float aa = fwidth(d);
-    float inside = 1.0 - smoothstep(-aa, aa, d);
-    if (inside <= 0.0) discard;
-    vec2 n = vP / (uSize * 0.5);              // -1..1 across the sheet
-    float top = n.y * 0.5 + 0.5;
+    vec3 V = normalize(vWorld - cameraPosition);
+    vec3 N = normalize(vNormal);
+    float cosT = clamp(dot(-V, N), 0.0, 1.0);
+    float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
     vec3 col = uTint;
     float alpha = uSolidOpacity;
+    vec3 refl = vec3(0.0);
     #ifdef ENVMAP_TYPE_CUBE_UV
-      vec3 dir = uEnvRot * normalize(vWorld - cameraPosition);
-      vec3 bg = textureCubeUV(envMap, dir, uBlur).rgb * uEnvIntensity;
-      float lum = dot(bg, vec3(0.2126, 0.7152, 0.0722));
-      bg = mix(vec3(lum), bg, 0.8);            // a little less colour than the room
-      bg = bg / (1.0 + lum * 1.2);             // compress bright walls more than dark corners
+      vec3 Tdir = refract(V, N, 1.0 / uIor);
+      vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, uBlur).rgb * uEnvIntensity;
+      float lum = dot(bg, LUMA);
+      bg = mix(vec3(lum), bg, 0.6);            // keep a hint of the room's colour
+      bg = bg / (1.0 + lum * 1.2);
       col = mix(uTint, bg, uSee);
-      // Adaptive scrim: over a bright room (a sunny window) darken just
-      // enough to keep white text legible, up to surface.scrim.max.
-      float lc = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      // Adaptive scrim: over a bright room darken just enough to keep white
+      // text legible, up to surface.scrim.max.
+      float lc = dot(col, LUMA);
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax);
+      refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur).rgb * uEnvIntensity;
+      refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
     #endif
-    col *= mix(1.0, 0.55, uDim);               // pushed-back levels read darker, not see-through
-    col += vec3(0.018) * top;                   // light falling from above
 
-    // Specular edge: a thin bright line, strongest at the top left.
-    float edge = 1.0 - smoothstep(0.0, uRim + aa, -d);
-    float lit = clamp(0.55 * n.y - 0.35 * n.x + 0.45, 0.0, 1.0);
-    col += vec3(1.0) * edge * mix(0.06, 0.55, lit * lit);
-    float inner = 1.0 - smoothstep(uRim, uRim * 6.0 + aa, -d);
-    col += vec3(1.0) * inner * 0.02 * lit;
+    // Frost: a fine grain plus a slow cloudiness, fixed to the surface.
+    float grain = hash(floor(vLocal.xy / 0.0004)) - 0.5;
+    float cloud = vnoise(vLocal.xy / 0.03) - 0.5;
+    col *= 1.0 + grain * uGrain + cloud * uGrain * 2.5;
 
-    // Hover (receded levels are pressable): a soft spot under the pointer.
-    float s = 1.0 - smoothstep(0.0, uSpotRadius, length(vP - uSpot));
-    col += vec3(1.0) * s * s * uHover * 0.06;
+    // Light glass: a milky veil, a touch brighter toward the top.
+    col += vec3(uVeil) * (0.75 + 0.5 * clamp(N.y + 0.5, 0.0, 1.0));
 
-    gl_FragColor = vec4(col, inside * alpha * uOpacity);
+    // Contact shadows from layers floating in front.
+    for (int i = 0; i < 2; i++) {
+      vec4 R = uShadowRect[i], P = uShadowParam[i];
+      if (P.z <= 0.0) continue;
+      float d = sdRoundRect(vLocal.xy - R.xy + vec2(0.0, P.w), R.zw, P.x);
+      float s = 1.0 - smoothstep(-P.y * 0.6, P.y, d);
+      col *= 1.0 - s * P.z;
+    }
+
+    col *= mix(1.0, 0.42, uDim);               // pushed-back levels go dark, not see-through
+
+    // Reflection (Fresnel) and the key light on the curved rim.
+    col = mix(col, refl, F * (1.0 - 0.5 * uDim));
+    vec3 Lk = normalize(vec3(-0.45, 0.8, 0.6));
+    vec3 H = normalize(Lk - V);
+    float spec = pow(max(dot(N, H), 0.0), 90.0);
+    float rim = 1.0 - cosT;
+    col += vec3(1.0) * spec * uKey * (0.3 + rim);
+    // Rim light: curved glass edges gather light, brightest along the top.
+    col += vec3(1.0) * pow(rim, 3.0) * uKey * 0.5 * (0.35 + 0.65 * clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+
+    // Hover (receded levels are pressable): a soft light under the pointer.
+    float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
+    col += vec3(1.0) * sp * sp * uHover * 0.05;
+
+    gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`;
 
-export function glassMaterial(T, { w, h, r, distance }) {
+// kind: 'window' (dark structural glass), 'lens' (light glass that lifts
+// out of a window on hover), 'bead' (icon badge).
+export function glassMaterial(T, { w, h, kind = 'window' }) {
+  const G = L.glass, K = G[kind];
   const m = new THREE.ShaderMaterial({
     vertexShader: GLASS_VERT, fragmentShader: GLASS_FRAG,
-    transparent: true, depthWrite: true,
+    transparent: true, depthWrite: kind === 'window',
     defines: cubeUVDefines(backdrop.envMap.value),
     uniforms: {
       ...backdrop,
-      uSize: { value: new THREE.Vector2(w, h) },
-      uRadius: { value: Math.min(r, w / 2, h / 2) },
-      uRim: { value: T.dmm('surface.outline.mr', distance) },
-      uBlur: { value: L.glass.blur },
-      uSee: { value: L.glass.see },
-      uMaxLum: { value: L.glass.maxLum },
+      uBlur: { value: G.blur },
+      uReflBlur: { value: G.reflBlur },
+      uSee: { value: G.see },
+      uIor: { value: G.ior },
+      uF0: { value: G.f0 },
+      uGrain: { value: K.grain },
+      uVeil: { value: K.veil },
+      uKey: { value: K.key },
+      uMaxLum: { value: G.maxLum },
       uScrimMax: { value: T.get('surface.scrim.max') },
       uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
       uSolidOpacity: { value: T.get('surface.opacity.base') },
       uDim: { value: 0 },
       uHover: { value: 0 },
+      uFade: { value: kind === 'lens' ? 0 : 1 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
+      uShadowRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uOpacity: { value: 1 },
     },
   });
@@ -280,42 +357,12 @@ export function glassMaterial(T, { w, h, r, distance }) {
   return m;
 }
 
-// List-row platter: invisible at rest, a soft white lift on hover, a little
-// brighter while pressed. No outline.
-const PLATTER_FRAG = /* glsl */`
-  varying vec2 vP;
-  uniform vec2 uSize;
-  uniform float uRadius, uHover, uPress, uSpotRadius, uOpacity, uRest;
-  uniform vec2 uSpot;
-  uniform vec3 uK; // hover fill, spot, press fill
-  float sdRoundRect(vec2 p, vec2 b, float r) {
-    vec2 q = abs(p) - b + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
-  }
-  void main() {
-    float d = sdRoundRect(vP, uSize * 0.5, uRadius);
-    float aa = fwidth(d);
-    float inside = 1.0 - smoothstep(-aa, aa, d);
-    float s = 1.0 - smoothstep(0.0, uSpotRadius, length(vP - uSpot));
-    float a = uRest + uHover * (uK.x + s * s * uK.y) + uPress * uK.z;
-    gl_FragColor = vec4(vec3(1.0), a * inside * uOpacity);
-  }`;
-
-export function platterMaterial({ w, h, r, rest = 0 }) {
-  const P = L.platter;
-  return new THREE.ShaderMaterial({
-    vertexShader: FACE_VERT, fragmentShader: PLATTER_FRAG,
-    transparent: true, depthWrite: false,
-    uniforms: {
-      uSize: { value: new THREE.Vector2(w, h) },
-      uRadius: { value: Math.min(r, w / 2, h / 2) },
-      uHover: { value: 0 }, uPress: { value: 0 }, uRest: { value: rest },
-      uSpot: { value: new THREE.Vector2() },
-      uSpotRadius: { value: Math.max(w, h) * 0.6 },
-      uK: { value: new THREE.Vector3(P.hover, P.spot, P.press) },
-      uOpacity: { value: 1 },
-    },
-  });
+// Contact shadow slot `i` on a glass material: a rounded rect (local
+// coordinates of the receiving glass) floating `gap` metres in front.
+export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, gap = 0, amount = 0 } = {}) {
+  const S = L.contactShadow;
+  m.uniforms.uShadowRect.value[i].set(x, y, hw, hh);
+  m.uniforms.uShadowParam.value[i].set(r, S.minSoft + gap * S.softPerGap, amount, gap * S.dropPerGap);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {
@@ -347,6 +394,14 @@ export function makeText(str, { style, distance = DEFAULTS.distance, size, weigh
   if (maxWidth) { t.maxWidth = maxWidth; t.overflowWrap = 'break-word'; t.whiteSpace = 'nowrap'; }
   t.fillOpacity = opacity;
   t.userData.baseOpacity = opacity;
+  const S = DEFAULTS.look.textShadow;
+  if (S) {
+    t.outlineColor = 0x000000;
+    t.outlineBlur = size * S.blur;
+    t.outlineOffsetY = -size * S.offset;
+    t.outlineOpacity = S.opacity * opacity;
+    t.userData.baseOutline = S.opacity;
+  }
   t.renderOrder = 3;
   t.sync();
   return t;
@@ -408,22 +463,27 @@ export function softTexture() {
 export function setGroupOpacity(root, k, dim = 0) {
   // Content fades in later than the glass and out sooner, so two levels'
   // text never shows through each other mid-transition.
-  const content = k * k * (1 - 0.45 * dim);
+  const content = k * k * clamp(1 - 1.25 * dim, 0.2, 1);
   const sheet = Math.min(1, k * 2.5);
   root.traverse(o => {
     o.visible = k > 0.001;
-    // Secondary header text (a subtitle) goes once its level is pushed back.
+    // Marked content (a subtitle, a list) goes once its level is pushed back.
     const hide = o.userData.hideWhenDim ? clamp(1 - dim * 3, 0, 1) : 1;
     if (o.isMesh && o.text !== undefined && 'fillOpacity' in o) {
       o.fillOpacity = (o.userData.baseOpacity ?? 1) * content * hide;
+      if (o.userData.baseOutline) o.outlineOpacity = o.userData.baseOutline * o.fillOpacity;
       return;
     }
     const m = o.material;
     if (!m || Array.isArray(m)) return;
-    if (m.uniforms?.uDim) { m.uniforms.uOpacity.value = sheet; m.uniforms.uDim.value = dim; }
-    else if (m.uniforms?.uOpacity) m.uniforms.uOpacity.value = content;
+    if (m.uniforms?.uDim) {
+      // Window glass carries the level; lenses and beads are content.
+      m.uniforms.uOpacity.value = m.depthWrite ? sheet : content * hide;
+      m.uniforms.uDim.value = dim;
+    }
+    else if (m.uniforms?.uOpacity) m.uniforms.uOpacity.value = content * hide;
     else {
-      m.opacity = (m.userData.baseOpacity ?? 1) * content;
+      m.opacity = (m.userData.baseOpacity ?? 1) * content * hide;
       m.transparent = true;
     }
   });

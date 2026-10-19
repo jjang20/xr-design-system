@@ -25,25 +25,25 @@ const settled = active => page.waitForFunction(a => {
 }, active, { timeout: 120000, polling: 200 });
 const rowAt = i => page.evaluate(i => window.contour.screenOf(window.contour.panel.levels.at(-1).rows[i]), i);
 
-try {
-  await page.goto(server.resolvedUrls.local[0] + 'bench.html' + (process.argv[2] ?? ''));
+async function run(query, prefix, { states = true } = {}) {
+  await page.goto(server.resolvedUrls.local[0] + 'bench.html' + query);
   await page.waitForFunction(() => window.ready, null, { timeout: 60000 });
   await wait(2500);
-  await shot('1-rest');
+  await shot(`${prefix}1-rest`);
   let p = await rowAt(0);
   await page.mouse.move(p.x + 40, p.y);
-  await wait(400);
-  await shot('2-hover');
+  await wait(500);
+  await shot(`${prefix}2-hover`);
   await page.mouse.down();
   await wait(60);
-  await shot('3-press');
+  if (states) await shot(`${prefix}3-press`);
   await page.mouse.up();
   await wait(90);
-  await shot('4-opening');
+  if (states) await shot(`${prefix}4-opening`);
   await settled(1);
   await page.mouse.move(20, 20);
   await wait(600);
-  await shot('5-level-2');
+  await shot(`${prefix}5-level-2`);
   p = await rowAt(1);
   await page.mouse.move(p.x + 40, p.y);
   await wait(400);
@@ -53,7 +53,14 @@ try {
   await settled(2);
   await page.mouse.move(20, 20);
   await wait(600);
-  await shot('6-level-3');
+  await shot(`${prefix}6-level-3`);
+}
+
+try {
+  const extra = process.argv[2] ?? '';
+  await run('?' + extra, '');
+  // From 35° to the side: thickness, lift and layering.
+  await run('?view=angle&' + extra, 'angle-', { states: false });
 } finally {
   await browser.close();
   await server.close();

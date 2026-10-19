@@ -18,7 +18,7 @@ import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, platterMaterial, flatMaterial, makeText, makeIcon } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
 
@@ -79,16 +79,18 @@ export class Button extends Interactable {
 
     // Body: the compressible solid. Two variants draw differently:
     //   glass  a window: a flat glass sheet at the front (see glassMaterial)
-    //   plain  a list row: no solid, a platter that only shows on hover
+    //   plain  a list row: a light glass lens that only shows on hover
     const fill = this.disabled ? C.disabled
       : o.color ?? { primary: C.accent, window: C.window, tinted: C.control }[this.variant] ?? C.control;
-    const plane = (z) => new THREE.PlaneGeometry(this.w, this.h).translate(0, 0, z);
     if (this.variant === 'glass') {
-      this.body = new THREE.Mesh(plane(this.t), glassMaterial(T, { w: this.w, h: this.h, r: this.r, distance }));
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h }));
       this.body.renderOrder = 1;
       this.skin = this.body.material;
     } else if (this.variant === 'plain') {
-      this.body = new THREE.Mesh(plane(this.t * 0.5), platterMaterial({ w: this.w, h: this.h, r: this.r }));
+      // A light glass lens: invisible at rest, it lifts out of the window
+      // on hover, carrying the row's content with it.
+      this.lift = DEFAULTS.look.lensLift / 1000;
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, kind: 'lens' }));
       this.body.renderOrder = 2;
       this.skin = this.body.material;
     } else {
@@ -122,12 +124,13 @@ export class Button extends Interactable {
       let x = -this.w / 2 + pad;
       if (o.icon) {
         const b = dmm(DEFAULTS.badge);
-        const badge = new THREE.Mesh(new THREE.CircleGeometry(b / 2, 48), flatMaterial(0xffffff, DEFAULTS.look.badgeFill * dim));
-        badge.position.set(x + b / 2, 0, z * 0.5);
-        badge.renderOrder = 3;
-        this.face.add(badge);
+        const bh = b * DEFAULTS.look.beadHeight;
+        const bead = new THREE.Mesh(glassBeadGeometry(b, bh), glassMaterial(this.T, { w: b, h: b, kind: 'bead' }));
+        bead.position.set(x + b / 2, 0, 0);
+        bead.renderOrder = 2.5; // after the row lens, before text and icons
+        this.face.add(bead);
         const icon = makeIcon(o.icon, dmm(DEFAULTS.badgeGlyph), { opacity: dim });
-        icon.position.set(x + b / 2, 0, z);
+        icon.position.set(x + b / 2, 0, bh + z);
         this.face.add(icon);
         x += b + dmm(DEFAULTS.badgeGap);
       }
@@ -178,7 +181,10 @@ export class Button extends Interactable {
   layoutFront() {
     const front = this.t - this.press.depth;
     this.body.scale.z = Math.max(0.001, front / this.t);
-    this.face.position.z = front;
+    // A row lens rises out of the window on hover; pressing pushes it back.
+    const lift = this.lift ? this.lift * (this.hover ?? 0) : 0;
+    this.body.position.z = lift;
+    this.face.position.z = front + lift;
   }
 
   // Distance from a local point to the face rectangle at the front plane.
@@ -234,10 +240,14 @@ export class Button extends Interactable {
     const u = this.skin.uniforms;
     u.uHover.value = hover;
     if (u.uPress) u.uPress.value = this.press.amount;
+    if (this.variant === 'plain') u.uFade.value = hover;
     u.uSpot.value.copy(this.spot);
-    // Rows have no visible thickness, so press also reads as a slight shrink
-    // of the content (Emil Kowalski: 0.95 to 0.98 on press).
-    if (this.variant === 'plain') this.face.scale.setScalar(1 - 0.03 * this.press.amount);
+    // A pressed lens also shrinks slightly (Emil Kowalski: 0.95 to 0.98).
+    if (this.variant === 'plain') {
+      const k = 1 - 0.025 * this.press.amount;
+      this.face.scale.setScalar(k);
+      this.body.scale.x = this.body.scale.y = k;
+    }
     this.layoutFront();
   }
 }

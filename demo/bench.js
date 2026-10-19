@@ -23,6 +23,11 @@ document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.02, 50);
 camera.position.set(0, EYE, 0);
+// ?view=angle looks at the window from 35° to the side, to show thickness and layering.
+if (q.get('view') === 'angle') {
+  camera.position.set(Math.sin(0.6) * D, EYE + 0.06, -D + Math.cos(0.6) * D);
+  camera.lookAt(0, EYE, -D);
+}
 
 await loadBackdrop(renderer, scene, { yaw: Number(q.get('rot') ?? 1.6) });
 
