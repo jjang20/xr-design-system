@@ -10,17 +10,20 @@ import { ARENA } from './experiment.mjs';
 // 5 = better than that. A variant passes only with 4+ on every row.
 // Rows marked by: 'code' can't be seen in a still render, so check.mjs
 // measures them from the tokens instead (motion rules in lib/motion.mjs,
-// from Emil Kowalski's design-engineering practice).
+// from Emil Kowalski's design-engineering practice and Apple's fluid
+// interface rules). The material, type, states and depth rows carry Apple's
+// own standards (WWDC "Designing Fluid Interfaces" and "The Details of UI
+// Typography"), so "visionOS level" is spelled out rather than implied.
 export const PASS_SCORE = 4;
 export const RUBRIC = [
-  { id: 'material', text: 'Surfaces read as a designed material (frosted glass with vibrancy, or a deliberate solid), not default 3D shading.' },
+  { id: 'material', text: 'Surfaces read as a designed material (frosted glass with vibrancy, or a deliberate solid), not default 3D shading. Material weight encodes hierarchy: heavier for structure, lighter for controls, and never a light translucent surface on another. Bigger surfaces read as thicker (stronger blur, deeper shadow) than small ones. A bright edge where light catches the material.' },
   { id: 'light', text: 'Lighting is soft and consistent with the surroundings; highlights and contact shadows ground the object in the room.' },
   { id: 'shape', text: 'Corners, edges and proportions are refined and consistent (continuous curvature, even radii); nothing looks like a raw primitive.' },
-  { id: 'type', text: 'Labels and icons are crisp and legible with clear hierarchy. A control with no label or icon counts as unfinished.' },
-  { id: 'states', text: 'Hover and press look intentional and refined, not like debug highlights or outlines. Press feedback is subtle and physical (a slight compression, like scale 0.97 on a 2D button), never a jump.' },
-  { id: 'depth', text: 'Layering, spacing and depth placement feel deliberate, like one designed scene rather than parts placed in a viewport.' },
+  { id: 'type', text: 'Labels and icons are crisp and legible with clear hierarchy built from weight, size and leading together. Large text is tracked tighter and small text slightly looser; text on glass is heavier and higher-contrast (vibrancy), never flat gray. A control with no label or icon counts as unfinished.' },
+  { id: 'states', text: 'Hover and press look intentional and refined, not like debug highlights or outlines. Press feedback is subtle and physical (a slight compression, like scale 0.97 on a 2D button), never a jump. Hover points toward the input, so the in-between state hints where the interaction is going.' },
+  { id: 'depth', text: 'Layering, spacing and depth placement feel deliberate, like one designed scene rather than parts placed in a viewport. Focus comes from dimming or pushing back what is behind; parallel panels separate by offset and translucency, not hard borders. Related things sit together and controls sit next to what they change.' },
   { id: 'cohesion', text: 'Every detail agrees with the others: radii, shadows, glow, spacing and states feel made by one hand. The small unseen details are right, so nothing draws attention to itself.' },
-  { id: 'motion', by: 'code', text: 'Entering motion starts fast (strong custom ease-out, never ease-in or a built-in CSS curve); UI motion stays under 300 ms; press tracks the finger; release is snappy (200 ms or less).' },
+  { id: 'motion', by: 'code', text: 'Entering motion starts fast (strong custom ease-out, never ease-in or a built-in CSS curve); UI motion stays under 300 ms; press tracks the finger; release is snappy (200 ms or less). Anything the user touches settles with an interruptible spring, without overshoot unless a flick carried momentum, and has a reduced-motion fallback.' },
 ];
 export const EYE_ROWS = RUBRIC.filter(r => r.by !== 'code');
 

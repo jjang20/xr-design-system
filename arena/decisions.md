@@ -14,6 +14,12 @@ Same shape as [docs/decisions.md](../docs/decisions.md): **Decision**, **Why**, 
 - **Alternatives:** Render short clips and judge motion by eye. That's closer to the real feeling, and it's worth adding later, but it's slower to judge and harder for the AI.
 - **Trade-offs:** The rules are generic. They don't know that XR may want different timing (for example, slower follow motion to avoid motion sickness), so `anchor.follow.*` is deliberately left out of them.
 
+### 0c. Apple's design rules sharpen the bar
+- **Decision:** The material, type, states and depth rows now spell out Apple's own standards (material weight encodes hierarchy, no light glass on light glass, size-specific tracking, vibrancy for text on glass, dim or push back to focus). The motion check adds three of Apple's fluid-interface rules: springs for anything touched, no overshoot without momentum, and a reduced-motion fallback.
+- **Why:** "visionOS level" was a feeling; judges (you and the AI) score more consistently against named criteria. Apple's rules are the closest written description of that level. They complement Emil's: Emil covers timing and curves, Apple covers springs, interruption, materials and type.
+- **Alternatives:** Keep the rows short and rely on reference images. Easier to read, but two judges can mean different things by "material".
+- **Trade-offs:** The rows are longer, so a human judgment takes a little more reading. The new spring and reduced-motion findings are warnings on the system, not on this experiment, because fixing them means new tokens (a spring per density, `motion.reduced.*`), which is the tokens work, not the arena's.
+
 ### 1. Pairwise, not scoring
 - **Decision:** Judges compare two variants at a time ("which is better?") instead of rating each one 1 to 10.
 - **Why:** People and models are much more consistent at comparing than at scoring. A "7" drifts with mood and context; "A beats B" doesn't. It's the same reason a designer reviews two directions side by side instead of rating one in isolation. LMArena and most design-arena setups use pairs for this reason.
