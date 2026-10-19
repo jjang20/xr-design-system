@@ -267,6 +267,18 @@
             ]
           }
         }
+      },
+      "floor": {
+        "$type": "number",
+        "$value": 22,
+        "$description": "Unit: mm. Physical floor for any target touched directly by a fingertip (hand and surface anchors), whatever dmm works out to. About one fingertip wide. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
       }
     },
     "button": {
@@ -410,7 +422,7 @@
     "mode": {
       "$type": "string",
       "$value": "body-lock",
-      "$description": "Decision. head-lock is banned (sticker on glasses), world-lock is banned (gets lost when you turn). [D]",
+      "$description": "The dock's anchor. Decision. head-lock is banned (sticker on glasses), world-lock is banned for the dock (gets lost when you turn). Other objects pick their own anchor below (hand, surface, body, world). [D]",
       "$extensions": {
         "com.figma": {
           "scopes": [
@@ -467,6 +479,88 @@
             "scopes": [
               "ALL_SCOPES"
             ]
+          }
+        }
+      }
+    },
+    "hand": {
+      "scale": {
+        "$type": "string",
+        "$value": "physical",
+        "$description": "Things placed on the hand or wrist are sized in real mm and never rescale. Targets never go below size.target.floor. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "surface": {
+      "scale": {
+        "$type": "string",
+        "$value": "freeze-on-place",
+        "$description": "Windows laid on a table or wall: dmm x distance is worked out once, when the window is placed, then frozen like a post-it. Walking away does not grow it. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "body": {
+      "scale": {
+        "$type": "string",
+        "$value": "track-distance",
+        "$description": "Windows that travel with the body: dmm x current distance, recalculated when the window moves, never when only the head moves. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "world": {
+      "scale": {
+        "$type": "string",
+        "$value": "freeze-on-place",
+        "$description": "Windows pinned in the room: sized at placement like a poster, then frozen. Past anchor.world.growth.knee they grow more slowly than dmm x distance. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "growth": {
+        "knee": {
+          "$type": "number",
+          "$value": 1750,
+          "$description": "Unit: mm. Placement distance after which world windows stop growing in step with distance (Android XR keeps apparent size constant from 0.75 to 1.75 m). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "rate": {
+          "$type": "number",
+          "$value": 0.5,
+          "$description": "Past the knee, each extra metre of distance counts as this many metres when scaling dmm (Android XR grows 0.5 m per m). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
           }
         }
       }

@@ -53,7 +53,8 @@ export const tokens = {
   },
   "size": {
     "target": {
-      "min": 0.032
+      "min": 0.032,
+      "floor": 0.022
     },
     "button": {
       "default": 0.06
@@ -106,6 +107,22 @@ export const tokens = {
     },
     "eccentricity": {
       "vertical": -0.436332312999
+    },
+    "hand": {
+      "scale": "physical"
+    },
+    "surface": {
+      "scale": "freeze-on-place"
+    },
+    "body": {
+      "scale": "track-distance"
+    },
+    "world": {
+      "scale": "freeze-on-place",
+      "growth": {
+        "knee": 1.75,
+        "rate": 0.5
+      }
     }
   },
   "feedback": {
@@ -183,6 +200,7 @@ export const units = {
   "proximity.nearfar.hysteresis": "m",
   "dock.magnify.radius": "m@1m",
   "size.target.min": "m@1m",
+  "size.target.floor": "m",
   "size.button.default": "m@1m",
   "size.gap.min": "m@1m",
   "menu.extent.vertical.max": "rad",
@@ -190,6 +208,7 @@ export const units = {
   "motion.expand.dropdown.duration": "s",
   "anchor.follow.delay": "s",
   "anchor.eccentricity.vertical": "rad",
+  "anchor.world.growth.knee": "m",
   "feedback.detent.audio.length": "s",
   "feedback.glow.edge": "m@1m",
   "surface.outline.mr": "m@1m",
@@ -200,7 +219,14 @@ export const units = {
 
 /** Tokens that are not decisions yet (status: provisional in tokens.json). */
 export const provisional = [
+  "size.target.floor",
   "anchor.follow.frequency",
+  "anchor.hand.scale",
+  "anchor.surface.scale",
+  "anchor.body.scale",
+  "anchor.world.scale",
+  "anchor.world.growth.knee",
+  "anchor.world.growth.rate",
   "feedback.detent.audio.length",
   "feedback.shadow.press.scale",
   "feedback.shadow.press.opacity.min",

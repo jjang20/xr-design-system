@@ -130,3 +130,22 @@ A pipeline is the step that turns one source file into the files each tool reads
 - **Why:** The Figma connector can't connect from this project right now, so writing to Figma directly isn't possible. An import file also keeps `tokens.json` the source: Figma receives values, it doesn't own them.
 - **Alternatives:** A sync through the Figma API or a plugin like Tokens Studio. Two-way and automatic, but needs access we don't have and invites edits in Figma that never reach `tokens.json`.
 - **Trade-offs:** Re-importing is a manual step after each change. Figma Variables only hold numbers, strings, booleans and colours, so easings become text (`cubic-bezier(...)`) and units live in descriptions. The import has not been tried in Figma yet.
+
+---
+
+## Part 4. Distance and anchors
+
+### 20. Sizing follows the anchor, not distance alone ⚠️ (provisional)
+- **Decision:** Every object declares what it is anchored to, and that decides how its size reacts to distance:
+
+  | Anchor | Token | Rule |
+  |---|---|---|
+  | Hand | `anchor.hand.scale = physical` | Real mm, never rescales. Targets ≥ `size.target.floor` (22 mm). |
+  | Surface | `anchor.surface.scale = freeze-on-place` | dmm × distance once, when placed on a table or wall, then frozen like a post-it. |
+  | Body | `anchor.body.scale = track-distance` | dmm × current distance, recalculated when the window moves, never when only the head moves. |
+  | World | `anchor.world.scale = freeze-on-place` | Sized at placement like a poster, then frozen. Past `anchor.world.growth.knee` (1.75 m) each extra metre counts as `anchor.world.growth.rate` (0.5 m). |
+
+  `anchor.mode = body-lock` (§10) stays: it is the dock's choice among these.
+- **Why:** Contour is used much closer to the body than other platforms plan for: windows lie on a desk like a phone, and small controls sit on the hand. A rule driven only by distance can't tell a post-it on the desk (should stay put at its printed size when you lean back) from a panel following you (should keep its apparent size). The anchor already knows that. The platforms back the parts: Snap's kit has type ramps per distance, Meta switches minimum targets by input mode (direct 48 vs indirect 56 dp), and all kits size touch targets in physical mm.
+- **Alternatives:** Three distance zones (desk / reach / room). Easier to explain, but sizes jump when an object crosses a zone border, and the zone says nothing about whether the object should follow you. Pure dmm everywhere (Android XR, visionOS): proven for far windows, but makes on-hand UI shrink to unusable and makes desk objects change size as you move.
+- **Trade-offs:** Each component needs an anchor before it can be sized, one more decision per component. Frozen objects get angularly smaller as you walk away, which is right for a poster but means text on a world window read from across the room may need a larger type step. ⚠️ Once components read `anchor.*.scale`, changing the set of anchors touches every component. The values (22 mm, 1.75 m, 0.5) are borrowed (G) and still provisional; the 22 mm floor sits well above WCAG's 44 px target (about 7–9 mm on a phone), but tremor on hand-anchored UI is untested.

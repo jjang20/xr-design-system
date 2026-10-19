@@ -95,6 +95,23 @@ atDistance(tokens.size.button.default, 0.75);
 
 mm tokens are physical and convert directly (`mm / 1000`). deg tokens are angles from the eye.
 
+## Sizing by anchor (provisional)
+
+dmm × distance is only half the rule. The anchor decides *which* distance and *when* it is measured (see [decisions §20](decisions.md), §20):
+
+```js
+const { anchor, size } = tokens;
+// hand: physical, never rescales; touch targets never under the floor (0.022 m)
+Math.max(designedSizeM, size.target.floor);
+// body: re-run whenever the window moves
+atDistance(size.button.default, currentDistanceM);
+// surface / world: run once at placement, keep the result
+const placed = atDistance(size.button.default, placeDistanceM);
+// world past the knee (1.75 m): extra distance counts at the growth rate
+const k = anchor.world.growth.knee;
+const effective = d => (d <= k ? d : k + anchor.world.growth.rate * (d - k));
+```
+
 ## Known conflict: sticky press
 
 `proximity.poke.release` asks the finger to pull back 3 mm from the press point before a press ends. The press itself only travels `density ratio × t`. When the travel is shorter than 3 mm, the finger has to lift *above* the resting surface before the button lets go, so it feels sticky.

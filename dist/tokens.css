@@ -21,6 +21,7 @@
   --contour-dock-magnify-scale-max: 1.6; /* T */
   --contour-dock-magnify-falloff: "cosine"; /* G */
   --contour-size-target-min: 32; /* M dmm */
+  --contour-size-target-floor: 22mm; /* G provisional */
   --contour-size-button-default: 60; /* M dmm */
   --contour-size-gap-min: 16; /* M dmm */
   --contour-menu-extent-vertical-max: 35deg; /* G */
@@ -35,6 +36,12 @@
   --contour-anchor-follow-damping: "critical"; /* G */
   --contour-anchor-follow-frequency: 6; /* G provisional */
   --contour-anchor-eccentricity-vertical: -25deg; /* G */
+  --contour-anchor-hand-scale: "physical"; /* G provisional */
+  --contour-anchor-surface-scale: "freeze-on-place"; /* G provisional */
+  --contour-anchor-body-scale: "track-distance"; /* G provisional */
+  --contour-anchor-world-scale: "freeze-on-place"; /* G provisional */
+  --contour-anchor-world-growth-knee: 1750mm; /* G provisional */
+  --contour-anchor-world-growth-rate: 0.5; /* G provisional */
   --contour-feedback-detent-interval: 0.1; /* T */
   --contour-feedback-detent-audio-gain: -18; /* G */
   --contour-feedback-detent-audio-length: 30ms; /* G provisional */
