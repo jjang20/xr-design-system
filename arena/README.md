@@ -1,10 +1,11 @@
 # Contour design arena
 
-A repeatable loop for choosing token values by looking, not guessing: render the options side by side, drop the ones that break a measurable rule, judge the rest blind (you and an AI model), and write the winner back into [`tokens.json`](../tokens.json).
+A repeatable loop for choosing token values by looking, not guessing: render the options, drop the ones that break a measurable rule, hold the rest to a visionOS-level bar, rank the survivors blind (you and an AI model), and write the winner back into [`tokens.json`](../tokens.json).
 
 ```
- experiment.json ──► render ──► check ──► judge (you + AI, blind) ──► score ──► promote ──► tokens.json
-   (variants)        (PNGs)    (rules)        (votes.jsonl)          (report)   (new value)      │
+ experiment.json ──► render ──► check ──► bar ──► pairwise ──► score ──► promote ──► tokens.json
+   (variants)        (PNGs)    (rules)  (visionOS   (which is    (report)  (new value)      │
+                                         level?)     better?)                               │
         ▲                                                                                       │
         └────────────────────────── next question ◄──────────────────────────────────────────────┘
 ```
@@ -31,15 +32,26 @@ Rendering uses Playwright with Chromium. If you have no Playwright browser insta
 | Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.t.regular": 12`. | Write the question and pick the values to compare. |
 | Render | `render.mjs`, `scene/button.html` | Draws each variant at 1:1 scale from the wearer's eye, in rest, hover and press, at the headset's pixel density (25 px per degree, about Quest 3). | Nothing. |
 | Check | `check.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
-| Judge | `judge-human.mjs`, `judge-ai.mjs` | Blind pairs: names hidden, sides shuffled. The AI judges every pair twice with the sides swapped; if it flips, that pair counts as a tie. | Vote. Your votes decide. |
+| Bar | `judge-human.mjs`, `judge-ai.mjs`, `lib/bar.mjs` | Each variant alone, next to your reference images: does it reach visionOS level? Scored on six rows (material, light, shape, type, states, depth); the AI needs 4 of 5 on every row. Variants that fail stop here. | Ship it / Not yet, and tick what falls short. |
+| Pairwise | `judge-human.mjs`, `judge-ai.mjs` | Only bar passers, two at a time, names hidden, sides shuffled. The AI judges every pair twice with the sides swapped; if it flips, that pair counts as a tie. | Vote. Your votes decide. |
 | Score | `score.mjs` | Win/tie/loss and a Bradley-Terry strength per variant, plus how often the AI agreed with you. | Read `report.md`. |
-| Promote | `promote.mjs` | Writes the winner into `tokens.json` and stamps the token with the experiment, the votes and the date. Evidence tags are left alone. | Review `git diff tokens.json` and commit. |
+| Promote | `promote.mjs` | Writes the winner into `tokens.json` and stamps the token with the experiment, the votes and the date. Refuses any variant you did not pass at the bar. Evidence tags are left alone. | Review `git diff tokens.json` and commit. |
+
+If nothing reaches the bar, the experiment ends with no winner and nothing changes. That is the point: a ranking of bad options is not a result.
 
 `runs/` holds renders, votes and reports. It is git-ignored, so judging never creates noise in the repo; only the promoted token change is committed.
+
+## Reference images
+
+Put captures of the level you want to reach in `arena/references/` (your own visionOS screenshots, or the best Contour render so far). Both judges see them next to every candidate at the bar. The folder is git-ignored, because screenshots of other products are for judging, not for committing.
 
 ## Adding an experiment
 
 Copy `experiments/button-thickness.json`, change the question, criteria and variants. Any token the button scene reads can be varied today: `material.t.*`, `material.density.firm.press`, `size.button.default`, `size.gap.min`, `feedback.glow.edge`, `feedback.shadow.press.*`, `surface.opacity.base`, `anchor.eccentricity.vertical`. Other components (Z-Slider, packaging, dock) need their own scene file under `scene/`.
+
+## What gets rendered
+
+`scene/button.html` is a placeholder scene used to build and test the loop. It does not meet the bar, and it shouldn't be judged as Contour's look. The arena should render the real components (the Core XR components work, which is being rebuilt to visionOS quality), so that what passes the bar is exactly what ships. The scene is the only part that changes; the bar, the pairwise round and promote stay the same.
 
 ## What this can and can't tell you
 

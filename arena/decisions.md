@@ -2,6 +2,12 @@
 
 Same shape as [docs/decisions.md](../docs/decisions.md): **Decision**, **Why**, **Alternatives**, **Trade-offs**. ⚠️ marks choices that are expensive to undo.
 
+### 0. An absolute bar before any ranking ⚠️
+- **Decision:** Judging has two stages. First every variant is held, on its own, to a visionOS-level bar (six rubric rows, next to reference images). Only variants that pass are ranked against each other. Nothing below the bar can be promoted, even by hand.
+- **Why:** Pairwise voting is relative. Given three bad options it still crowns one, and the loop would then write a bad design into the system with a record that says it "won". The bar turns "which is better?" into "is any of these good enough, and then which is better?". It's the difference between picking the best of three rough drafts and a design review that can send all three back.
+- **Alternatives:** (a) Only pairwise, with a reference image added as an extra contestant. That still only says "better or worse than the reference", and with few votes it's noisy. (b) Only rubric scores, no pairwise. Good at "is it good enough", bad at telling two good options apart, which is what token tuning needs.
+- **Trade-offs:** More judging per experiment, and experiments can end with no winner. ⚠️ The rubric is now the definition of quality for the whole system: change it deliberately, because every past "pass" was judged against the old version.
+
 ### 1. Pairwise, not scoring
 - **Decision:** Judges compare two variants at a time ("which is better?") instead of rating each one 1 to 10.
 - **Why:** People and models are much more consistent at comparing than at scoring. A "7" drifts with mood and context; "A beats B" doesn't. It's the same reason a designer reviews two directions side by side instead of rating one in isolation. LMArena and most design-arena setups use pairs for this reason.
@@ -21,13 +27,13 @@ Same shape as [docs/decisions.md](../docs/decisions.md): **Decision**, **Why**, 
 - **Trade-offs:** The pixel threshold (1% luminance change for a visible press) is an estimate, tagged like a G token. Tune it once headset tests exist.
 
 ### 4. Your vote decides, AI is advisory ⚠️
-- **Decision:** The winner comes from human votes only (at least two wins and clearly ahead). AI votes are reported next to them with an agreement rate.
+- **Decision:** Only you can pass a variant at the bar, and the winner comes from your pairwise votes (at least two wins and clearly ahead). AI votes are reported next to them with an agreement rate.
 - **Why:** You are the one who knows what Contour should feel like, and the arena is also training your eye. The agreement rate tells you over time whether the AI judge can be trusted to pre-screen bigger experiments.
 - **Alternatives:** Combine AI and human votes into one score. Faster decisions, but the AI's taste would quietly shape the system.
 - **Trade-offs:** Nothing is decided until you vote. If the AI agrees with you on most pairs over several experiments, it becomes reasonable to let it cut 10 variants down to 3 before you look.
 
 ### 5. Render at headset pixel density
-- **Decision:** The camera's field of view is set so one image pixel covers the same angle as one headset pixel (25 px per degree). The judge page enlarges with square pixels.
+- **Decision:** The camera's field of view is set so one image pixel covers the same angle as one headset pixel (25 px per degree, Quest 3; Vision Pro is about 34).
 - **Why:** On a monitor you can zoom into a 2 mm difference that a headset can't show. Judging at headset density means "can't tell" is a real answer: if two variants look the same here, the difference may not matter visually.
 - **Alternatives:** High-resolution close-ups. Prettier, and better for spotting rendering bugs, but they reward details nobody will see.
 - **Trade-offs:** No lens blur, stereo depth or head motion, which are part of how thickness reads in a headset. That's why winners keep their evidence tag.

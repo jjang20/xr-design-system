@@ -15,6 +15,8 @@ const result = readJson(file('result.json'), null);
 const chosen = process.argv[3] ?? result?.winner;
 if (!chosen) throw new Error('No winner yet. Judge more pairs, or name the variant yourself: npm run promote -- ' + exp.id + ' <variant>');
 if (!(chosen in exp.variants)) throw new Error(`Unknown variant ${chosen}. Options: ${Object.keys(exp.variants).join(', ')}`);
+// Nothing below the bar ever reaches tokens.json, even when chosen by hand.
+if (result?.bar?.[chosen]?.human !== 'pass') throw new Error(`${chosen} has not passed the bar (visionOS level). Judge it with npm run judge -- ${exp.id} first.`);
 
 const tokens = loadTokens();
 const varied = [...new Set(Object.values(exp.variants).flatMap(o => Object.keys(o)))];

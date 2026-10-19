@@ -1,14 +1,20 @@
-// Step 4. Tally the votes and write a report. Your (human) votes decide the
-// winner; AI votes are reported next to them, with how often they agreed
+// Step 4. Tally the votes and write a report. A variant can only win if you
+// passed it at the bar (visionOS level). Among those, your pairwise votes
+// decide; AI votes are reported next to them, with how often they agreed
 // with you, so you can see whether the AI judge is worth trusting next time.
 // Run: npm run score -- button-thickness
 import { writeFileSync } from 'node:fs';
 import { loadExperiment, readJson, readJsonl } from './lib/experiment.mjs';
+import { barVerdicts, RUBRIC } from './lib/bar.mjs';
 
 const { exp, variants, file } = loadExperiment(process.argv[2]);
 const checks = readJson(file('checks.json'), {});
-const votes = readJsonl(file('votes.jsonl'));
-const names = variants.map(v => v.name).filter(n => checks[n]?.level !== 'fail');
+const allVotes = readJsonl(file('votes.jsonl'));
+const checked = variants.map(v => v.name).filter(n => checks[n]?.level !== 'fail');
+const bar = barVerdicts(allVotes, checked);
+// Only variants you passed at the bar are ranked.
+const names = checked.filter(n => bar[n].human === 'pass');
+const votes = allVotes.filter(v => v.type !== 'bar' && v.pair.every(n => names.includes(n)));
 
 // Bradley-Terry strength: one number per variant such that
 // P(a beats b) = s_a / (s_a + s_b). A tie counts as half a win each way.
@@ -59,19 +65,30 @@ for (const [j, rows] of Object.entries(groups)) {
     positionBias: rows.filter(r => r.position_bias).length };
 }
 
-const top = tables.human?.[0];
+const top = names.length >= 2 ? tables.human?.[0] : null;
 // Decided = at least two human wins and clearly ahead of the runner-up.
 const decided = top && top.win >= 2 && top.strength > (tables.human[1]?.strength ?? 0) * 1.5;
 const result = {
   experiment: exp.id,
   winner: decided ? top.name : null,
-  status: !tables.human ? 'waiting for your votes' : decided ? 'decided by human votes' : 'too close to call, add votes or variants',
-  tables, agreement, excluded: variants.map(v => v.name).filter(n => !names.includes(n)),
+  status: Object.values(bar).every(b => b.human === 'not judged') ? 'waiting for your votes'
+    : names.length === 0 ? 'nothing reached the bar: improve the design, nothing is promoted'
+    : names.length === 1 ? `only ${names[0]} reached the bar: promote it by hand if you are sure`
+    : !tables.human ? 'waiting for your pairwise votes'
+    : decided ? 'decided by human votes' : 'too close to call, add votes or variants',
+  bar, tables, agreement, excluded: variants.map(v => v.name).filter(n => !names.includes(n)),
   at: new Date().toISOString(),
 };
 writeFileSync(file('result.json'), JSON.stringify(result, null, 2));
 
 const md = [`# ${exp.id}`, '', `**Question:** ${exp.question}`, '', `**Result:** ${result.winner ?? '-'} (${result.status})`, ''];
+md.push('## The bar (visionOS level)', '', `| variant | you | AI | AI scores (${RUBRIC.map(r => r.id).join(' / ')}) | short of the bar |`, '|---|---|---|---|---|');
+for (const [n, b] of Object.entries(bar)) {
+  const ai = b.ai ? (b.ai.pass ? 'pass' : 'fail') : '-';
+  const scores = b.ai ? RUBRIC.map(r => b.ai.scores?.[r.id] ?? '-').join(' / ') : '-';
+  md.push(`| ${n} | ${b.human} | ${ai} | ${scores} | ${b.failedRows.join(', ') || '-'} |`);
+}
+md.push('');
 for (const [j, rows] of Object.entries(tables)) {
   md.push(`## ${j === 'human' ? 'Your votes (decide)' : `${j} (advisory)`}`, '', '| variant | win | tie | loss | strength |', '|---|---|---|---|---|');
   for (const r of rows) md.push(`| ${r.name} | ${r.win} | ${r.tie} | ${r.loss} | ${r.strength.toFixed(2)} |`);
