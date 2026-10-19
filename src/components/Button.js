@@ -83,15 +83,21 @@ export class Button extends Interactable {
     const fill = this.disabled ? C.disabled
       : o.color ?? { primary: C.accent, window: C.window, tinted: C.control }[this.variant] ?? C.control;
     if (this.variant === 'glass') {
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t }));
+      // Finely split, so a hovered row can swell the glass (emboss style).
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r, { tessellate: 0.002 }), glassMaterial(T, { w: this.w, h: this.h, t: this.t }));
       this.body.renderOrder = 1;
       this.skin = this.body.material;
     } else if (this.variant === 'plain') {
       // A light glass lens: invisible at rest, it lifts out of the window
       // on hover, carrying the row's content with it.
-      this.lift = DEFAULTS.look.lensLift / 1000;
+      // With hoverStyle 'emboss' there is no lens: the window glass swells
+      // into a bubble under the row instead (the panel draws it), and the
+      // body only stays as the row's hit area.
+      this.emboss = (o.hoverStyle ?? DEFAULTS.look.hoverStyle) === 'emboss';
+      this.lift = (this.emboss ? DEFAULTS.look.emboss.height : DEFAULTS.look.lensLift) / 1000;
       this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'lens' }));
       this.body.renderOrder = 2;
+      this.body.material.visible = !this.emboss;
       this.skin = this.body.material;
     } else {
       this.body = new THREE.Mesh(bodyGeometry(this.w, this.h, this.t, this.r), bodyMaterial(T, { color: fill }));
@@ -184,7 +190,13 @@ export class Button extends Interactable {
     // A row lens rises out of the window on hover; pressing pushes it back.
     const lift = this.lift ? this.lift * (this.hover ?? 0) : 0;
     this.body.position.z = lift;
-    this.face.position.z = front + lift;
+    this.face.position.z = this.emboss ? this.bulge + 0.0004 : front + lift;
+  }
+
+  // Emboss style: how far the window swells under this row. Pressing pushes
+  // the bubble back flat, like pressing a balloon.
+  get bulge() {
+    return Math.max(0, this.lift * (this.hover ?? 0) - this.press.depth);
   }
 
   // Distance from a local point to the face rectangle at the front plane.

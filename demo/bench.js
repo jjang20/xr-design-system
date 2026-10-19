@@ -1,6 +1,6 @@
 // Bench: one component at a fixed framing over a real room, for scored
 // rounds against the visionOS bar (docs/catalog-spec.md).
-// Query: ?rot=<backdrop yaw> &view=angle &fov=<deg> &absorb=&blur= (lab overrides)
+// Query: ?rot=<backdrop yaw> &view=angle &fov=<deg> &hover=<lens|emboss> &absorb=&blur= (lab overrides)
 import * as THREE from 'three';
 import tokenJson from '../tokens.json';
 import { createTokens, PackagingPanel, InputSystem } from '../src/index.js';
@@ -10,6 +10,7 @@ import { catalogItems } from './catalog-data.js';
 
 const q = new URLSearchParams(location.search);
 if (q.has('absorb')) DEFAULTS.look.glass.absorb = Number(q.get('absorb'));
+if (q.has('hover')) DEFAULTS.look.hoverStyle = q.get('hover');
 if (q.has('blur')) DEFAULTS.look.glass.blur = Number(q.get('blur'));
 const T = createTokens(tokenJson);
 const D = 0.6, EYE = 1.6;

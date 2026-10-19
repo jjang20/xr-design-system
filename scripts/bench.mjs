@@ -77,8 +77,10 @@ async function lookdev(extra) {
       }
       await page.mouse.move(5, 5); await wait(800);
     }
-    await page.screenshot({ path: `${out}/live-${name}.png` });
-    console.log(`${out}/live-${name}.png`);
+    const tag = new URLSearchParams(extra).get('hover') ?? '';
+    const file = `${out}/live-${name}${tag ? '-' + tag : ''}.png`;
+    await page.screenshot({ path: file });
+    console.log(file);
   }
 }
 

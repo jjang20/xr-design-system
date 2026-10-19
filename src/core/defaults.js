@@ -73,8 +73,12 @@ export const DEFAULTS = {
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
     },
-    // Hovered row: a light glass lens lifts out of the window by this much.
+    // Hovered row: 'lens' lifts a light glass lens out of the window by
+    // lensLift; 'emboss' swells the window glass itself into a soft bubble
+    // under the row (height, shoulder width in mm; ao darkens the crease).
+    hoverStyle: 'lens',
     lensLift: 5, // mm
+    emboss: { height: 3, shoulder: 6, ao: 0.14 },
     // Contact shadows between floating layers: softness grows with the gap,
     // and the shadow drops below the caster (light from above).
     contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.55, lens: 0.4 },

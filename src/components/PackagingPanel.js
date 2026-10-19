@@ -18,7 +18,7 @@ import { markComponent } from '../core/Interactable.js';
 import { clamp } from '../core/easing.js';
 import { springStep } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { makeText, flatMaterial, setGroupOpacity, setContactShadow } from '../core/look.js';
+import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBulge } from '../core/look.js';
 import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
 
@@ -246,12 +246,21 @@ export class PackagingPanel extends THREE.Group {
       } else setContactShadow(m, 0);
       let lifted = null;
       for (const r of l.rows) if (r.hover > (lifted?.hover ?? 0.001)) lifted = r;
-      if (lifted) {
+      if (lifted?.emboss) {
+        // Emboss: the window itself swells under the row (no lens, no shadow).
+        const sh = DEFAULTS.look.emboss.shoulder / 1000;
+        setBulge(m, {
+          x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2 - sh / 2, hh: lifted.h / 2 - sh / 2,
+          r: Math.max(0, lifted.r - sh / 2), height: lifted.bulge,
+        });
+        setContactShadow(m, 1);
+      } else if (lifted) {
         setContactShadow(m, 1, {
           x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2, r: lifted.r,
           gap: lifted.lift * lifted.hover + lifted.t, amount: S.lens * lifted.hover,
         });
-      } else setContactShadow(m, 1);
+        setBulge(m);
+      } else { setContactShadow(m, 1); setBulge(m); }
       // Hairlines next to a lifted row step aside, as in visionOS lists.
       for (const line of l.separators) {
         const j = line.userData.between;

@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js';
 import interRegular from '@fontsource/inter/files/inter-latin-400-normal.woff?url';
 import interMedium from '@fontsource/inter/files/inter-latin-500-normal.woff?url';
 import interSemibold from '@fontsource/inter/files/inter-latin-600-normal.woff?url';
@@ -188,7 +189,9 @@ export function setBackdropIntensity(v) { backdrop.uEnvIntensity.value = v; }
 // lens), so the rim bends and reflects the room the way thick glass does.
 // Front face at z = t, back at z = 0. Normals are smoothed across the face
 // and the rounded edge, so reflections slide along it without facets.
-export function glassSlabGeometry(w, h, t, r) {
+// `tessellate` (m) splits the faces finely enough for the front to swell
+// into an embossed bubble (see setBulge).
+export function glassSlabGeometry(w, h, t, r, { tessellate = 0 } = {}) {
   const b = Math.min(t / 2, r * 0.8, Math.min(w, h) * 0.25);
   const shape = roundedRectShape(w - b * 2, h - b * 2, Math.max(0.0001, r - b));
   let g = new THREE.ExtrudeGeometry(shape, {
@@ -199,6 +202,7 @@ export function glassSlabGeometry(w, h, t, r) {
   g.translate(0, 0, b);
   g.deleteAttribute('uv');
   g.deleteAttribute('normal');
+  if (tessellate) g = new TessellateModifier(tessellate, 12).modify(g);
   g = mergeVertices(g, 1e-7);
   g.computeVertexNormals();
   return g;
@@ -212,16 +216,41 @@ export function glassBeadGeometry(diameter, height) {
   return g;
 }
 
+// Embossed bubble: the front face swells over a rounded rect (a hovered
+// row). Height profile: a plateau with a soft shoulder and a slight dome,
+// like a balloon pressing the glass out from inside.
+const BULGE_GLSL = /* glsl */`
+  uniform vec4 uBulgeRect;   // centre xy, half size zw (local)
+  uniform vec4 uBulgeParam;  // corner radius, height, shoulder width, front z
+  float sdRoundRect(vec2 p, vec2 b, float r) {
+    vec2 q = abs(p) - b + r;
+    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
+  }
+  float bulgeH(vec2 p) {
+    if (uBulgeParam.y <= 0.0) return 0.0;
+    float s = uBulgeParam.z;
+    float d = sdRoundRect(p - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x);
+    float k = 1.0 - smoothstep(-s, s * 0.6, d);
+    vec2 q = (p - uBulgeRect.xy) / (uBulgeRect.zw + s);
+    return uBulgeParam.y * k * (1.0 - 0.35 * dot(q * q, vec2(0.25, 1.0)));
+  }`;
+
 const GLASS_VERT = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
+  varying float vFront;
+  ${BULGE_GLSL}
   void main() {
-    vLocal = position;
+    // Only the flat front face swells.
+    vFront = (normal.z > 0.95 && position.z > uBulgeParam.w - 1e-4) ? 1.0 : 0.0;
+    vec3 pos = position;
+    pos.z += bulgeH(position.xy) * vFront;
+    vLocal = pos;
     // The slab's own axes in world space, for the surface frost and to tell
     // the flat face from the rounded rim.
     vAxisX = normalize(mat3(modelMatrix) * vec3(1.0, 0.0, 0.0));
     vAxisY = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
     vAxisZ = normalize(mat3(modelMatrix) * vec3(0.0, 0.0, 1.0));
-    vec4 w = modelMatrix * vec4(position, 1.0);
+    vec4 w = modelMatrix * vec4(pos, 1.0);
     vWorld = w.xyz;
     vNormal = normalize(mat3(modelMatrix) * normal);
     gl_Position = projectionMatrix * viewMatrix * w;
@@ -241,8 +270,10 @@ const GLASS_VERT = /* glsl */`
 //                 level, a lifted row lens), so layers sit in space
 const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
+  varying float vFront;
+  ${BULGE_GLSL}
   uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
-  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale;
+  uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uBulgeAo;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo;
   uniform mat3 uEnvRot;
@@ -252,10 +283,6 @@ const GLASS_FRAG = /* glsl */`
     uniform sampler2D envMap;
     #include <cube_uv_reflection_fragment>
   #endif
-  float sdRoundRect(vec2 p, vec2 b, float r) {
-    vec2 q = abs(p) - b + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
-  }
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float vnoise(vec2 p) {
     vec2 i = floor(p), f = fract(p);
@@ -266,6 +293,19 @@ const GLASS_FRAG = /* glsl */`
   void main() {
     vec3 V = normalize(vWorld - cameraPosition);
     vec3 N = normalize(vNormal);
+    // The bubble's slope, exact per pixel (the mesh is only a few mm fine).
+    float bulgeAo = 0.0, bulgeSlope = 0.0;
+    if (vFront > 0.5 && uBulgeParam.y > 0.0) {
+      float e = 0.0004;
+      vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
+                    bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
+      N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
+      bulgeSlope = clamp(length(g) * 3.0, 0.0, 1.0);
+      // A soft crease where the bubble meets the flat glass.
+      float s = uBulgeParam.z;
+      float d = sdRoundRect(vLocal.xy - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x);
+      bulgeAo = exp(-pow((d - 0.45 * s) / (0.4 * s), 2.0)) * clamp(uBulgeParam.y / 0.002, 0.0, 1.0);
+    }
     // Face vs rim: the flat face is frosted; the rounded rim is polished, so
     // it refracts the room in clear bands (as in the path-traced reference).
     float rim01 = 1.0 - smoothstep(0.35, 0.92, abs(dot(N, vAxisZ)));
@@ -277,7 +317,8 @@ const GLASS_FRAG = /* glsl */`
                       vnoise(fp + vec2(0.0, e)) - vnoise(fp - vec2(0.0, e))) / (2.0 * e);
     slope += 0.5 * vec2(vnoise(fp * 3.1 + vec2(e, 7.0)) - vnoise(fp * 3.1 - vec2(e, -7.0)),
                         vnoise(fp * 3.1 + vec2(7.0, e)) - vnoise(fp * 3.1 - vec2(-7.0, e))) / (2.0 * e);
-    N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01));
+    // The bubble's shoulder is stretched smooth, like a balloon's skin.
+    N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01) * (1.0 - bulgeSlope));
     float cosT = clamp(dot(-V, N), 0.0, 1.0);
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
@@ -325,6 +366,7 @@ const GLASS_FRAG = /* glsl */`
       col *= 1.0 - s * P.z;
     }
 
+    col *= 1.0 - uBulgeAo * bulgeAo;
     col *= mix(1.0, 0.42, uDim);               // pushed-back levels go dark, not see-through
 
     // Reflection (Fresnel) and the key light on the curved rim.
@@ -378,6 +420,9 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
+      uBulgeRect: { value: new THREE.Vector4() },
+      uBulgeParam: { value: new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')) },
+      uBulgeAo: { value: L.emboss.ao },
       uShadowRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uOpacity: { value: 1 },
@@ -393,6 +438,14 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
   const S = L.contactShadow;
   m.uniforms.uShadowRect.value[i].set(x, y, hw, hh);
   m.uniforms.uShadowParam.value[i].set(r, S.minSoft + gap * S.softPerGap, amount, gap * S.dropPerGap);
+}
+
+// Embossed bubble on a glass material: the front face swells `height`
+// metres over a rounded rect (local coordinates), with a soft shoulder.
+export function setBulge(m, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, shoulder = L.emboss.shoulder / 1000 } = {}) {
+  m.uniforms.uBulgeRect.value.set(x, y, hw, hh);
+  const p = m.uniforms.uBulgeParam.value;
+  p.set(r, height, shoulder, p.w);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {
