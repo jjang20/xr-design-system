@@ -83,7 +83,7 @@ export const DEFAULTS = {
       ramp: 4, // mm: the meniscus where the window glass rises into the bubble
       dimple: 0.3, // pressed fully, it sinks to this fraction of its height below flat
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
-      magnify: 0.015, // content under the bubble grows this much at full height
+      magnify: 0, // content under the bubble grows this much at full height (0: content holds still while the skin swells)
       gloss: 0.8, // how much smoother and shinier the inflated skin is
       clear: 0.5, // how far its glass thins toward an icon bead's clear glass
     },

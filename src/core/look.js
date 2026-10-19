@@ -221,27 +221,40 @@ export function glassBeadGeometry(diameter, height) {
 // window with no seam: a wide, tangent ramp (a meniscus) up to a low,
 // domed pillow, so it reads as one membrane, not a slab on a slab.
 // A negative height is a shallow dish (pressed).
+// Two slots, so the row being left deflates while the next one inflates
+// (one slot would snap the old bubble flat the moment the new one wins).
 const BULGE_GLSL = /* glsl */`
-  uniform vec4 uBulgeRect;   // centre xy, half size zw (local)
-  uniform vec4 uBulgeParam;  // corner radius, height (signed), ramp width, front z
+  uniform vec4 uBulgeRect[2];   // centre xy, half size zw (local)
+  uniform vec4 uBulgeParam[2];  // corner radius, height (signed), ramp width, front z (slot 0)
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
   }
-  float bulgeD(vec2 p) { return sdRoundRect(p - uBulgeRect.xy, uBulgeRect.zw, uBulgeParam.x); }
+  float bulgeD(vec2 p, vec4 R, vec4 P) { return sdRoundRect(p - R.xy, R.zw, P.x); }
   // 0 on the flat window, 1 on the crown.
-  float bulgeT(vec2 p) {
-    float R = uBulgeParam.z;
-    float t = clamp((0.15 * R - bulgeD(p)) / R, 0.0, 1.0);
+  float bulgeT(vec2 p, vec4 R, vec4 P) {
+    float t = clamp((0.15 * P.z - bulgeD(p, R, P)) / P.z, 0.0, 1.0);
     return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);   // smootherstep: tangent at both ends
   }
   // A pillow, curved everywhere like an icon bead: an elliptical dome
   // across the row's short side, so light slides over the whole surface
   // (a flat top with raised edges reads as a slab, not a bubble).
-  float bulgeH(vec2 p) {
-    if (uBulgeParam.y == 0.0) return 0.0;
-    float u = clamp(-bulgeD(p) / min(uBulgeRect.z, uBulgeRect.w), 0.0, 1.0);
-    return uBulgeParam.y * bulgeT(p) * sqrt(1.0 - (1.0 - u) * (1.0 - u));
+  float bulgeH1(vec2 p, vec4 R, vec4 P) {
+    if (P.y == 0.0) return 0.0;
+    float u = clamp(-bulgeD(p, R, P) / min(R.z, R.w), 0.0, 1.0);
+    return P.y * bulgeT(p, R, P) * sqrt(1.0 - (1.0 - u) * (1.0 - u));
+  }
+  float bulgeH(vec2 p) { return bulgeH1(p, uBulgeRect[0], uBulgeParam[0]) + bulgeH1(p, uBulgeRect[1], uBulgeParam[1]); }
+  bool anyBulge() { return uBulgeParam[0].y != 0.0 || uBulgeParam[1].y != 0.0; }
+  // How much of the bubble's glossy skin covers p (0 to 1).
+  float bulgeSkin(vec2 p) {
+    float s = 0.0;
+    for (int i = 0; i < 2; i++) {
+      vec4 R = uBulgeRect[i], P = uBulgeParam[i];
+      if (P.y == 0.0) continue;
+      s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / 0.0015, 0.0, 1.0));
+    }
+    return s;
   }`;
 
 const GLASS_VERT = /* glsl */`
@@ -250,7 +263,7 @@ const GLASS_VERT = /* glsl */`
   ${BULGE_GLSL}
   void main() {
     // Only the flat front face swells.
-    vFront = (normal.z > 0.95 && position.z > uBulgeParam.w - 1e-4) ? 1.0 : 0.0;
+    vFront = (normal.z > 0.95 && position.z > uBulgeParam[0].w - 1e-4) ? 1.0 : 0.0;
     vec3 pos = position;
     pos.z += bulgeH(position.xy) * vFront;
     vLocal = pos;
@@ -309,14 +322,12 @@ const GLASS_FRAG = /* glsl */`
     // Its skin is stretched smooth and glossy; the room and the key light
     // shade it (no painted shading), so it reads as real material.
     float bub = 0.0;
-    if (vFront > 0.5 && uBulgeParam.y != 0.0) {
+    if (vFront > 0.5 && anyBulge()) {
       float e = 0.0003;
       vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
                     bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
       N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
-      float k = clamp(abs(uBulgeParam.y) / 0.0015, 0.0, 1.0);
-      float bt = bulgeT(vLocal.xy);
-      bub = smoothstep(0.0, 0.25, bt) * k;
+      bub = bulgeSkin(vLocal.xy);
     }
     // Frost: the face is a field of tiny bumps (about 1 mm), so highlights
     // and the refracted room break up the way acid-etched glass does.
@@ -439,8 +450,8 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
-      uBulgeRect: { value: new THREE.Vector4() },
-      uBulgeParam: { value: new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')) },
+      uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uBulgeParam: { value: [new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')), new THREE.Vector4()] },
       uClear: { value: L.emboss.clear },
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
@@ -461,11 +472,12 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
   m.uniforms.uShadowParam.value[i].set(r, S.minSoft + gap * S.softPerGap, amount, gap * S.dropPerGap);
 }
 
-// Embossed bubble on a glass material: the front skin rises `height` metres
-// (negative: a dimple) over a rounded rect in local coordinates.
-export function setBulge(m, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, ramp = L.emboss.ramp / 1000 } = {}) {
-  m.uniforms.uBulgeRect.value.set(x, y, hw, hh);
-  const p = m.uniforms.uBulgeParam.value;
+// Embossed bubble slot `i` (0 or 1) on a glass material: the front skin
+// rises `height` metres (negative: a dimple) over a rounded rect in local
+// coordinates.
+export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, ramp = L.emboss.ramp / 1000 } = {}) {
+  m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
+  const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
 }
 

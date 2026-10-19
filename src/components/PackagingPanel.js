@@ -244,27 +244,32 @@ export class PackagingPanel extends THREE.Group {
           r: next.panel.r * k, gap: Math.max(0, c.z - p.z), amount: S.child * clamp(c.opacity, 0, 1),
         });
       } else setContactShadow(m, 0);
-      let lifted = null;
-      // The most raised row (a bubble keeps moving after hover ends).
+      // The most raised rows (a bubble keeps moving after hover ends, so
+      // the row being left deflates while the next one inflates).
       const raised = r => r.emboss ? Math.abs(r.bulge) / r.lift : r.hover;
-      for (const r of l.rows) if (raised(r) > (lifted ? raised(lifted) : 0.001)) lifted = r;
+      const ranked = l.rows.filter(r => raised(r) > 0.001).sort((a, b) => raised(b) - raised(a));
+      const lifted = ranked[0];
       if (lifted?.emboss) {
         // Emboss: the window itself swells under the row (no lens, no shadow).
-        setBulge(m, {
-          x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2,
-          // Corners concentric with the window's (window radius minus the
-          // row inset), so the bubble follows the window's shape.
-          r: Math.min(lifted.h / 2, lifted.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row),
-          height: lifted.bulge,
-        });
+        for (let i = 0; i < 2; i++) {
+          const r = ranked[i];
+          if (!r?.emboss) { setBulge(m, i); continue; }
+          setBulge(m, i, {
+            x: r.position.x, y: r.position.y, hw: r.w / 2, hh: r.h / 2,
+            // Corners concentric with the window's (window radius minus the
+            // row inset), so the bubble follows the window's shape.
+            r: Math.min(r.h / 2, r.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row),
+            height: r.bulge,
+          });
+        }
         setContactShadow(m, 1);
       } else if (lifted) {
         setContactShadow(m, 1, {
           x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2, r: lifted.r,
           gap: lifted.lift * lifted.hover + lifted.t, amount: S.lens * lifted.hover,
         });
-        setBulge(m);
-      } else { setContactShadow(m, 1); setBulge(m); }
+        setBulge(m, 0); setBulge(m, 1);
+      } else { setContactShadow(m, 1); setBulge(m, 0); setBulge(m, 1); }
       // Hairlines next to a lifted row step aside, as in visionOS lists.
       for (const line of l.separators) {
         const j = line.userData.between;
