@@ -61,7 +61,7 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 
 ### 9. dmm as the main size unit ⚠️
 - **Decision:** Sizes users look at are in dmm (scales with distance); sizes the hand touches are in mm; extents of view are in deg.
-- **Why:** Fixed mm makes far UI unreadable and near UI huge. dmm keeps the apparent size constant, the way rem keeps type proportional. Minimum target rules (32 dmm) only make sense in a unit relative to distance.
+- **Why:** Fixed mm makes far UI unreadable and near UI huge. dmm keeps the apparent size constant, the way rem keeps type proportional. Minimum target rules (48 dmm) only make sense in a unit relative to distance.
 - **Alternatives:** Degrees for everything (common in research). Precise, but unfamiliar to designers and hard to lay out with.
 - **Trade-offs:** Every consumer must know the placement distance to convert to metres. ⚠️ Changing the base unit later would rewrite every size token.
 

@@ -20,7 +20,7 @@
   --contour-dock-magnify-radius: 250; /* T dmm */
   --contour-dock-magnify-scale-max: 1.6; /* T */
   --contour-dock-magnify-falloff: "cosine"; /* G */
-  --contour-size-target-min: 32; /* M dmm */
+  --contour-size-target-min: 48; /* M dmm */
   --contour-size-target-floor: 22mm; /* G provisional */
   --contour-size-button-default: 60; /* M dmm */
   --contour-size-gap-min: 16; /* M dmm */

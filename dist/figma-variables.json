@@ -255,8 +255,8 @@
     "target": {
       "min": {
         "$type": "number",
-        "$value": 32,
-        "$description": "Unit: dmm. Smallest interactive target. [M]",
+        "$value": 48,
+        "$description": "Unit: dmm. Smallest interactive target (raised from 32 to 48 dmm on 2026-10-19, in line with platform minimums for direct touch). [M]",
         "$extensions": {
           "com.figma": {
             "scopes": [

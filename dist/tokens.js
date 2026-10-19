@@ -53,7 +53,7 @@ export const tokens = {
   },
   "size": {
     "target": {
-      "min": 0.032,
+      "min": 0.048,
       "floor": 0.022
     },
     "button": {
