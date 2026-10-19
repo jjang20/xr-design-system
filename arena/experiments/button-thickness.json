@@ -1,0 +1,22 @@
+{
+  "id": "button-thickness",
+  "question": "Which button thickness reads most clearly as a solid object you can press, at rest, on hover and while pressed?",
+  "criteria": [
+    "The button reads as a physical object with real thickness, not a flat sticker.",
+    "The pressed state is clearly different from rest, and looks like the material compressing.",
+    "The hover state is noticeable without being louder than the press.",
+    "The button feels in proportion with the panel it sits on."
+  ],
+  "fixtures": {
+    "distanceM": 0.75,
+    "ppd": 25,
+    "background": "#8d949b",
+    "note": "Values the scene needs that are not tokens yet (distance, headset pixel density, background). Change them here, never in tokens.json."
+  },
+  "variants": {
+    "t-6mm": { "material.t.regular": 6 },
+    "t-8mm": {},
+    "t-12mm": { "material.t.regular": 12 }
+  },
+  "baseline": "t-8mm"
+}
