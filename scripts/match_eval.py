@@ -517,6 +517,15 @@ if have('slider-rest-beauty'):
         strokes = g & (dl >= np.percentile(dl[g], 60))
         each.append(contrast(float(np.median(L[strokes])), float(np.median(L0[strokes]))))
     c = min(each) if each else 0
+    # Self-review, round 6: shrinking the capsule ran the name into the value
+    # ("Lamp40%"). The widest gap between neighbouring letters is the word
+    # space; it must stay a clear space, not a letter gap.
+    letters = sorted(components(dl > 0.25, 20), key=lambda g: np.nonzero(g)[1].min())
+    spans = [(int(np.nonzero(g)[1].min()), int(np.nonzero(g)[1].max())) for g in letters]
+    word = max([b[0] - a[1] for a, b in zip(spans, spans[1:])] or [0])
+    tall = float(np.median([np.ptp(np.nonzero(g)[0]) + 1 for g in letters])) if letters else 1.0
+    check('S19', 'Z-Slider', 'Name and value read as two words: a clear space between them', f'{word} px space, {word / tall:.2f}x a letter\'s height',
+          word / tall >= 0.3, '>= 0.3x the median letter height (a word space)', 'Self-review, round 6: the smaller capsule ran "Lamp" into "40%"')
     check('S6', 'Z-Slider', 'Value label is legible over the room, every letter (text vs what is behind it)', f'worst {c:.1f}:1 over {len(each)} letters', c >= 4.5,
           '>= 4.5:1 (WCAG 1.4.3)', 'accessibility-review skill; judge round 2: 3.3:1 at the "L" and "%"; each letter measured on its own strokes (one threshold across the label had skipped the lighter name)')
     if have('slider-rest-nobubble'):

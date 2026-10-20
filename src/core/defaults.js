@@ -153,10 +153,11 @@ export const DEFAULTS = {
     lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.45, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, spill: { size: 1.8, opacity: 0.55 }, ring: 0.8, ringWidth: 1.2, ringUnlit: 0.4 },
     // The Z-Slider's value label: a capsule of the plate's glass, smoked
     // (refract.label), beside the plate (dmm), gap from its rim, thickness x
-    // the plate's; the value larger and bolder than the name. Kept as small
+    // the plate's; the value larger and bolder than the name. Kept as low
     // and thin as the text allows: it is the darkest mass beside the control
-    // (judge rounds 4 to 6: it outweighs the knob).
-    valueLabel: { width: 92, height: 28, pad: 10, gap: 12, thickness: 0.4, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
+    // (judge rounds 4 to 6: it outweighs the knob); narrower ran the name
+    // into the value.
+    valueLabel: { width: 100, height: 28, pad: 11, gap: 12, thickness: 0.4, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
     // lift: float height (dmm); depth: x icon side; thickness: glass mm;
@@ -173,7 +174,7 @@ export const DEFAULTS = {
     // same reach away); hoverLift: how far the hovered globe rises (dmm, as
     // the lookdev); hoverSheen: light on the hovered globe's glass; caustic: the coloured light each globe focuses on the
     // glass under it; runGlow: the running light's halo (size in dmm).
-    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.6, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.5, size: 0.55 }, fade: 0.3, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.5, size: 12 } },
+    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.7, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.4, size: 0.7 }, fade: 0.3, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.5, size: 12 } },
     // Dock globe: glyph size before the glass magnifies it, x a flat icon's.
     globeGlyph: 0.5, // 0.56 left no clear glass between the glyph and the hotspot (judge round 5)
     // Text sits on glass with a faint shadow, so it reads as on the surface.
