@@ -13,7 +13,7 @@ if (q.has('absorb')) DEFAULTS.look.glass.absorb = Number(q.get('absorb'));
 if (q.has('hover')) DEFAULTS.look.hoverStyle = q.get('hover');
 if (q.has('blur')) DEFAULTS.look.glass.blur = Number(q.get('blur'));
 const T = createTokens(tokenJson);
-const D = 0.6, EYE = 1.6;
+const D = Number(q.get('dist') ?? 0.6), EYE = 1.6; // ?dist= places the window farther (m)
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, Number(q.get('dpr')) || 2)); // ?dpr=4 for 6K stills

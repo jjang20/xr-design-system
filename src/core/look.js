@@ -230,6 +230,7 @@ const BULGE_GLSL = /* glsl */`
   uniform vec4 uBulgeGlow[2];   // press glow: ring falloff distance, amount (0 to 1), bloom radius
   uniform vec3 uGlowColor; uniform vec2 uGlowMix;   // ring, bloom strength
   uniform float uDentShade, uDentShadow, uGlowCore;
+  uniform float uBulgeScale;   // emboss sizes grow with the window's distance
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
@@ -266,7 +267,7 @@ const BULGE_GLSL = /* glsl */`
     for (int i = 0; i < 2; i++) {
       vec4 R = uBulgeRect[i], P = uBulgeParam[i];
       if (P.y == 0.0) continue;
-      s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / 0.0015, 0.0, 1.0));
+      s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / (0.0015 * uBulgeScale), 0.0, 1.0));
     }
     return s;
   }
@@ -298,7 +299,7 @@ const BULGE_GLSL = /* glsl */`
       g.z = max(g.z, G.y * exp(-dot(q, q) / (G.w * G.w)));
       // Light carried through the glass catches at the edge, brightest
       // nearest the press (edge-lit, like acrylic), so it reads as one light.
-      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.06 + 0.94 * exp(-length(q) / G.x)));   // far side stays at ~6%
+      g.y = max(g.y, G.y * exp(-pow((d + 0.0014 * uBulgeScale) / (0.0012 * uBulgeScale), 2.0)) * (0.06 + 0.94 * exp(-length(q) / G.x)));   // far side stays at ~6%
     }
     return g;
   }`;
@@ -369,7 +370,7 @@ const GLASS_FRAG = /* glsl */`
     // shade it (no painted shading), so it reads as real material.
     float bub = 0.0;
     if (vFront > 0.5 && anyBulge()) {
-      float e = 0.0003;
+      float e = 0.0003 * uBulgeScale;
       vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
                     bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
       N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
@@ -412,7 +413,7 @@ const GLASS_FRAG = /* glsl */`
       // facing the light brightens into a crescent on the far lip, the wall
       // turned away darkens. Refraction alone read as a smudge.
       if (vFront > 0.5 && anyBulge()) {
-        float ed = 0.0004;
+        float ed = 0.0004 * uBulgeScale;
         vec2 gd = vec2(dentHAll(vLocal.xy + vec2(ed, 0.0)) - dentHAll(vLocal.xy - vec2(ed, 0.0)),
                        dentHAll(vLocal.xy + vec2(0.0, ed)) - dentHAll(vLocal.xy - vec2(0.0, ed))) / (2.0 * ed);
         float shade = -dot(gd, normalize(vec2(-0.45, 0.8)));
@@ -530,6 +531,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
       uGlowMix: { value: new THREE.Vector2(L.emboss.glow.ring, L.emboss.glow.bloom) },
       uDentShade: { value: L.emboss.dent.shade },
+      uBulgeScale: { value: 1 },
       uDentShadow: { value: L.emboss.dent.shadow },
       uGlowCore: { value: L.emboss.glow.core },
       uClear: { value: L.emboss.clear },
@@ -555,14 +557,15 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
 // Embossed bubble slot `i` (0 or 1) on a glass material: the front skin
 // rises `height` metres over a rounded rect in local coordinates. `dent`
 // ({x, y, radius, depth}, metres) presses a dimple into it; `glow` (0 to 1)
-// lights it from the dent.
-export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, ramp = L.emboss.ramp / 1000, dent, glow = 0 } = {}) {
+// lights it from the dent. `scale` grows the mm sizes with distance.
+export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, scale = 1, ramp = L.emboss.ramp * scale / 1000, dent, glow = 0 } = {}) {
+  m.uniforms.uBulgeScale.value = scale;
   m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
   const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
   const d = dent ?? { x: 0, y: 0, radius: 1, depth: 0 };
   m.uniforms.uBulgeDent.value[i].set(d.x, d.y, d.radius, d.depth);
-  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff / 1000, glow, L.emboss.glow.bloomRadius / 1000, L.emboss.glow.coreRadius / 1000);
+  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff * scale / 1000, glow, L.emboss.glow.bloomRadius * scale / 1000, L.emboss.glow.coreRadius * scale / 1000);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {

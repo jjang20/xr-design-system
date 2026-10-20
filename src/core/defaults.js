@@ -78,6 +78,9 @@ export const DEFAULTS = {
     // row, like a fluid-filled tactile display (Jihoon's reference).
     hoverStyle: 'lens',
     lensLift: 5, // mm
+    // Sizes in mm are as seen at `distance` (0.6 m) and grow with the
+    // window's distance like dmm, so a far window's bubble and dent fill the
+    // same angle in the eye.
     emboss: {
       height: 6, // mm at the crown; 4–6 reads as a bubble (Jihoon, lookdev/ pillow)
       ramp: 4, // mm: the meniscus where the window glass rises into the bubble

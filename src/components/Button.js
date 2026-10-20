@@ -94,7 +94,9 @@ export class Button extends Interactable {
       // into a bubble under the row instead (the panel draws it), and the
       // body only stays as the row's hit area.
       this.emboss = (o.hoverStyle ?? DEFAULTS.look.hoverStyle) === 'emboss';
-      this.lift = (this.emboss ? DEFAULTS.look.emboss.height : DEFAULTS.look.lensLift) / 1000;
+      // Emboss sizes are mm at DEFAULTS.distance, grown with distance like dmm.
+      this.k = distance / DEFAULTS.distance;
+      this.lift = (this.emboss ? DEFAULTS.look.emboss.height * this.k : DEFAULTS.look.lensLift) / 1000;
       this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'lens' }));
       this.body.renderOrder = 2;
       this.body.material.visible = !this.emboss;
@@ -200,12 +202,12 @@ export class Button extends Interactable {
   // The press dent (metres deep, at dentAt in local coordinates), or null.
   get dent() {
     const D = DEFAULTS.look.emboss.dent;
-    return this.dz ? { x: this.dentAt.x, y: this.dentAt.y, radius: D.width / 2000 / Math.sqrt(Math.LN2), depth: this.dz } : null;
+    return this.dz ? { x: this.dentAt.x, y: this.dentAt.y, radius: D.width * this.k / 2000 / Math.sqrt(Math.LN2), depth: this.dz } : null;
   }
   // Press glow, 0 to 1: follows the dent in, fades as it springs back.
   get glow() {
     const E = DEFAULTS.look.emboss;
-    return this.dz > 0 ? clamp(this.dz / (E.dent.depth / 1000), 0, 1) : 0;
+    return this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.k / 1000), 0, 1) : 0;
   }
 
   stepBulge(dt) {
@@ -224,8 +226,10 @@ export class Button extends Interactable {
     // it recovers, so it never slides.
     this.dentAt ??= new THREE.Vector2();
     if (this.press.amount > 0.01 && !this.dz) this.dentAt.copy(this.spot);
-    if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
-    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth / 1000 * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
+    // A fingertip drags the dent along; a ray (gaze and pinch) pins it where
+    // the pinch began, since eye tracking wobbles about 1° (35 mm at 2 m).
+    if (this.press.amount > 0.01 && this.pressKind === 'poke') this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
+    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth * this.k / 1000 * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 
@@ -263,6 +267,7 @@ export class Button extends Interactable {
       // clean release (no retreat distance to cover).
       else penetration = best.pressed ? this.press.maxDepth : -Infinity;
     }
+    if (best && this.press.amount < 0.01) this.pressKind = best.kind;
     const ev = this.press.update(dt, penetration, inside);
     if (ev === 'press') this.dispatchEvent({ type: 'press' });
     if (ev === 'release') {

@@ -17,7 +17,7 @@ try {
   await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
   await page.evaluate(() => window.contour.tick(30));
   const p = await page.evaluate(() => window.contour.screenOf(window.contour.panel.levels[0].rows[0]));
-  const shot = async s => { await page.screenshot({ path: `shots/6k/${name}-${s}.png` }); console.log(`shots/6k/${name}-${s}.png`); };
+  const shot = async s => { await page.screenshot({ path: `shots/6k/${name}-${s}.png`, timeout: 180000 }); console.log(`shots/6k/${name}-${s}.png`); };
   await shot('rest');
   await page.mouse.move(p.x + 60, p.y);
   await page.evaluate(() => window.contour.tick(60));
