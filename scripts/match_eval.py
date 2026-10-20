@@ -407,14 +407,16 @@ if have('dock-rest-beauty'):
           'worst ' + f'{min(dark):.2f} (' + ', '.join(f'{x:.2f}' for x in dark) + ')', min(dark) >= 0.6,
           'darkest 5% of each globe\'s middle >= 0.6x its median light', 'Judge round 5: "the refracted dark room reads as dirt"')
     # Judge round 5: the hotspot sat right above every glyph, touching it.
+    # The hotspot is the bright patch round the brightest point inside the
+    # globe (the rim's window reflection is left out), at 0.75x its peak.
     gap_ = []
     gy, gx = np.nonzero(gl)
     for one in split_columns(icons):
-        spots = components(erode(one, 2) & (ng > 0.8), 4)
         d_ = 2 * math.sqrt(one.sum() / math.pi)
-        if not spots:
-            gap_.append(1.0); continue
-        sy, sx = np.nonzero(spots[0])
+        inner = disc(one, 0.8)
+        peak = ng[inner].max()
+        spot = [c for c in components(inner & (ng >= 0.75 * peak), 1) if (c & inner & (ng == peak)).any()]
+        sy, sx = np.nonzero(spot[0] if spot else inner & (ng == peak))
         inside = one[gy, gx]
         dmin = float(np.sqrt((gx[inside][:, None] - sx[None, :]) ** 2 + (gy[inside][:, None] - sy[None, :]) ** 2).min()) if inside.any() else d_
         gap_.append(dmin / d_)
