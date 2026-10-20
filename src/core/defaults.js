@@ -87,12 +87,12 @@ export const DEFAULTS = {
       // Dent profile: a bell curve (Gaussian). width is its diameter at half
       // depth; the visible dip (to 10% depth) is 1.82x that. depth is below the
       // pressed crown. Jihoon: 20 mm wide, deeper (2026-10-20).
-      dent: { width: 20, depth: 4.5, response: 0.16, damping: 0.55 }, // mm, mm; s, ratio (springs back past flat once: the rebound)
+      dent: { width: 20, depth: 4.5, shade: 2.2, response: 0.16, damping: 0.55 }, // mm, mm; s, ratio (springs back past flat once: the rebound)
       // Press glow (Jihoon: shape alone is not enough to see a press): light
       // blooms out from the press point, and the bubble's edge lights up as a
       // ring. The ring carries the state change (no text sits on it); the
       // bloom under the text stays under the legibility cap (maxLum).
-      glow: { radius: 45, ring: 0.32, bloom: 0.07, color: [1, 0.97, 0.92] }, // mm; ring and bloom strength
+      glow: { falloff: 40, bloomRadius: 25, ring: 0.4, bloom: 0.15, color: [1, 0.97, 0.92] }, // mm: ring fades by 1/e every falloff from the press point, bloom radius; ring and bloom strength
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
       magnify: 0, // content under the bubble grows this much at full height (0: content holds still while the skin swells)
       gloss: 0.8, // how much smoother and shinier the inflated skin is

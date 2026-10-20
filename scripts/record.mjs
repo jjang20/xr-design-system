@@ -14,7 +14,7 @@ const page = await browser.newPage({ viewport: { width: 1000, height: 640 }, dev
 const dir = `shots/bench/${name}-frames`;
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true });
 try {
-  await page.goto(server.resolvedUrls.local[0] + `bench.html?manual&view=angle&fov=22&${query}`);
+  await page.goto(server.resolvedUrls.local[0] + `bench.html?${query}&manual&view=angle&fov=22`);
   await page.waitForFunction(() => window.ready, null, { timeout: 60000 });
   await page.evaluate(() => window.contour.tick(30));
   const p = await page.evaluate(() => window.contour.screenOf(window.contour.panel.levels[0].rows[0]));

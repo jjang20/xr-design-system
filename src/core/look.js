@@ -227,8 +227,9 @@ const BULGE_GLSL = /* glsl */`
   uniform vec4 uBulgeRect[2];   // centre xy, half size zw (local)
   uniform vec4 uBulgeParam[2];  // corner radius, height (signed), ramp width, front z (slot 0)
   uniform vec4 uBulgeDent[2];   // press dent: centre xy (local), radius, depth
-  uniform vec4 uBulgeGlow[2];   // press glow: radius, amount (0 to 1)
+  uniform vec4 uBulgeGlow[2];   // press glow: ring falloff distance, amount (0 to 1), bloom radius
   uniform vec3 uGlowColor; uniform vec2 uGlowMix;   // ring, bloom strength
+  uniform float uDentShade;
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
@@ -269,6 +270,9 @@ const BULGE_GLSL = /* glsl */`
     }
     return s;
   }
+  float dentHAll(vec2 p) {
+    return dentH(p, uBulgeRect[0], uBulgeParam[0], uBulgeDent[0]) + dentH(p, uBulgeRect[1], uBulgeParam[1], uBulgeDent[1]);
+  }
   // How much of a press dent covers p (0 to 1).
   float dentMask(vec2 p) {
     float m = 0.0;
@@ -276,7 +280,7 @@ const BULGE_GLSL = /* glsl */`
       vec4 D = uBulgeDent[i];
       if (D.w <= 0.0) continue;
       vec2 q = p - D.xy;
-      m = max(m, exp(-dot(q, q) / (D.z * D.z)));
+      m = max(m, exp(-dot(q, q) / (4.0 * D.z * D.z)));
     }
     return m;
   }
@@ -289,10 +293,10 @@ const BULGE_GLSL = /* glsl */`
       if (G.y <= 0.0 || P.y == 0.0) continue;
       vec2 q = p - D.xy;
       float d = bulgeD(p, R, P);
-      g.x = max(g.x, G.y * exp(-dot(q, q) / (G.x * G.x)) * smoothstep(0.0, 0.25, bulgeT(p, R, P)));
+      g.x = max(g.x, G.y * exp(-dot(q, q) / (G.z * G.z)) * smoothstep(0.0, 0.25, bulgeT(p, R, P)));
       // Light carried through the glass catches at the edge, brightest
       // nearest the press (edge-lit, like acrylic), so it reads as one light.
-      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.35 + 0.65 * exp(-dot(q, q) / (4.0 * G.x * G.x))));
+      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.12 + 0.88 * exp(-length(q) / G.x)));
     }
     return g;
   }`;
@@ -401,6 +405,16 @@ const GLASS_FRAG = /* glsl */`
       // A press glow blooms inside the glass, so the scrim below keeps the
       // text over it legible.
       vec2 glow = vFront > 0.5 && anyBulge() ? bulgeGlow(vLocal.xy) : vec2(0.0);
+      // The dent is shaded as a hollow by the key light (top left): the wall
+      // facing the light brightens into a crescent on the far lip, the wall
+      // turned away darkens. Refraction alone read as a smudge.
+      if (vFront > 0.5 && anyBulge()) {
+        float ed = 0.0004;
+        vec2 gd = vec2(dentHAll(vLocal.xy + vec2(ed, 0.0)) - dentHAll(vLocal.xy - vec2(ed, 0.0)),
+                       dentHAll(vLocal.xy + vec2(0.0, ed)) - dentHAll(vLocal.xy - vec2(0.0, ed))) / (2.0 * ed);
+        float shade = -dot(gd, normalize(vec2(-0.45, 0.8)));
+        col *= 1.0 + clamp(shade * uDentShade, -0.4, 0.6);
+      }
       col += uGlowColor * glow.x * uGlowMix.y;
       float lc = dot(col, LUMA);
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
@@ -505,6 +519,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uBulgeGlow: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
       uGlowMix: { value: new THREE.Vector2(L.emboss.glow.ring, L.emboss.glow.bloom) },
+      uDentShade: { value: L.emboss.dent.shade },
       uClear: { value: L.emboss.clear },
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
@@ -535,7 +550,7 @@ export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0
   p.set(r, height, ramp, p.w);
   const d = dent ?? { x: 0, y: 0, radius: 1, depth: 0 };
   m.uniforms.uBulgeDent.value[i].set(d.x, d.y, d.radius, d.depth);
-  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.radius / 1000, glow, 0, 0);
+  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff / 1000, glow, L.emboss.glow.bloomRadius / 1000, 0);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {

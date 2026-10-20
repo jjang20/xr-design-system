@@ -215,7 +215,9 @@ export class Button extends Interactable {
     const target = on ? this.lift * (1 - E.squash * this.press.amount) : 0;
     // Deflating settles without a wobble (critically damped), so leaving a
     // row stays quiet; only inflating carries the fluid settle.
-    const s = spring(this.bz ?? 0, this.bv ?? 0, target, E.response, target === 0 ? 1 : E.damping, dt);
+    // Reduced motion: no settle and no rebound (Apple: drop overshoot).
+    const calm = REDUCED_MOTION();
+    const s = spring(this.bz ?? 0, this.bv ?? 0, target, E.response, target === 0 || calm ? 1 : E.damping, dt);
     this.bz = s.x; this.bv = s.v;
     // The dent is quicker and springs back past flat once on release: the
     // skin rebounds. It is placed at the press point and stays there while
@@ -223,7 +225,7 @@ export class Button extends Interactable {
     this.dentAt ??= new THREE.Vector2();
     if (this.press.amount > 0.01 && !this.dz) this.dentAt.copy(this.spot);
     if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
-    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth / 1000 * this.press.amount : 0, E.dent.response, E.dent.damping, dt);
+    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth / 1000 * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 
@@ -305,3 +307,5 @@ function spring(x, v, target, response, damping, dt) {
   }
   return { x, v };
 }
+
+const REDUCED_MOTION = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
