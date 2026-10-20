@@ -2,7 +2,8 @@
 
 Four three.js + WebXR components built on the tokens: **Button**, **Z-Slider**, **Packaging panel** and **Dock**. They don't hold any numbers of their own: every size, timing and ratio is read from [`tokens.json`](../tokens.json), so changing a token changes every component that uses it. The few values the tokens don't cover yet are collected in one file, listed [below](#values-the-tokens-dont-cover-yet).
 
-![All four components in the demo scene](images/components-overview.png)
+![The demo scene: Catalog window, bubble toolbar with the tinted-glass Place button, Lamp Z-Slider and Dock](images/components-overview.png)
+*Captured 2026-10-20 from the demo, 2560 × 1600.* The Dock and Z-Slider in this shot are the old live versions and are **in progress**: their new designs are in lookdev (see [Dock](#dock) and [Z-Slider](#z-slider)).
 
 ## Run the demo
 
@@ -80,13 +81,17 @@ A knob you push away from you (value up) and pull back (value down), along Z ins
 | Contact shadow grows and darkens with push | `feedback.shadow.press.*` |
 | Hover, glow, surface | as Button |
 
+![Z-Slider lookdev, direction A: an amber glass bead on a glass stem over five etched detents, two lit at 40%](images/lookdev/slider-stem.jpg)
+*Rendered 2026-10-20 in Blender.* **In progress:** Jihoon picked this direction (A, stem) on 2026-10-20; the live knob in the demo is still the old one.
+
 How each input moves it: a fingertip can only **push** the face (like a real knob). **Pinching** near the knob grabs it so it can be pulled back. A **ray** (mouse, controller) drags it: moving the pointer further away pushes. The value is shown beside the knob, not on it, so the hand doesn't cover it. A depth ruler under the knob shows the 10 steps. Events: `change`, `detent`.
 
 ## Packaging panel
 
 A list whose rows open into a child panel that grows out of the row, instead of sliding in from the side.
 
-![Three levels open in compress mode: the parents recede up and back as a breadcrumb](images/packaging-compress.png)
+![Three levels open in compress mode (Catalog › Sofas › Modular): the parents recede up and back as a breadcrumb](images/packaging-compress.png)
+*Captured 2026-10-20 from the demo, 2560 × 1600.*
 
 | Behaviour | Tokens |
 |---|---|
@@ -96,17 +101,27 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 | Up to 3 levels deep; deeper rows show as disabled | `packaging.depth.max` |
 | Open and close: a critically damped spring, response = the dropdown duration | `motion.expand.dropdown.duration` |
 
-Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside. Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
+Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside.
+
+![Catalog row in bubble hover: the window glass swells into a pillow under Sofas](images/catalog-hover.png)
+*Captured 2026-10-20 from the demo, 2560 × 1600.*
+
+![Catalog row pressed: a dent where the press lands, with light gathered inside it](images/catalog-press.png)
+*Captured 2026-10-20 from the demo, 2560 × 1600.* Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
 
 ## Toolbar
 
 An ornament of actions under a window: one glass bar whose buttons are places where its own glass swells into a bubble on hover and dents on press. The primary action is a patch of accent-tinted glass (`DEFAULTS.color.accentGlass`), so the room shows through it blue; in tinted glass the press light takes the glass's colour. Events: `select` (with the tool and its index).
 
+![Toolbar close-up: the rotate button hovered, swelling out of the bar's glass beside the tinted-glass Place button](images/toolbar.png)
+*Captured 2026-10-20 from the demo, 2560 × 1600.*
+
 ## Dock
 
 The app launcher, body-locked 25° below your view.
 
-![Hand near the Photos icon: icons grow with cosine falloff](images/dock-magnify.png)
+![Dock lookdev: a curved glass shelf with icons floating above it, Scan magnified](images/dock-magnify.png)
+*Rendered 2026-10-20 in Blender (`lookdev/dock_slider.py --part dock --option shelf --state hover`), 2560 × 1600.* **In progress:** this is the lookdev target, not the live component yet; the hand is not modelled in the render, and the shown state is the magnification a nearby hand triggers. The live Dock in the demo is still the first-pass bead dock.
 
 | Behaviour | Tokens |
 |---|---|
@@ -117,6 +132,20 @@ The app launcher, body-locked 25° below your view.
 | Icon size and gaps | `size.button.default`, `size.gap.min` |
 
 WebXR doesn't track the torso, so the dock treats a sustained head turn (more than 20°, held for the delay) as a body turn. A quick glance away never moves it. Events: `select`.
+
+## Lookdev frames kept for comparison
+
+Path-traced Blender references and 6K stills, in [`images/lookdev/`](images/lookdev/):
+
+| File | What it shows | Captured |
+|---|---|---|
+| `bubble-blender-states.jpg` | The bubble reference in Blender: rest, hover, press | 2026-10-19 |
+| `catalog-press-6k.jpg` | Live Catalog at 6K (6144 × 3456), row pressed | 2026-10-20 |
+| `row-hover-vs-press-6k.jpg` | 100 % crop of a 6K row: hover next to press | 2026-10-20 |
+| `press-0.6m-vs-2m-6k.jpg` | The same press at 0.6 m and 2 m (emboss scales with distance) | 2026-10-20 |
+| `dock-options.jpg` | Dock directions A bead, B inlay, C layered (before the shelf) | 2026-10-20 |
+| `slider-options.jpg` | Z-Slider directions A stem, B column, C membrane | 2026-10-20 |
+| `slider-stem.jpg` | Z-Slider A refined (in progress) | 2026-10-20 |
 
 ## Input
 
