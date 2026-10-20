@@ -20,6 +20,7 @@ ap.add_argument('--state', default='hover', choices=['rest', 'hover', 'press', '
 ap.add_argument('--hover', default='lens', choices=['lens', 'bubble'])  # hover style
 ap.add_argument('--bubble', default='2.2,10,0.08')
 ap.add_argument('--clear', type=float, default=0.5)  # how much the bubble thins toward the bead's clear glass
+ap.add_argument('--press', default='dent', choices=['dent', 'squash'])  # press design
 ap.add_argument('--profile', default='pillow', choices=['pillow', 'plateau'])  # height mm, ramp mm, crown roughness
 ap.add_argument('--view', default='front', choices=['front', 'angle'])
 ap.add_argument('--samples', type=int, default=96)
@@ -189,7 +190,7 @@ def sd_round_rect(x, y, hw, hh, r):
     return min(max(qx, qy), 0.0) + math.hypot(max(qx, 0.0), max(qy, 0.0)) - r
 
 
-def inflate(ob, cx, cy, hw, hh, r, height, dent=None, step=0.0006):
+def inflate(ob, cx, cy, hw, hh, r, height, dent=None, step=0.0006, flat=1.0):
     """The window's own front skin swells over a rounded rect: a seamless,
     tangent ramp (a meniscus) up to a low, slightly domed crown. `dent`
     (x, y, radius, depth) pushes a finger-sized dimple into it."""
@@ -215,7 +216,7 @@ def inflate(ob, cx, cy, hw, hh, r, height, dent=None, step=0.0006):
         # row's short side (an elliptical arc, so the edge is steep and the
         # top keeps rounding), eased into the window by a small meniscus.
         u = min(max(-d / hh, 0.0), 1.0)
-        dome = math.sqrt(max(0.0, 1.0 - (1.0 - u) ** 2)) if PROFILE == 'pillow' else 0.88 + 0.12 * u
+        dome = math.sqrt(max(0.0, 1.0 - (1.0 - u) ** 2)) ** flat if PROFILE == 'pillow' else 0.88 + 0.12 * u
         k = smootherstep((0.15 * BUBBLE_RAMP - d) / BUBBLE_RAMP)
         z = height * k * dome
         if dent:
@@ -314,9 +315,16 @@ def level(item, z, scale, dim, hovered=None, header_only=False):
             if bubble:
                 # The window itself swells under the row; a pressed bubble
                 # flattens and dimples under the finger.
-                hgt = BUBBLE_H * (0.3 if pressed else 1.0)
-                dent = (-rw / 2 + dmm(120), cy, dmm(24), BUBBLE_H * 0.55) if pressed else None
-                inflate(win, 0, cy, rw / 2, rowH / 2, rowH / 2, hgt, dent)
+                # Press, two designs: 'dent' (a finger-sized dimple where the
+                # finger is, the pillow around it stays full) or 'squash' (the
+                # whole pillow flattens, so its highlight spreads).
+                hgt, dent, flat = BUBBLE_H, None, 1.0
+                if pressed and args.press == 'dent':
+                    hgt = BUBBLE_H * 0.85
+                    dent = (-rw / 2 + dmm(130), cy, dmm(13), BUBBLE_H * 1.3)
+                elif pressed:
+                    hgt, flat = BUBBLE_H * 0.45, 0.35
+                inflate(win, 0, cy, rw / 2, rowH / 2, rowH / 2, hgt, dent, flat=flat)
                 row.location = (0, cy, T_WINDOW + hgt * 0.95 + 0.0002)
                 fz = 0.0003
             else:
