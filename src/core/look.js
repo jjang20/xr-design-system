@@ -296,7 +296,7 @@ const BULGE_GLSL = /* glsl */`
       g.x = max(g.x, G.y * exp(-dot(q, q) / (G.z * G.z)) * smoothstep(0.0, 0.25, bulgeT(p, R, P)));
       // Light carried through the glass catches at the edge, brightest
       // nearest the press (edge-lit, like acrylic), so it reads as one light.
-      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.12 + 0.88 * exp(-length(q) / G.x)));
+      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.06 + 0.94 * exp(-length(q) / G.x)));   // far side stays at ~6%
     }
     return g;
   }`;
