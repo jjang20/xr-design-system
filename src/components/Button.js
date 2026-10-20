@@ -18,6 +18,7 @@ import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
+import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
@@ -100,10 +101,11 @@ export class Button extends Interactable {
       // An app tile (the shelf Dock): a thin, upright rounded square of
       // tinted glass that floats over the shelf, like a Snow Leopard dock icon.
       this.r = this.w * DEFAULTS.look.dockTileRadius;
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'tile' }));
+      // Refractive milky glass, as lookdev/dock_slider.py's milky() material.
+      const tint = glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral).map(v => this.disabled ? 0.7 + 0.3 * v : v);
+      this.body = refractiveMesh(glassSlabGeometry(this.w, this.h, this.t, this.r), refractiveGlass('tile', { thick: this.t, color: tint }));
       this.body.renderOrder = 2;
       this.skin = this.body.material;
-      setTint(this.skin, { hw: this.w / 2, hh: this.h / 2, r: this.r, soft: this.w * 0.02, albedo: glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral), amount: this.disabled ? 0.3 : 1 });
     } else if (this.variant === 'plain') {
       // A light glass lens: invisible at rest, it lifts out of the window
       // on hover, carrying the row's content with it.

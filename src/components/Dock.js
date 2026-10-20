@@ -11,12 +11,14 @@
 //
 // Look (Jihoon, 2026-10-20; lookdev/dock_slider.py --option shelf): a Snow
 // Leopard style dock. Upright tiles of milky tinted glass float over a thin,
-// clear glass shelf and are mirrored in it. Shelf and icons follow an arc centred
+// clear glass shelf and are mirrored in it. All of it is refractive glass
+// (core/refract.js), lit by the lookdev rig. Shelf and icons follow an arc centred
 // on the user at the dock's distance, so every icon is the same reach away.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { glassSlabGeometry, makeText, seeThroughGlass, cloneGlass } from '../core/look.js';
+import { glassSlabGeometry, makeText, cloneGlass } from '../core/look.js';
+import { refractiveGlass, refractiveMesh, cloneRefractive, attachGrab } from '../core/refract.js';
 import { springStep } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { Button } from './Button.js';
@@ -77,8 +79,8 @@ export class Dock extends THREE.Group {
     this.shelf = new THREE.Group();
     this.shelf.position.y = -this.side / 2 - this.lift;
     this.level.add(this.shelf);
-    // See-through glass, so the mirrored icons below show through it.
-    this.base = seeThroughGlass(T, new THREE.BufferGeometry(), { w: 0.3, h: 0.08, t: this.shelfT, kind: 'shelf' });
+    // Refractive glass, so the mirrored icons below show through it.
+    this.base = refractiveMesh(new THREE.BufferGeometry(), refractiveGlass('shelf', { thick: this.shelfT }));
     this.base.renderOrder = 1;
     this.shelf.add(this.base);
     // Its depth, drawn first: the mirror images only show where the shelf
@@ -95,7 +97,8 @@ export class Dock extends THREE.Group {
         const c = part.clone();
         c.traverse(m => {
           if (!m.material) return;
-          m.material = m.material.isShaderMaterial ? cloneGlass(m.material) : m.material.clone();
+          if (m.material.userData.refractive) { m.material = cloneRefractive(m.material); attachGrab(m); }
+          else m.material = m.material.isShaderMaterial ? cloneGlass(m.material) : m.material.clone();
           if (m.material.uniforms?.uOpacity) m.material.uniforms.uOpacity.value = S.reflection;
           else m.material.opacity = (m.material.opacity ?? 1) * S.reflection;
           m.material.transparent = true;
@@ -156,7 +159,7 @@ export class Dock extends THREE.Group {
       this._baseW = w;
       this.base.geometry.dispose();
       const g = shelfGeometry(w, d, this.shelfT, this.distance);
-      this.base.geometry = this.base.children[0].geometry = this.mask.geometry = g;
+      this.base.geometry = this.mask.geometry = g;
     }
   }
 

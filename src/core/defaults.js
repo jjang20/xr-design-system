@@ -71,14 +71,27 @@ export const DEFAULTS = {
       // 4.5:1), rim darkening, frost bump depth, grain, milky veil, key light.
       window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.19, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
-      // See-through kinds (seeThroughGlass): albedo filters what is behind.
-      shelf: { albedo: [0.7, 0.72, 0.78], maxLum: 1, edge: 0.5, frost: 0, grain: 0.005, veil: 0.03, key: 1 }, // the Dock's clear, mirror-smooth shelf
-      clear: { albedo: [0.82, 0.82, 0.84], maxLum: 1, edge: 0.55, frost: 0, grain: 0.005, veil: 0.006, key: 0.5 }, // the Z-Slider's plate
-      amber: { albedo: [0.98, 0.42, 0.06], maxLum: 1, edge: 0.8, frost: 0, grain: 0, veil: 0.035, key: 1 }, // lamp-amber glass (Z-Slider knob, stem)
-      // App tiles: milky tinted glass, lighter than a bead so colours stay clear.
-      tile: { albedo: [0.9, 0.9, 0.91], maxLum: 0.5, edge: 0.3, frost: 0, grain: 0.01, veil: 0.12, key: 1.1 },
-      tileNeutral: [0.62, 0.62, 0.65], // grey app tiles (Settings): a grey glass, not clear
+      tileNeutral: [0.46, 0.46, 0.49], // grey app tiles (Settings): a grey glass, not clear
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
+    },
+    // Refractive glass (core/refract.js), matched to the Principled glass in
+    // lookdev/dock_slider.py. color: transmission tint (linear); attColor /
+    // attDist: Beer-Lambert absorption (attColor left after attDist metres);
+    // rough: surface roughness (0.4 = frosted); coat: clear coat; scatter:
+    // light scattered inside in the glass's own colour (milky glass);
+    // caustic: focused key light on the far side.
+    refract: {
+      grabMargin: 0.35, // the frame copy around a glass reaches this far past it (fraction of its size): room for the refracted offset
+      // The lookdev light rig: direction toward the light (three.js axes,
+      // from the component), colour, strength, angular size.
+      lights: {
+        key: { dir: [-0.7, 0.9, 0.5], color: [1, 0.92, 0.82], intensity: 5, size: 0.1 },
+        rim: { dir: [-0.35, 0.35, -0.4], color: [1, 0.85, 0.65], intensity: 3, size: 0.1 },
+      },
+      amber: { color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.012, rough: 0.05, coat: 1, caustic: 0.8, scatter: 0.02 },
+      plate: { color: [0.66, 0.65, 0.64], attColor: [0.55, 0.54, 0.53], attDist: 0.033, rough: 0.4, coat: 0.6 },
+      tile: { rough: 0.16, coat: 1, diffuse: 0.4, color: [1, 1, 1] }, // milky: Blender's transmission 0.6
+      shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
     // lensLift; 'emboss' inflates the window's skin into a bubble under the
@@ -134,7 +147,6 @@ export const DEFAULTS = {
     controlHover: 0x5a5c63,
     row: 0x5a5c63, // list row hover fill
     accent: 0x2f7cf6, // primary actions
-    lampGlass: [1.3, 0.55, 0.14], // linear transmission of the Z-Slider's amber glass (lamp colour)
     lampLit: 0xffa040, // lit detent rings, up to the value
     accentGlass: [0.22, 0.5, 1.7], // linear transmission of accent-tinted glass (primary buttons): the room shows through it blue; the scrim caps its brightness for white text
     metal: 0xc9ccd2, // Z-Slider knob

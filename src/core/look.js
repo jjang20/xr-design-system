@@ -154,6 +154,11 @@ const backdrop = {
   uHasEnv: { value: 0 },
 };
 const glassMaterials = new Set();
+// For other glass shaders (core/refract.js): the shared backdrop uniforms,
+// and registration so setBackdrop updates their defines too.
+export function backdropUniforms() { return backdrop; }
+export function trackGlass(m) { glassMaterials.add(m); m.defines = { ...m.defines, ...cubeUVDefines(backdrop.envMap.value) }; return m; }
+export { cubeUVDefines };
 
 function cubeUVDefines(tex) {
   const h = tex?.image?.height;
@@ -179,7 +184,7 @@ export function setBackdrop(pmremTexture, { rotation, intensity = 1 } = {}) {
     backdrop.uEnvRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromEuler(e));
   }
   for (const m of glassMaterials) {
-    const keep = Object.fromEntries(Object.entries(m.defines ?? {}).filter(([k]) => k.startsWith('TRANSMIT')));
+    const keep = Object.fromEntries(Object.entries(m.defines ?? {}).filter(([k]) => !k.startsWith('ENVMAP_') && !k.startsWith('CUBEUV_')));   // keep a shader's own defines
     m.defines = { ...cubeUVDefines(pmremTexture), ...keep };
     m.needsUpdate = true;
   }
@@ -398,9 +403,6 @@ const GLASS_FRAG = /* glsl */`
     #ifdef ENVMAP_TYPE_CUBE_UV
       vec3 Tdir = refract(V, N, 1.0 / uIor);
       vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, mix(uBlur, uBlur * 0.3, rim01)).rgb * uEnvIntensity;
-      #ifdef TRANSMIT
-        bg = vec3(1.0);   // see-through glass: what is behind is already drawn; this pass works out the glass's filter
-      #endif
       // Beer-Lambert absorption: light loses energy along its path through
       // the glass. The path is longest where the ray crosses at a slant, so
       // the rounded rim and a bead's edge read darker, as in the path-traced
@@ -438,9 +440,7 @@ const GLASS_FRAG = /* glsl */`
       }
       col += uGlowColor * glow.x * uGlowMix.y;
       float lc = dot(col, LUMA);
-      #ifndef TRANSMIT
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
-      #endif
       col *= 1.0 - occl;
       // The lit ring sits on the edge, where there is no text.
       col += uGlowColor * glow.y * uGlowMix.x;
@@ -467,25 +467,11 @@ const GLASS_FRAG = /* glsl */`
     // dark rim (seen in the path-traced reference).
     col *= 1.0 - uEdge * pow(1.0 - cosT, 2.0);
 
-    #ifdef TRANSMIT_FILTER
-      // Filter pass: what is behind the glass is multiplied by the light that
-      // gets through (absorbed in the tint, lost to reflection at the face).
-      float o1 = uOpacity * uFade;
-      gl_FragColor = vec4(mix(vec3(1.0), col * (1.0 - F), o1), 1.0);
-      #include <colorspace_fragment>
-      return;
-    #elif defined(TRANSMIT_SURFACE)
-      // Surface pass (added on top): reflection, highlights, and the light
-      // scattered inside the glass, in the glass's own colour.
-      vec3 hue = mix(uAlbedo, uTintColor, uTintParam.z);
-      col = hue * uVeil * (0.75 + 0.5 * clamp(N.y + 0.5, 0.0, 1.0));
-    #else
     // Light glass: a milky veil, a touch brighter toward the top. Tinted
     // glass scatters its own colour (milky app tiles glow blue, not grey).
     float tv = uTintParam.z * (1.0 - smoothstep(-uTintParam.y, uTintParam.y, sdRoundRect(vLocal.xy - uTintRect.xy, uTintRect.zw, uTintParam.x)));
     vec3 veilHue = mix(vec3(1.0), uTintColor / max(max(uTintColor.r, uTintColor.g), max(uTintColor.b, 1e-3)), tv);
     col += veilHue * uVeil * (0.75 + 0.5 * clamp(N.y + 0.5, 0.0, 1.0));
-    #endif
 
     // Contact shadows from layers floating in front.
     for (int i = 0; i < 2; i++) {
@@ -521,15 +507,7 @@ const GLASS_FRAG = /* glsl */`
     float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
     col += vec3(1.0) * sp * sp * uHover * 0.025;
 
-    #ifdef TRANSMIT_SURFACE
-      // Rim light from behind (the lookdev's rim lamp): the far-side edge
-      // of a curved glass catches a bright line.
-      vec3 Lr = normalize(vec3(-0.6, 0.5, -0.6));
-      col += vec3(1.0) * pow(rim, 2.0) * pow(max(dot(-V, -Lr) * 0.5 + 0.5, 0.0), 4.0) * uKey * 0.6;
-      gl_FragColor = vec4(col * uOpacity * uFade, 0.0);
-    #else
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
-    #endif
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`;
@@ -603,39 +581,6 @@ export function cloneGlass(m) {
   return c;
 }
 
-// See-through glass (the Z-Slider's amber, the Dock's shelf): unlike the
-// sheet above, which paints the room from the backdrop, this lets real
-// objects behind it show through (the stem through the knob, the mirrored
-// icons in the shelf), tinted by the glass. Two passes over one shape: a
-// filter that multiplies what is already drawn, then the surface (reflection
-// and highlights) added on top. Returns the mesh; `.material` holds the
-// uniforms both passes share (setTint and uHover work as usual).
-export function seeThroughGlass(T, geometry, opts) {
-  const filter = glassMaterial(T, opts);
-  filter.defines = { ...filter.defines, TRANSMIT: '', TRANSMIT_FILTER: '' };
-  filter.blending = THREE.CustomBlending;
-  filter.blendEquation = THREE.AddEquation;
-  filter.blendSrc = THREE.ZeroFactor; filter.blendDst = THREE.SrcColorFactor;
-  filter.blendSrcAlpha = THREE.ZeroFactor; filter.blendDstAlpha = THREE.OneFactor;
-  filter.depthWrite = false;
-  filter.toneMapped = false;
-  const surface = new THREE.ShaderMaterial({
-    vertexShader: GLASS_VERT, fragmentShader: GLASS_FRAG,
-    uniforms: filter.uniforms, transparent: true, depthWrite: false,
-    defines: { ...cubeUVDefines(backdrop.envMap.value), TRANSMIT: '', TRANSMIT_SURFACE: '' },
-    blending: THREE.CustomBlending, blendEquation: THREE.AddEquation,
-    blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
-    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-  });
-  glassMaterials.add(surface);
-  const mesh = new THREE.Mesh(geometry, filter);
-  const top = new THREE.Mesh(geometry, surface);
-  // Drawn right after the filter: same order, created later.
-  Object.defineProperty(top, 'renderOrder', { get: () => mesh.renderOrder, set: () => {} });
-  top.raycast = () => {};
-  mesh.add(top);
-  return mesh;
-}
 
 // Contact shadow slot `i` on a glass material: a rounded rect (local
 // coordinates of the receiving glass) floating `gap` metres in front.

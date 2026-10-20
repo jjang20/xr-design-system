@@ -23,7 +23,8 @@ import { Interactable, markComponent } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { cubicBezier, clamp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture, glassSlabGeometry, glassBeadGeometry, seeThroughGlass } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture, glassSlabGeometry, glassBeadGeometry } from '../core/look.js';
+import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { detentIndex, shadowAt } from '../core/detent.js';
 import { playTick } from '../core/audio.js';
 
@@ -55,14 +56,15 @@ export class ZSlider extends Interactable {
     this.side = side;
     this.t = t;
 
-    // Plate: a round disc of clear glass the stem rises out of. All the
-    // slider's glass is see-through: the stem shows through the knob.
+    // Plate: a round disc of frosted glass the stem rises out of. All the
+    // slider's glass refracts what is behind it (core/refract.js): the stem
+    // bends inside the knob as in the lookdev render. Drawn back to front.
     const plateD = side * 1.55;
-    const plate = seeThroughGlass(T, glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), { w: plateD, h: plateD, t: plateT, kind: 'clear' });
+    const plate = refractiveMesh(glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), refractiveGlass('plate', { thick: plateT }));
     plate.position.z = -plateT;
     plate.renderOrder = 1;
     this.add(plate);
-    const amber = (geo, w, t) => seeThroughGlass(T, geo, { w, h: w, t, kind: 'amber' });
+    const amber = (geo, t) => refractiveMesh(geo, refractiveGlass('amber', { thick: t }));
 
     // Contact shadow on the plate, under the knob.
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(side * 1.15, side * 1.15), flatMaterial(C.shadow, this.shadowMin, { map: softTexture() }));
@@ -84,22 +86,21 @@ export class ZSlider extends Interactable {
 
     // Stem: amber glass, rising from a flared foot; shorter as the knob goes in.
     const stemR = side * 0.1;
-    this.stem = amber(new THREE.CylinderGeometry(stemR, stemR, 1, 48), stemR * 2, stemR * 2);
+    this.stem = amber(new THREE.CylinderGeometry(stemR, stemR, 1, 48), stemR * 6);  // light crosses it twice, edge to edge: a deep amber, as in lookdev
     this.stem.rotation.x = Math.PI / 2;
     this.stem.renderOrder = 2.5;  // over the rings
     this.add(this.stem);
-    const foot = amber(glassBeadGeometry(side * 0.5, side * 0.07), side * 0.5, side * 0.07);
+    const foot = amber(glassBeadGeometry(side * 0.5, side * 0.07), side * 0.07);
     foot.renderOrder = 2.5;
     this.add(foot);
 
     // Knob: a low bead of amber glass with the icon on its crown.
     this.knob = new THREE.Group();
     const knobH = side * 0.22;
-    const knobBody = amber(glassBeadGeometry(side, knobH), side, knobH);
+    const knobBody = amber(glassBeadGeometry(side, knobH), knobH);
     knobBody.renderOrder = 3;
     this.knob.add(knobBody);
     this.knobSkin = knobBody.material;
-    this.knobSkin.uniforms.uSpotRadius.value = side * 0.6;
     if (o.icon) {
       const icon = makeIcon(o.icon, side * 0.42);
       icon.position.z = knobH + 0.0004;

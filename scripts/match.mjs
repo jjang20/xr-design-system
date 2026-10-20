@@ -1,6 +1,6 @@
 // Live vs path-traced: shoots the live Dock and Z-Slider at the framings of
 // the Blender lookdev renders (lookdev/dock_slider.py) and lays each pair
-// side by side in shots/match/. Run: node scripts/match.mjs
+// side by side in shots/match/. Run: node scripts/match.mjs [dock|slider]
 import { createServer } from 'vite';
 import { chromium } from 'playwright-core';
 import { mkdirSync, existsSync } from 'node:fs';
@@ -10,13 +10,15 @@ const executablePath = process.env.CHROMIUM_PATH ?? ['/opt/pw-browsers/chromium-
 const server = await createServer({ configFile: new URL('../vite.config.js', import.meta.url).pathname, logLevel: 'error' });
 await server.listen(0);
 const browser = await chromium.launch({ executablePath, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
 const errors = [];
-page.on('pageerror', e => errors.push(e.message));
 mkdirSync('shots/match', { recursive: true });
 const shots = [];
 try {
-  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['slider', 'rest']]) {
+  const only = process.argv[2];  // optional: dock | slider
+  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['slider', 'rest']].filter(([p]) => !only || p === only)) {
+    // A fresh page per shot: SwiftShader can drop a long-lived context.
+    const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+    page.on('pageerror', e => errors.push(e.message));
     await page.goto(server.resolvedUrls.local[0] + `bench.html?manual&part=${part}`);
     await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
     await page.evaluate(() => window.contour.tick(30));
@@ -30,6 +32,7 @@ try {
     const file = `shots/match/live-${part}-${state}.png`;
     await page.screenshot({ path: file });
     shots.push([part, state, file]);
+    await page.close();
     console.log(file);
   }
 } finally { await browser.close(); await server.close(); }
