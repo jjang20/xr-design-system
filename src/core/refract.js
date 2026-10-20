@@ -366,7 +366,9 @@ const FRAG = /* glsl */`
     add += vec3(uHover * 0.02);
     // Hover sheen (the Dock's globes): the glass brightens, most at its rim,
     // as if it turned toward the light.
-    add += vec3(uSheen) * (0.04 + 0.6 * pow(1.0 - nv, 3.0));
+    // In the glass's own colour, so the hovered globe glows brighter rather
+    // than turning milky (judge round 5: the green lost its saturation).
+    add += mix(vec3(1.0), hue, 0.75) * uSheen * (0.04 + 0.6 * pow(1.0 - nv, 3.0));
 
     vec3 outc = toDisplay(col + neutral(add));
     // Fade (window levels): fade to what is behind.

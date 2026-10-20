@@ -98,7 +98,7 @@ export class ZSlider extends Interactable {
     this.add(this.spill);
     for (let i = 0; i < n; i++) {
       const r = radii[i];
-      const ring = new THREE.Mesh(new THREE.RingGeometry(r - ringW / 2, r + ringW / 2, 96), flatMaterial(0xffffff, 0.22));
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r - ringW / 2, r + ringW / 2, 96), flatMaterial(0xffffff, G.ringUnlit));
       ring.position.z = 0.0003;
       ring.renderOrder = 2;
       this.add(ring);
@@ -278,15 +278,16 @@ export class ZSlider extends Interactable {
     this.knobSkin.uniforms.uHover.value = h * 6;
     this.knob.scale.setScalar(1 + 0.06 * h);  // swells a little toward you, like a bubble
     const lit = Math.round(push * this.rings.length);
+    const G = DEFAULTS.look.lampGlow;
     this.rings.forEach((r, i) => {
       const on = i < lit;
       r.material.color.set(on ? C.lampLit : 0xffffff);
-      r.material.opacity = r.material.userData.baseOpacity = on ? 0.95 : 0.22;
+      r.material.opacity = r.material.userData.baseOpacity = on ? 0.95 : G.ringUnlit;
       this.ringGlow.material.uniforms.uOn.value[i] = on ? 1 : 0;
     });
     // The lamp glows with its value: a floor so it reads as lit glass at
     // any value, rising to full at 100%.
-    const G = DEFAULTS.look.lampGlow, glow = G.min + (1 - G.min) * push;
+    const glow = G.min + (1 - G.min) * push;
     for (const [m, k] of this.glass) m.uniforms.uEmissive.value.copy(this.lampColor).multiplyScalar(k * glow);
     this.halo.material.opacity = G.halo.opacity * glow;
     this.spill.material.opacity = G.spill.opacity * glow;

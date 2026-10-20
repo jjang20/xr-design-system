@@ -345,6 +345,9 @@ if have('dock-rest-beauty'):
             a_ = erode(rest_i[2], 4) & ~dilate(diff > 0.04, 4)
             b_ = erode(hov_i[2], 4) & ~dilate(gh, 4)
             lift = float(lum(rgb('dock-hover-beauty'))[b_].mean() - lum(rgb('dock-rest-beauty'))[a_].mean())
+            ch_r, ch_h = chroma(rgb('dock-rest-beauty')[a_]), chroma(rgb('dock-hover-beauty')[b_])
+            check('D20', 'Dock', 'Hover keeps the globe\'s colour (it glows, it does not turn milky)', f'{ch_h / max(ch_r, 1e-3):.2f}x the colour at rest', ch_h >= 0.9 * ch_r,
+                  '>= 0.9x', 'Judge round 5: "the green turns milky and loses saturation"')
             check('D14', 'Dock', 'Hover lights the globe, not only scales it', f'{lift:+.3f} mean luminance', lift >= 0.05,
                   '>= +0.05 over the same globe at rest', 'Judge round 3: "there is no highlight, only scale"; round 4: "no rim or brightness cue" at +0.03; apple-design: hover = light, not size alone')
     # Judge round 3: the reflections were a second row of milky half-domes,
@@ -392,6 +395,31 @@ if have('dock-rest-beauty'):
         spots = components(erode(one, 2) & (ng > 0.8), 4)
         hot_n.append(len(spots))
         hot_on.append(float((spots[0] & dilate(gl, 2)).sum() / spots[0].sum()) if spots else 0.0)
+    # Judge round 5: the room's dark door showed as a hard dark band across
+    # each globe and read as dirt. The room should read as soft light and
+    # shade: the darkest part of a globe's middle stays near its median.
+    dark = []
+    for one in split_columns(icons):
+        mid = disc(one, 0.8) & ~dilate(diff > 0.04, 3)
+        v = ng[mid]
+        dark.append(float(np.percentile(v, 5) / max(np.median(v), 1e-3)))
+    check('D17', 'Dock', 'No dark band inside the globes: the room seen through them is soft light and shade',
+          'worst ' + f'{min(dark):.2f} (' + ', '.join(f'{x:.2f}' for x in dark) + ')', min(dark) >= 0.6,
+          'darkest 5% of each globe\'s middle >= 0.6x its median light', 'Judge round 5: "the refracted dark room reads as dirt"')
+    # Judge round 5: the hotspot sat right above every glyph, touching it.
+    gap_ = []
+    gy, gx = np.nonzero(gl)
+    for one in split_columns(icons):
+        spots = components(erode(one, 2) & (ng > 0.8), 4)
+        d_ = 2 * math.sqrt(one.sum() / math.pi)
+        if not spots:
+            gap_.append(1.0); continue
+        sy, sx = np.nonzero(spots[0])
+        inside = one[gy, gx]
+        dmin = float(np.sqrt((gx[inside][:, None] - sx[None, :]) ** 2 + (gy[inside][:, None] - sy[None, :]) ** 2).min()) if inside.any() else d_
+        gap_.append(dmin / d_)
+    check('D18', 'Dock', 'The highlight stays clear of the glyph', 'closest ' + f'{min(gap_):.2f} of the globe\'s width (' + ', '.join(f'{x:.2f}' for x in gap_) + ')',
+          min(gap_) >= 0.08, '>= 0.08 of the globe\'s width between the hotspot and the glyph', 'Judge round 5: "the same white hotspot directly above every glyph ... touches the top of the ruler"')
     check('D16', 'Dock', 'One main highlight per globe, clear of its glyph',
           f'hotspots per globe {hot_n}; worst share on the glyph {max(hot_on):.0%}', max(hot_n) <= 2 and max(hot_on) <= 0.15,
           '<= 2 hotspots (a key and at most a rim glint); <= 15% of the main one within 2 px of the glyph',
@@ -446,6 +474,12 @@ if have('slider-rest-beauty'):
         t = float(flat[face].mean() / max(flat[beside].mean(), 1e-3))
         check('S7', 'Z-Slider', 'Plate is glass: the room shows through it', f'{t:.2f} of the room passes', t >= 0.45,
               '>= 0.45 (Blender: the face is about 0.6 of the wall\'s light, in the wall\'s hue)', 'Judge round 2: "the plate is an opaque taupe puck"')
+        # Judge round 5: the stem read as opaque glossy plastic. Glass lets
+        # the room through: the stem's middle changes with the room.
+        st = erode(stem & ~dilate(knob, 4), 2) & ~dilate(plate & ~stem, 2)
+        ts = float(flat[st].mean() / max(flat[beside].mean(), 1e-3)) if st.any() else 0
+        check('S17', 'Z-Slider', 'Stem is amber glass: the room shows through it', f'{ts:.2f} of the room passes', ts >= 0.25,
+              '>= 0.25', 'Judge round 5: "the stem is glossy toy plastic"; lookdev stem is translucent amber')
         s8 = changed('slider-rest-beauty', 'slider-rest-nostem', erode(knob, 3))
         check('S8', 'Z-Slider', 'Knob is clear: the stem shows through it', f'{s8:.0%} of the knob changes when the stem is hidden', s8 >= 0.1,
               '>= 10% of the knob (the stem is about a fifth of its width)', 'Judge round 2: "you cannot see the stem through the knob"; lookdev knob shows it')
