@@ -100,7 +100,7 @@ export class Button extends Interactable {
       // An app tile (the shelf Dock): a thin, upright rounded square of
       // tinted glass that floats over the shelf, like a Snow Leopard dock icon.
       this.r = this.w * DEFAULTS.look.dockTileRadius;
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'bead' }));
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'tile' }));
       this.body.renderOrder = 2;
       this.skin = this.body.material;
       setTint(this.skin, { hw: this.w / 2, hh: this.h / 2, r: this.r, soft: this.w * 0.02, albedo: glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral), amount: this.disabled ? 0.3 : 1 });

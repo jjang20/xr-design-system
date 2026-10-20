@@ -23,7 +23,7 @@ import { Interactable, markComponent } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { cubicBezier, clamp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture, glassSlabGeometry, glassBeadGeometry, seeThroughGlass } from '../core/look.js';
 import { detentIndex, shadowAt } from '../core/detent.js';
 import { playTick } from '../core/audio.js';
 
@@ -55,13 +55,14 @@ export class ZSlider extends Interactable {
     this.side = side;
     this.t = t;
 
-    // Plate: a round disc of window glass the stem rises out of.
+    // Plate: a round disc of clear glass the stem rises out of. All the
+    // slider's glass is see-through: the stem shows through the knob.
     const plateD = side * 1.55;
-    const plate = new THREE.Mesh(glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), glassMaterial(T, { w: plateD, h: plateD, t: plateT }));
+    const plate = seeThroughGlass(T, glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), { w: plateD, h: plateD, t: plateT, kind: 'clear' });
     plate.position.z = -plateT;
     plate.renderOrder = 1;
     this.add(plate);
-    const amber = m => { setTint(m, { hw: 1, hh: 1, r: 0, albedo: DEFAULTS.color.lampGlass, amount: 1 }); return m; };
+    const amber = (geo, w, t) => seeThroughGlass(T, geo, { w, h: w, t, kind: 'amber' });
 
     // Contact shadow on the plate, under the knob.
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(side * 1.15, side * 1.15), flatMaterial(C.shadow, this.shadowMin, { map: softTexture() }));
@@ -83,18 +84,18 @@ export class ZSlider extends Interactable {
 
     // Stem: amber glass, rising from a flared foot; shorter as the knob goes in.
     const stemR = side * 0.1;
-    this.stem = new THREE.Mesh(new THREE.CylinderGeometry(stemR, stemR, 1, 48), amber(glassMaterial(T, { w: stemR * 2, h: stemR * 2, t: stemR * 2, kind: 'bead' })));
+    this.stem = amber(new THREE.CylinderGeometry(stemR, stemR, 1, 48), stemR * 2, stemR * 2);
     this.stem.rotation.x = Math.PI / 2;
-    this.stem.renderOrder = 2;
+    this.stem.renderOrder = 2.5;  // over the rings
     this.add(this.stem);
-    const foot = new THREE.Mesh(glassBeadGeometry(side * 0.5, side * 0.07), amber(glassMaterial(T, { w: side * 0.5, h: side * 0.5, t: side * 0.07, kind: 'bead' })));
-    foot.renderOrder = 2;
+    const foot = amber(glassBeadGeometry(side * 0.5, side * 0.07), side * 0.5, side * 0.07);
+    foot.renderOrder = 2.5;
     this.add(foot);
 
     // Knob: a low bead of amber glass with the icon on its crown.
     this.knob = new THREE.Group();
     const knobH = side * 0.22;
-    const knobBody = new THREE.Mesh(glassBeadGeometry(side, knobH), amber(glassMaterial(T, { w: side, h: side, t: knobH, kind: 'bead' })));
+    const knobBody = amber(glassBeadGeometry(side, knobH), side, knobH);
     knobBody.renderOrder = 3;
     this.knob.add(knobBody);
     this.knobSkin = knobBody.material;
@@ -110,28 +111,26 @@ export class ZSlider extends Interactable {
     // The knob's thickness for input: its back face to its crown.
     this.t = knobH;
 
-    // Value bubble beside the knob, not on it, so the hand doesn't cover it.
-    const bw = dmm(120), bh = dmm(40);
+    // Value label beside the plate, floating in the plate's plane (as in
+    // the lookdev render), clear of the hand on the knob. A soft shade
+    // behind it keeps it legible over a bright room.
+    const lw = dmm(110), lh = dmm(44);
     this.bubble = new THREE.Group();
-    const bubbleBody = new THREE.Mesh(glassSlabGeometry(bw, bh, T.get('material.t.thin'), bh / 2 * 0.98), glassMaterial(T, { w: bw, h: bh, t: T.get('material.t.thin'), kind: 'lens' }));
-    // Lens glass: darker than the window, so the value stays legible where
-    // the knob sits in front of a bright window.
-    bubbleBody.material.uniforms.uFade.value = 1;
-    // It carries the value, so it may darken further than surface.scrim.max
-    // over a bright window (proposed token: surface.scrim.label).
-    bubbleBody.material.uniforms.uScrimMax.value = 0.7;
-    bubbleBody.renderOrder = 1;
-    this.bubble.add(bubbleBody);
-    const bz = T.get('material.t.thin') + 0.0004;
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(lw, lh), flatMaterial(C.shadow, 0.22, { map: softTexture() }));
+    halo.position.x = lw / 2 - dmm(8);
+    this.bubble.add(halo);
+    const bz = 0.0004;
+    let lx = 0;
     if (o.label) {
       const name = makeText(o.label, { size: dmm(14), weight: 500, anchorX: 'left', opacity: DEFAULTS.emphasis.secondary });
-      name.position.set(-bw / 2 + dmm(16), 0, bz);
+      name.position.set(0, 0, bz);
       this.bubble.add(name);
+      lx = dmm(46);
     }
-    this.valueLabel = makeText('0%', { size: dmm(17), weight: 600, anchorX: 'right' });
-    this.valueLabel.position.set(bw / 2 - dmm(16), 0, bz);
+    this.valueLabel = makeText('0%', { size: dmm(14), weight: 600, anchorX: 'left' });
+    this.valueLabel.position.set(lx, 0, bz);
     this.bubble.add(this.valueLabel);
-    this.bubble.position.x = plateD / 2 + dmm(10) + bw / 2;  // beside the plate, clear of the rings
+    this.bubble.position.x = plateD / 2 + dmm(30);
     this.add(this.bubble);
 
     this.knobZ = this.travel; // back face of the knob
@@ -222,7 +221,6 @@ export class ZSlider extends Interactable {
     this.shadow.material.opacity = this.shadow.material.userData.baseOpacity = s.opacity;
     const text = `${Math.round(push * 100)}%`;
     if (this.valueLabel.text !== text) { this.valueLabel.text = text; this.valueLabel.sync(); }
-    this.bubble.position.z = this.knobZ + this.t / 2;
 
     const hovered = this.hoverBand.update(hoverD) || engaged;
     this.engaged = engaged;

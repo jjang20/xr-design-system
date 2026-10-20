@@ -10,13 +10,13 @@
 // bigger before you reach them (a Fitts's-law aid, not decoration).
 //
 // Look (Jihoon, 2026-10-20; lookdev/dock_slider.py --option shelf): a Snow
-// Leopard style dock. Upright tiles of tinted glass float over a thin, smoky
-// glass shelf and are mirrored in it. Shelf and icons follow an arc centred
+// Leopard style dock. Upright tiles of milky tinted glass float over a thin,
+// clear glass shelf and are mirrored in it. Shelf and icons follow an arc centred
 // on the user at the dock's distance, so every icon is the same reach away.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { glassMaterial, glassSlabGeometry, makeText } from '../core/look.js';
+import { glassSlabGeometry, makeText, seeThroughGlass, cloneGlass } from '../core/look.js';
 import { springStep } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { Button } from './Button.js';
@@ -27,8 +27,9 @@ export class Dock extends THREE.Group {
   /**
    * @param {object} T tokens
    * @param {object} o
-   * @param {{label: string, icon?: string, color?: number}[]} o.apps
+   * @param {{label: string, icon?: string, color?: number, running?: boolean}[]} o.apps
    * @param {number} [o.distance] body-lock distance in m
+   * @param {number} [o.eccentricity] angle below the eye, radians (default anchor.eccentricity.vertical)
    */
   constructor(T, o) {
     super();
@@ -36,7 +37,7 @@ export class Dock extends THREE.Group {
     this.T = T;
     if (T.get('anchor.mode') !== 'body-lock') console.warn('Contour Dock only implements anchor.mode = body-lock');
     const dist = this.distance = o.distance ?? DEFAULTS.dockDistance;
-    this.eccentricity = T.get('anchor.eccentricity.vertical');
+    this.eccentricity = o.eccentricity ?? T.get('anchor.eccentricity.vertical');
     this.radius = T.dmm('dock.magnify.radius', dist);
     this.maxScale = T.get('dock.magnify.scale.max');
     this.gap = T.dmm('size.gap.min', dist);
@@ -76,19 +77,45 @@ export class Dock extends THREE.Group {
     this.shelf = new THREE.Group();
     this.shelf.position.y = -this.side / 2 - this.lift;
     this.level.add(this.shelf);
-    this.base = new THREE.Mesh(new THREE.BufferGeometry(), glassMaterial(T, { w: 0.3, h: 0.08, t: this.shelfT, kind: 'shelf' }));
+    // See-through glass, so the mirrored icons below show through it.
+    this.base = seeThroughGlass(T, new THREE.BufferGeometry(), { w: 0.3, h: 0.08, t: this.shelfT, kind: 'shelf' });
     this.base.renderOrder = 1;
     this.shelf.add(this.base);
-    // Reflections: each icon's colour lies in the glass in front of it,
-    // fading toward you (a decal on the shelf top; the glass shader has no
-    // planar mirror, and a mirrored tile would poke out under the thin shelf).
-    this.reflections = this.icons.map((icon, i) => {
-      const m = new THREE.MeshBasicMaterial({ color: o.apps[i].color ?? 0x8a8a90, map: fadeTexture(), transparent: true, opacity: S.reflection, depthWrite: false });
-      const q = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), m);
-      q.rotation.x = -Math.PI / 2;
-      q.renderOrder = 1.5;  // on the shelf glass
-      this.level.add(q);
-      return q;
+    // Its depth, drawn first: the mirror images only show where the shelf
+    // is in front of them (they lie below its top, as a reflection does).
+    // Nudged back a hair so the shelf's own glass never fights it.
+    this.mask = new THREE.Mesh(this.base.geometry, new THREE.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));
+    this.shelf.add(this.mask);
+    // Reflections: each tile mirrored in the shelf's top face (a planar
+    // mirror). Faint, as clear glass reflects only a few percent face-on.
+    this.mirrors = this.icons.map(icon => {
+      const g = new THREE.Group();
+      g.matrixAutoUpdate = false;
+      for (const part of [icon.body, icon.face]) {
+        const c = part.clone();
+        c.traverse(m => {
+          if (!m.material) return;
+          m.material = m.material.isShaderMaterial ? cloneGlass(m.material) : m.material.clone();
+          if (m.material.uniforms?.uOpacity) m.material.uniforms.uOpacity.value = S.reflection;
+          else m.material.opacity = (m.material.opacity ?? 1) * S.reflection;
+          m.material.transparent = true;
+          m.material.depthWrite = false;
+          m.material.depthFunc = THREE.GreaterDepth;
+          m.renderOrder = 0.9;
+          m.raycast = () => {};
+        });
+        g.add(c);
+      }
+      this.level.add(g);
+      return g;
+    });
+    // Running indicator: a small light on the shelf in front of a running app.
+    this.dots = o.apps.map(app => {
+      if (!app.running) return null;
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(dmm(2.5), 16, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+      dot.scale.y = 0.5;
+      this.level.add(dot);
+      return dot;
     });
     this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * (this.side + this.gap));
     this.scales = this.icons.map(() => 1);
@@ -115,11 +142,12 @@ export class Dock extends THREE.Group {
       const cy = (s - 1) * this.side / 2;
       icon.position.set(px, cy, pz);
       icon.rotation.y = yaw;
-      const r = this.reflections[i], deep = this.side * s * 0.6;
-      const [rx, rz] = this.arc(sx, this.side * 0.08 + deep / 2);
-      r.position.set(rx, top + 0.0003, rz);
-      r.rotation.z = yaw;  // flat on the shelf: its z spin is the arc's turn
-      r.scale.set(this.side * s * 0.9, deep, 1);
+      icon.updateMatrix();
+      this.mirrors[i].matrix.copy(mirrorY(top)).multiply(icon.matrix);
+      if (this.dots[i]) {
+        const [dx, dz] = this.arc(sx, this.side * DEFAULTS.look.dockShelf.depth * 0.38);
+        this.dots[i].position.set(dx, top + 0.0006, dz);
+      }
       x += widths[i] + this.gap;
     });
     // The shelf stretches with the magnified row (rebuilt in 2 mm steps).
@@ -127,7 +155,8 @@ export class Dock extends THREE.Group {
     if (this._baseW === undefined || Math.abs(this._baseW - w) > 0.002) {
       this._baseW = w;
       this.base.geometry.dispose();
-      this.base.geometry = shelfGeometry(w, d, this.shelfT, this.distance);
+      const g = shelfGeometry(w, d, this.shelfT, this.distance);
+      this.base.geometry = this.base.children[0].geometry = this.mask.geometry = g;
     }
   }
 
@@ -191,17 +220,9 @@ function shelfGeometry(w, d, t, R) {
   return g;
 }
 
-// The reflection decal: a rounded tile shape, brightest at the tile's foot
-// (canvas top = far edge, under the tile) and fading toward you.
-let fade;
-function fadeTexture() {
-  if (fade) return fade;
-  const n = 128, c = document.createElement('canvas'); c.width = c.height = n;
-  const x = c.getContext('2d');
-  const gr = x.createLinearGradient(0, 0, 0, n);
-  gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.45, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = gr; x.filter = 'blur(3px)';
-  x.beginPath(); x.roundRect(6, 4, n - 12, n * 1.4, n * 0.24); x.fill();
-  fade = new THREE.CanvasTexture(c); fade.colorSpace = THREE.SRGBColorSpace;
-  return fade;
+// Reflection in the horizontal plane y = h.
+function mirrorY(h) {
+  return new THREE.Matrix4().makeTranslation(0, h, 0)
+    .multiply(new THREE.Matrix4().makeScale(1, -1, 1))
+    .multiply(new THREE.Matrix4().makeTranslation(0, -h, 0));
 }

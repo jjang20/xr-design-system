@@ -1,9 +1,10 @@
 // Bench: one component at a fixed framing over a real room, for scored
 // rounds against the visionOS bar (docs/catalog-spec.md).
-// Query: ?rot=<backdrop yaw> &view=angle &fov=<deg> &hover=<lens|emboss> &absorb=&blur= (lab overrides)
+// Query: ?part=dock|slider (the Blender lookdev framings) &state=hover
+//        ?rot=<backdrop yaw> &view=angle &fov=<deg> &hover=<lens|emboss> &absorb=&blur= (lab overrides)
 import * as THREE from 'three';
 import tokenJson from '../tokens.json';
-import { createTokens, PackagingPanel, InputSystem } from '../src/index.js';
+import { createTokens, PackagingPanel, InputSystem, Dock, ZSlider } from '../src/index.js';
 import { loadBackdrop } from './backdrop.js';
 import { DEFAULTS } from '../src/core/defaults.js';
 import { catalogItems } from './catalog-data.js';
@@ -33,18 +34,55 @@ if (q.get('view') === 'angle') {
 
 await loadBackdrop(renderer, scene, { yaw: Number(q.get('rot') ?? 1.6) });
 
-const panel = new PackagingPanel(T, { title: 'Catalog', subtitle: 'Living room · 4 categories', items: catalogItems, distance: D });
-panel.position.set(Number(q.get('px') ?? 0), EYE, -D);
-panel.lookAt(0, EYE, 0);
-scene.add(panel);
+// ?part=: the Dock or Z-Slider, framed like lookdev/dock_slider.py renders
+// them, so live and path-traced frames can be laid side by side.
+const part = q.get('part');
+let panel, dock, slider;
+if (part === 'dock') {
+  // Blender: shelf on an arc of R = 0.5 m, eye 0.28 m above and 0.48 m back.
+  const R = 0.5, up = 0.28, back = 0.48;
+  dock = new Dock(T, {
+    distance: Math.hypot(up, back), eccentricity: -Math.atan2(up, back),
+    apps: [
+      { label: 'Planner', icon: 'house', color: 0x2f7cf6, running: true },
+      { label: 'Measure', icon: 'ruler', color: 0xe08a1e },
+      { label: 'Scan', icon: 'scan', color: 0x23a26d },
+      { label: 'Photos', icon: 'image', color: 0xd9455f },
+      { label: 'Settings', icon: 'settings', color: 0x6b6f78 },
+    ],
+  });
+  scene.add(dock);
+  camera.fov = 24;
+  camera.lookAt(0, EYE - up, -back);
+} else if (part === 'slider') {
+  // Blender: the slider faces the camera's side; camera 0.6 m away, 0.75 rad
+  // round to the right and 5 cm up, lens 11°.
+  slider = new ZSlider(T, { label: 'Lamp', icon: 'sun', value: 0.4, distance: 0.6 });
+  slider.position.set(0, EYE, -0.6);
+  scene.add(slider);
+  const a = 0.75;
+  camera.position.set(Math.sin(a) * 0.6, EYE + 0.05, -0.6 + Math.cos(a) * 0.6);
+  camera.fov = 11;
+  camera.lookAt(slider.position);
+} else {
+  panel = new PackagingPanel(T, { title: 'Catalog', subtitle: 'Living room · 4 categories', items: catalogItems, distance: D });
+  panel.position.set(Number(q.get('px') ?? 0), EYE, -D);
+  panel.lookAt(0, EYE, 0);
+  scene.add(panel);
+}
+camera.updateProjectionMatrix();
 
 const input = new InputSystem({ T, renderer, camera, scene });
+// ?state=hover on the Dock: a hand point at Scan, so it magnifies.
+const hands = [];
 const timer = new THREE.Timer();
 const step = dt => {
   scene.updateMatrixWorld();
   camera.updateMatrixWorld();
   input.update();
-  panel.update(dt);
+  panel?.update(dt);
+  slider?.update(dt);
+  dock?.update(dt, camera, hands);
 };
 // ?manual: time only moves when the recorder calls tick(), so motion can be
 // captured frame by frame on a slow software renderer.
@@ -56,7 +94,7 @@ else renderer.setAnimationLoop(time => {
 });
 
 window.contour = {
-  panel, camera,
+  panel, dock, slider, camera, hands, scene,
   tick(frames = 1, dt = 1 / 60) { for (let i = 0; i < frames; i++) step(dt); renderer.render(scene, camera); },
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);

@@ -71,7 +71,7 @@ slider.addEventListener('change', e => setLamp(e.value));
 // Dock: body-locked below your view.
 const dock = new Dock(T, {
   apps: [
-    { label: 'Planner', icon: 'house', color: 0x2f7cf6 },
+    { label: 'Planner', icon: 'house', color: 0x2f7cf6, running: true },
     { label: 'Measure', icon: 'ruler', color: 0xe08a1e },
     { label: 'Scan', icon: 'scan', color: 0x23a26d },
     { label: 'Photos', icon: 'image', color: 0xd9455f },
