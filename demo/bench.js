@@ -13,6 +13,9 @@ const q = new URLSearchParams(location.search);
 if (q.has('absorb')) DEFAULTS.look.glass.absorb = Number(q.get('absorb'));
 if (q.has('hover')) DEFAULTS.look.hoverStyle = q.get('hover');
 if (q.has('blur')) DEFAULTS.look.glass.blur = Number(q.get('blur'));
+// ?set=<json>: deep-merged into DEFAULTS before anything is built (variant
+// renders: node scripts/match.mjs slider --set '{"look":{...}}' --out name).
+if (q.has('set')) (function merge(a, b) { for (const [k, v] of Object.entries(b)) v && typeof v === 'object' && !Array.isArray(v) ? merge(a[k] ??= {}, v) : (a[k] = v); })(DEFAULTS, JSON.parse(q.get('set')));
 const T = createTokens(tokenJson);
 const D = Number(q.get('dist') ?? 0.6), EYE = 1.6; // ?dist= places the window farther (m)
 
@@ -147,7 +150,9 @@ function pass(name) {
   else if (name.startsWith('hide:')) for (const k of name.slice(5).split(',')) eachMesh(P[k], m => set(m, 'visible', false));
   // The room swapped for flat grey: what changes inside a piece of glass is
   // the room seen through it.
-  else if (name === 'flatroom') set(scene, 'background', new THREE.Color().setRGB(0.5, 0.5, 0.5, THREE.SRGBColorSpace));
+  // Globes see the room as the backdrop's light (uHasRoom): here they fall
+  // back to the frame behind them, so they see the grey too.
+  else if (name === 'flatroom') { set(scene, 'background', new THREE.Color().setRGB(0.5, 0.5, 0.5, THREE.SRGBColorSpace)); eachUniform('uHasRoom', 0); }
   else if (name === 'norefract') eachUniform('uDistort', 0);
   else if (name === 'physical-refract') eachUniform('uDistort', 1);
   else if (name === 'noreflect') eachUniform('uReflect', 0);

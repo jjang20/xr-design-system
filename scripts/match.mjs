@@ -15,6 +15,13 @@ const browser = await chromium.launch({ executablePath, args: ['--use-angle=swif
 const errors = [];
 mkdirSync('shots/match/eval', { recursive: true });
 const EVAL = process.argv.includes('--eval');
+// --set <json> overrides DEFAULTS (see demo/bench.js); --out <name> writes
+// the beauty frame to shots/match/var-<part>-<state>-<name>.png instead.
+const arg = k => { const i = process.argv.indexOf(k); return i < 0 ? null : process.argv[i + 1]; };
+const SET = arg('--set'), OUT = arg('--out');
+// Supersampling: frames are drawn at --ss x the size (default 2) and
+// averaged down, as the path tracer averages many samples per pixel.
+const SS = Number(arg('--ss') ?? 2);
 const ICONS = 'mask:icon0,icon1,icon2,icon3,icon4';
 // [file key, pass] per shot. See window.contour.pass in demo/bench.js.
 const PASSES = {
@@ -29,7 +36,7 @@ const PASSES = {
 };
 const shots = [];
 try {
-  const only = process.argv.slice(2).find(a => !a.startsWith('--'));  // optional: dock | slider
+  const only = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--set', '--out', '--ss'].includes(all[i - 1]));  // optional: dock | slider
   for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['slider', 'rest']].filter(([p]) => !only || p === only)) {
     // A fresh page per shot: SwiftShader can drop a long-lived context.
     let page = await open(part, state);
@@ -39,15 +46,15 @@ try {
       for (let tries = 0; ; tries++) {
         const url = await page.evaluate(p => window.contour.pass(p), pass);
         const png = Buffer.from(url.split(',')[1], 'base64');
-        if (pass.startsWith('mask:') || !blank(png)) { writeFileSync(path, png); return; }
+        if (pass.startsWith('mask:') || !blank(png)) { writeFileSync(path, png); if (SS > 1) shrink(path); return; }
         if (tries > 2) throw new Error(`blank frame on ${part}-${state} ${pass}`);
         await page.close();
         page = await open(part, state);
       }
     };
-    const file = `shots/match/live-${part}-${state}.png`;
+    const file = OUT ? `shots/match/var-${part}-${state}-${OUT}.png` : `shots/match/live-${part}-${state}.png`;
     await shoot('beauty', file);
-    shots.push([part, state, file]);
+    if (!OUT) shots.push([part, state, file]);
     if (EVAL) {
       for (const [key, pass] of [...PASSES[`${part}-${state}`], ['beauty', 'beauty']]) await shoot(pass, `shots/match/eval/${part}-${state}-${key}.png`);
       // Where things are on screen, for profiles along the stem.
@@ -62,13 +69,17 @@ try {
   }
 } finally { await browser.close(); await server.close(); }
 
+// Average an SS x frame down to the viewport size (a box filter).
+function shrink(path) {
+  execFileSync('python3', ['-c', `from PIL import Image\nim=Image.open('${path}')\nim.resize((im.width//${SS},im.height//${SS}),Image.BOX).save('${path}')`]);
+}
 // A frame with no picture: its PNG compresses to almost nothing.
 function blank(png) { return png.length < 20000; }
 
 async function open(part, state) {
-  const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+  const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: SS });
   page.on('pageerror', e => errors.push(e.message));
-  await page.goto(server.resolvedUrls.local[0] + `bench.html?manual&part=${part}`);
+  await page.goto(server.resolvedUrls.local[0] + `bench.html?manual&part=${part}${SET ? '&set=' + encodeURIComponent(SET) : ''}`);
   await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
   await page.evaluate(() => window.contour.tick(30));
   // Text is laid out asynchronously (font load): wait for every label.

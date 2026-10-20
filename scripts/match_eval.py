@@ -10,12 +10,12 @@ A check that needs a number from Blender gets it from the lookdev script's
 own geometry and camera (lookdev/dock_slider.py), projected exactly, so no
 guessing at edges in a path-traced image.
 """
-import json, math, sys
+import json, math, os, sys
 from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw
 
-E = Path('shots/match/eval')
+E = Path(os.environ.get('EVAL_DIR', 'shots/match/eval'))   # EVAL_DIR: score an older set of passes
 W, H = 1400, 900
 
 
@@ -152,6 +152,26 @@ def sharp(img):
     return np.abs(4 * g - np.roll(g, 1, 0) - np.roll(g, -1, 0) - np.roll(g, 1, 1) - np.roll(g, -1, 1))
 
 
+def residual_std(img, region):
+    """Spread of a grey image over a region once its best plane (a smooth
+    gradient) is taken out: structure, not shading."""
+    ys, xs = np.nonzero(region)
+    if len(xs) < 50:
+        return 0.0
+    A = np.stack([np.ones_like(xs), xs, ys], axis=1).astype(np.float64)
+    v = img[region].astype(np.float64)
+    coef, *_ = np.linalg.lstsq(A, v, rcond=None)
+    return float((v - A @ coef).std())
+
+
+def disc(m, k):
+    """The disc of k x a round mask's radius round its centre."""
+    ys, xs = np.nonzero(m)
+    cy, cx, r = ys.mean(), xs.mean(), math.sqrt(m.sum() / math.pi)
+    yy, xx = np.mgrid[0:m.shape[0], 0:m.shape[1]]
+    return m & ((yy - cy) ** 2 + (xx - cx) ** 2 <= (k * r) ** 2)
+
+
 def chroma(px):
     """Median colourfulness of pixels (max - min channel, 0-1)."""
     return float(np.median(px.max(axis=1) - px.min(axis=1)))
@@ -265,8 +285,9 @@ if have('dock-rest-beauty'):
           '>= 3:1 (WCAG 1.4.11 non-text contrast)', 'accessibility-review skill')
     mirror = mask('dock-rest-mirror') & shelf
     refl = energy('dock-rest-beauty', 'dock-rest-nomirror', mirror) if mirror.any() else 0
-    check('D4', 'Dock', 'Icons are clearly mirrored in the shelf (colour change the mirror makes, inside the shelf)', f'{refl:.1f}/255', refl >= 14,
-          '>= 14/255 mean (v4: see baseline)', 'Jihoon: "Reflection ... should be larger"; lookdev mirror-smooth shelf')
+    check('D4', 'Dock', 'Icons are visibly mirrored in the shelf (colour change the mirror makes, inside the shelf)', f'{refl:.1f}/255', refl >= 5,
+          '>= 5/255 mean (was 14 until round 4; judges 3 and 4 found the mirror competing, so D12 caps it and the glass reflection Jihoon asked for is D5)',
+          'lookdev mirror-smooth shelf; judge rounds 3-4')
     glass = (icons | shelf)
     r_now = energy('dock-rest-beauty', 'dock-rest-noreflect', glass)
     r_phys = energy('dock-rest-physical-reflect', 'dock-rest-noreflect', glass)
@@ -324,8 +345,8 @@ if have('dock-rest-beauty'):
             a_ = erode(rest_i[2], 4) & ~dilate(diff > 0.04, 4)
             b_ = erode(hov_i[2], 4) & ~dilate(gh, 4)
             lift = float(lum(rgb('dock-hover-beauty'))[b_].mean() - lum(rgb('dock-rest-beauty'))[a_].mean())
-            check('D14', 'Dock', 'Hover lights the globe, not only scales it', f'{lift:+.3f} mean luminance', lift >= 0.03,
-                  '>= +0.03 over the same globe at rest', 'Judge round 3: "there is no highlight, only scale"; apple-design: hover = light, not size alone')
+            check('D14', 'Dock', 'Hover lights the globe, not only scales it', f'{lift:+.3f} mean luminance', lift >= 0.05,
+                  '>= +0.05 over the same globe at rest', 'Judge round 3: "there is no highlight, only scale"; round 4: "no rim or brightness cue" at +0.03; apple-design: hover = light, not size alone')
     # Judge round 3: the reflections were a second row of milky half-domes,
     # as big and bright as the globes. A reflection in clear glass is faint
     # and keeps the globe's colour.
@@ -340,8 +361,8 @@ if have('dock-rest-beauty'):
                 tint.append(float(np.abs(d.mean(axis=0) - d.mean()).mean() / max(np.abs(d).mean(), 1e-3)))
         t = min(tint) if tint else 0
         check('D12', 'Dock', 'Reflections are faint and coloured, not a second row of globes', f'{m_e / max(g_e, 1e-3):.2f} of the globes\' strength; colour share {t:.2f}',
-              m_e <= 0.35 * g_e and t >= 0.15, 'strength <= 0.35 of the globes; colour share (hue in the added light) >= 0.15',
-              'Judge round 3: "a second row of milky half-domes, as big and as bright as the globes"; lookdev mirror is faint')
+              m_e <= 0.2 * g_e and t >= 0.15, 'strength <= 0.2 of the globes; colour share (hue in the added light) >= 0.15',
+              'Judge round 3: "a second row of milky half-domes, as big and as bright as the globes"; round 4: "almost full size and full saturation ... drop to about 20%"; lookdev mirror is faint')
     # Judge round 3: dirt and ghost icons in every globe. The room seen in
     # the glass should be soft light, not pixel-scale detail: share of
     # pixels where the reflection carries sharp detail (glyph left out).
@@ -349,6 +370,32 @@ if have('dock-rest-beauty'):
     dirt = [float((refl_d[erode(one, 3) & ~dilate(diff > 0.04, 3)] > 0.04).mean()) for one in split_columns(icons)]
     check('D13', 'Dock', 'Globes are clean: reflections are soft, no fine dirt or ghost icons', 'worst ' + f'{max(dirt):.1%} (' + ', '.join(f'{x:.0%}' for x in dirt) + ')',
           max(dirt) <= 0.05, '<= 5% of each globe has pixel-scale detail in its reflection', 'Judge round 3: "room-reflection artifacts that read as dirt or bugs"')
+    # Judge round 4: the globes showed no refracted background, an even
+    # body of colour (candy). A ball lens shows the room upside down: light
+    # and dark shapes across its middle, beyond the smooth shading.
+    # The room's own share: the frame less the same frame with the room
+    # turned flat grey, so shading and highlights cancel out.
+    ng = lum(rgb('dock-rest-noglyph'))
+    room = lum(rgb('dock-rest-beauty')) - lum(rgb('dock-rest-flatroom'))
+    struct = []
+    for one in split_columns(icons):
+        mid = disc(one, 0.75) & ~dilate(diff > 0.04, 3)
+        struct.append(residual_std(room, mid))
+    check('D15', 'Dock', 'Globes show the room through them (upside down), not an even body of colour',
+          'weakest ' + f'{min(struct):.3f} (' + ', '.join(f'{x:.3f}' for x in struct) + ')', min(struct) >= 0.02,
+          '>= 0.02 luminance spread across each globe\'s middle after its smooth shading', 'Judge round 4: "the globes read as candy ... no refracted background"')
+    # Judge round 4: two or three highlight blobs per globe, one sitting on
+    # the glyph and washing it out. One main hotspot, clear of the glyph.
+    hot_n, hot_on = [], []
+    gl = diff > 0.25
+    for one in split_columns(icons):
+        spots = components(erode(one, 2) & (ng > 0.8), 4)
+        hot_n.append(len(spots))
+        hot_on.append(float((spots[0] & dilate(gl, 2)).sum() / spots[0].sum()) if spots else 0.0)
+    check('D16', 'Dock', 'One main highlight per globe, clear of its glyph',
+          f'hotspots per globe {hot_n}; worst share on the glyph {max(hot_on):.0%}', max(hot_n) <= 2 and max(hot_on) <= 0.15,
+          '<= 2 hotspots (a key and at most a rim glint); <= 15% of the main one within 2 px of the glyph',
+          'Judge round 4: "two or three separate highlight blobs ... a hotspot sits right on the glyph"')
     region = dilate(icons | shelf, 6)
     for state in ('rest', 'hover'):
         if have(f'shown-dock-{state}'):
@@ -468,21 +515,46 @@ if have('slider-rest-beauty'):
     k_end = float(vis[seen[-3:]].max() / max(core, 1)) if len(seen) else 0
     check('S13', 'Z-Slider', 'Knob joint curves in view: the visible stem flares before it enters the knob', f'{k_end:.2f}x the stem at the knob\'s edge',
           k_end >= 1.3, '>= 1.3x the stem', 'Judge round 3: "where the stem meets the knob there is a hard bright vertical seam and no curve"')
-    # Judge round 3: the label was a chocolate-brown plastic bar, and the
-    # plate muddy. Lookdev plate: clear glass that greys the wall (its face
-    # is less colourful than the wall). The label's glass: neutral, not the
-    # darkest thing in the frame (and S6 keeps the text legible on it).
+    # Judge round 4: the greyed plate read as stone and the greyed label as
+    # grey plastic. Lookdev plate: clear glass, the wall seen through it in
+    # its own hue. The label: smoked glass, which darkens the room behind it
+    # but keeps some of its hue (round 3's warm, thick bar read as brown
+    # plastic; round 4's 0.12x as grey plastic).
     if have('slider-rest-labelglass'):
         Sb = rgb('slider-rest-beauty')
+        Sg = rgb('slider-rest-noglow')   # the plate's own glass, before the lamp's light falls on it (S15)
         wall = dilate(plate, 40) & ~dilate(plate, 8) & ~dilate(knob, 40) & ~dilate(mask('slider-rest-labelglass'), 20)
         face = erode(plate, 6) & ~dilate(knob | stem, 14)
         lab_face = erode(mask('slider-rest-labelglass'), 8) & ~dilate(dl > 0.05, 4)
-        cw, cp, cl = chroma(Sb[wall]), chroma(Sb[face]), chroma(Sb[lab_face]) if lab_face.any() else 1
-        lp, ll = float(np.median(lum(Sb[face]))), float(np.median(lum(Sb[lab_face]))) if lab_face.any() else 0
-        check('S11', 'Z-Slider', 'Plate and label are clear neutral glass: the plate greys the wall, the label is neutral and not the heaviest mass',
-              f'plate {cp / cw:.2f}x the wall\'s colour; label {cl / cw:.2f}x, {ll / max(lp, 1e-3):.2f}x the plate\'s light',
-              cp <= 0.85 * cw and cl <= 0.6 * cw and ll >= 0.45 * lp, 'plate <= 0.85x, label <= 0.6x the wall\'s colour; label >= 0.45x the plate\'s light (Blender plate: 0.6-0.75x)',
-              'Judge round 3: "the label is a chocolate-brown plastic bar"; "the plate is muddy grey-brown"')
+        cw, cp, cl = chroma(Sb[wall]), chroma(Sg[face]), chroma(Sb[lab_face]) if lab_face.any() else 1
+        lw_, lp = float(np.median(lum(Sb[wall]))), float(np.median(lum(Sg[face])))
+        check('S11', 'Z-Slider', 'Plate is clear glass in the room\'s colour; the label is smoked glass, not grey or brown plastic',
+              f'plate {cp / cw:.2f}x the wall\'s colour, {lp / max(lw_, 1e-3):.2f}x its light; label {cl / cw:.2f}x the wall\'s colour',
+              0.8 * cw <= cp <= 1.25 * cw and lp >= 0.8 * lw_ and 0.35 * cw <= cl <= 0.9 * cw,
+              'plate 0.8-1.25x the wall\'s colour and >= 0.8x its light; label 0.35-0.9x the wall\'s colour (its darkness is set by S6)',
+              'Judge round 4: "the plate is opaque matte grey ... reads as ceramic"; "grey plastic capsule"; round 3: "chocolate-brown plastic bar"')
+        # The plate's rim catches the light round much of its edge, as the
+        # lookdev's does (round 4: "only a faint rim on the right").
+        ys, xs = np.nonzero(plate)
+        cy, cx = ys.mean(), xs.mean()
+        band = plate & ~erode(plate, 4) & ~dilate(mask('slider-rest-labelglass') | knob | stem, 6)
+        by, bx = np.nonzero(band)
+        sect = ((np.arctan2(by - cy, bx - cx) + math.pi) / (2 * math.pi) * 36).astype(int) % 36
+        Lb = lum(Sb)[by, bx]
+        peaks = [float(Lb[sect == k].max()) for k in range(36) if (sect == k).any()]
+        lit = float(np.mean([p_ >= 1.25 * lw_ for p_ in peaks])) if peaks else 0
+        check('S14', 'Z-Slider', 'Plate rim catches the light round its edge', f'{lit:.0%} of the rim lit (peak >= 1.25x the wall)', lit >= 0.3,
+              '>= 30% of 36 sectors round the rim', 'Judge round 4: "only a faint rim on the right catches light"; lookdev rim')
+        # The lamp lights the plate: warm light round the stem's foot.
+        pys, pxs = np.nonzero(plate)
+        ax, ay = (pxs.max() - pxs.min()) / 2, (pys.max() - pys.min()) / 2
+        yy, xx = np.mgrid[0:H, 0:W]
+        foot = plate & (((xx - p0[0]) / ax) ** 2 + ((yy - p0[1]) / ay) ** 2 <= 0.38 ** 2) & ~dilate(stem | knob, 3)
+        warm = lambda im: im[..., 0] - im[..., 2]
+        w_ = float((warm(Sb) - warm(rgb('slider-rest-noglow')))[foot].mean()) if foot.any() else 0
+        check('S15', 'Z-Slider', 'The lamp lights the plate: warm light round the stem\'s foot', f'{w_:+.3f} warmth (red minus blue) from the glow', w_ >= 0.03,
+              '>= +0.03 inside the first ring', 'Judge round 4: "no amber light falls on the plate, which is lit flat"')
+
     if have('shown-slider-rest'):
         region = dilate(glass, 6)
         c = float(((np.abs(rgb('shown-slider-rest') - np.asarray(Image.open('shots/match/live-slider-rest.png').convert('RGB'), dtype=np.float32) / 255).max(axis=2) > 0.06) & region).sum() / region.sum())

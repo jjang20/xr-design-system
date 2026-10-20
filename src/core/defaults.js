@@ -91,14 +91,14 @@ export const DEFAULTS = {
       // The lookdev light rig: direction toward the light (three.js axes,
       // from the component), colour, strength, angular size.
       lights: {
-        key: { dir: [-0.7, 0.9, 0.5], color: [1, 0.92, 0.82], intensity: 5, size: 0.1 },
+        key: { dir: [-0.55, 1.4, 0.45], color: [1, 0.92, 0.82], intensity: 5, size: 0.1 }, // a little higher than the lookdev's (-0.7, 0.9, 0.5), so a globe's hotspot sits above its glyph instead of on it (judge round 4)
         rim: { dir: [-0.35, 0.35, -0.4], color: [1, 0.85, 0.65], intensity: 3, size: 0.1 },
       },
       amber: { behind: 0.002, distort: 1.8, emissiveRim: 1, edgeDark: 0, color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.025, rough: 0.05, coat: 1, coatRough: 0.1, caustic: 0.8, scatter: 0.02 },
-      rod: { reflect: 2, coatRough: 0.3, edgeDark: 0.85, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.006, rough: 0.05, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge
-      plate: { reflect: 1, edgeDark: 0.6, saturation: 0.5, color: [0.92, 0.9, 0.88], attColor: [0.72, 0.7, 0.68], attDist: 0.012, rough: 0.15, coat: 0.6, coatRough: 0.02 }, // clear frosted glass: the room shows through, greyed (the lookdev plate's face is less colourful than the wall)
-      label: { reflect: 1, edgeDark: 0.4, saturation: 0.12, color: [0.38, 0.38, 0.39], attDist: 1, rough: 0.4, coat: 0.6, coatRough: 0.03 }, // the Z-Slider's value label: the plate's glass, smoked and greyed so white text reads on it (visionOS vibrancy) without turning the room's colour brown
-      tile: { rough: 0.2, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
+      rod: { reflect: 2, coatRough: 0.3, edgeDark: 0.3, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.006, rough: 0.05, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge
+      plate: { reflect: 1.6, edgeDark: 0.15, color: [1, 1, 1], attColor: [0.92, 0.91, 0.9], attDist: 0.012, rough: 0.03, coat: 1, coatRough: 0.02 }, // clear glass, as in the lookdev: the room shows through in its own colour and the rim catches the light (judge round 4: the greyed, frosted plate read as stone)
+      label: { reflect: 2, edgeDark: 0, saturation: 0.7, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked so white text reads on it (visionOS vibrancy); it keeps most of the room's colour and has no dark rim, so it reads as smoked glass, not a grey plastic pill (judge round 4)
+      tile: { rough: 0.12, roomDistort: 1, roomBlur: 0.1, rimSpec: 0, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; the room is seen bent as a real ball bends it (roomDistort 1) and only a little blurred (roomBlur), while the glyph keeps the stronger magnification (distort); rimSpec 0: the rim light lights the globe's edge but adds no second hotspot (judge round 4: two or three highlight blobs per globe); neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
       shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
@@ -142,23 +142,26 @@ export const DEFAULTS = {
     // curved). fillet: joint length x the knob side, its flare x the stem
     // radius (a quarter ellipse, tangent to stem and plate). Glow scales
     // from min (at 0%) to 1 (at 100%): emissive light inside the amber glass,
-    // the halo round the knob (size x the side), the glow round lit rings.
+    // the halo round the knob (size x the side), the warm pool it spills on
+    // the plate round the stem's foot (spill, size x the side), the glow
+    // round lit rings.
     // fillet: where the stem meets the plate and the knob (length x the
     // knob's size, flare x the stem's radius, shape: 2 a quarter ellipse,
     // lower swells sooner). The knob's is a long bell, so its curve shows
     // beside the knob instead of hiding behind it (judge round 3).
-    lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.6, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, ring: 0.8, ringWidth: 1.2 },
+    lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.6, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, spill: { size: 1.8, opacity: 0.55 }, ring: 0.8, ringWidth: 1.2 },
     // The Z-Slider's value label: a capsule of the plate's glass, smoked
-    // (refract.label), beside the plate (dmm), gap from its rim; the value
-    // larger and bolder than the name.
-    valueLabel: { width: 100, height: 30, pad: 11, gap: 12, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
+    // (refract.label), beside the plate (dmm), gap from its rim, thickness x
+    // the plate's; the value larger and bolder than the name.
+    valueLabel: { width: 100, height: 30, pad: 11, gap: 12, thickness: 0.5, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
     // lift: float height (dmm); depth: x icon side; thickness: glass mm;
     // reflection: mirrored icon strength, fading over fade x the icon side
-    // below the glass (faint, as clear glass reflects; judge round 3 read a
-    // strong one as a second row of globes); mirrorBlur: how soft the mirror
-    // image is (roughness, and the glyph's blur in mip levels); mirrorShine:
+    // below the glass (faint, as clear glass reflects; judge rounds 3 and 4
+    // read a strong one as a second row of globes); mirrorBlur: how soft the mirror
+    // image is (roughness, and the glyph's blur in mip levels); mirrorGlyph:
+    // the mirrored glyph's strength x the real one's; mirrorShine:
     // the room's reflection on the mirrored globes, x their own (low, so the
     // image keeps the globe's colour instead of turning milky); contact: the soft shadow under
     // each globe (opacity, size x the icon side); arc: radius of the dock's
@@ -167,9 +170,9 @@ export const DEFAULTS = {
     // same reach away); hoverLift: how far the hovered globe rises (dmm, as
     // the lookdev); hoverSheen: light on the hovered globe's glass; caustic: the coloured light each globe focuses on the
     // glass under it; runGlow: the running light's halo (size in dmm).
-    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 1, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorShine: 0.3, contact: { opacity: 0.22, size: 0.8 }, fade: 0.55, arc: 0.75, hoverLift: 8, hoverSheen: 0.7, caustic: 0.35, runGlow: { color: [0.75, 0.88, 1], opacity: 0.8, size: 18 } },
+    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.8, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.22, size: 0.8 }, fade: 0.4, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.35, runGlow: { color: [0.75, 0.88, 1], opacity: 0.5, size: 12 } },
     // Dock globe: glyph size before the glass magnifies it, x a flat icon's.
-    globeGlyph: 0.62,
+    globeGlyph: 0.56,
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity

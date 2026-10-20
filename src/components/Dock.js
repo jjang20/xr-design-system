@@ -123,6 +123,9 @@ export class Dock extends THREE.Group {
             u.uRough.value = S.mirrorBlur.rough;
             u.uCoatRough.value = S.mirrorBlur.rough;
             u.uGlyphBlur.value = S.mirrorBlur.glyph;
+            // Its glyph dimmer still: a blurred, full-strength glyph read
+            // as a bright block in the shelf (judge round 4).
+            u.uGlyphOn.value = S.mirrorGlyph;
             // Little of the room's light on it, so it keeps the globe's
             // colour (judge round 3: milky half-domes).
             u.uReflect.value *= S.mirrorShine;

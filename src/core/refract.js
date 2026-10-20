@@ -101,6 +101,9 @@ const FRAG = /* glsl */`
   uniform vec3 uBackN, uBackP;   // a flat back face (beads, slabs): its outward-facing front axis and a point on it
   uniform float uBackMode, uBehind, uEdgeDark, uDistort, uReflect, uSat, uRimBlur;
   uniform vec3 uBall;   // a globe on screen: centre and radius, in viewport pixels
+  uniform float uHasRoom;   // 1 when the room backdrop is known (not passthrough)
+  uniform float uRoomDistort, uRoomBlur;
+  uniform float uRimSpec;   // the rim light's highlight, x its full strength
   uniform vec4 uFadePlane;   // a mirrored copy fades with distance from its mirror (xyz normal, w offset)
   uniform float uFadeLen;
   uniform vec3 uEmissive;
@@ -197,6 +200,7 @@ const FRAG = /* glsl */`
     vec3 exitP = vWorld + T * path;
     float tir = 0.0;
     vec3 glyphP = exitP;
+    vec3 exitD = T;   // the direction the ray leaves in (globes)
     if (uBackMode > 1.5) {
       // A glass globe. The glyph hangs on the plane through its centre
       // (uBackP, facing uBackN): follow the bent ray to it, so the ball
@@ -214,6 +218,7 @@ const FRAG = /* glsl */`
       vec3 T2 = refract(T, -nb, uIor);
       if (dot(T2, T2) < 1e-6) { T2 = reflect(T, -nb); tir = 1.0; }
       exitP = pb + T2 * uBehind;
+      exitD = T2;
       path = tb;
     } else if (uBackMode > 0.5) {
       // A plano-convex piece (a bead: the knob, the foot) or a slab: follow
@@ -222,11 +227,21 @@ const FRAG = /* glsl */`
       // stem behind it is magnified and bent the way the path tracer shows.
       float dn = dot(T, uBackN);
       float tb = dn < -1e-4 ? dot(uBackP - vWorld, uBackN) / dn : uThick;
-      tb = clamp(tb, 0.0, uThick * 4.0);
+      // A soft limit, not a clamp: a hard one drew a crease in what the
+      // glass shows where rays near its rim skim the back face.
+      tb = uThick * 4.0 * tanh(max(tb, 0.0) / (uThick * 4.0));
       path = tb;
       vec3 pb = vWorld + T * tb;
-      vec3 T2 = refract(T, uBackN, uIor);
-      if (dot(T2, T2) < 1e-6) { T2 = T; tir = 1.0; }   // trapped by total internal reflection: it leaves elsewhere; keep going
+      // Past the critical angle the ray is trapped (total internal
+      // reflection) and leaves elsewhere: keep going. Blend into that over
+      // the last few degrees, as the real exit ray turns to skim the face;
+      // a hard switch drew a sharp step through the stem inside the knob
+      // (judge round 4).
+      float k = 1.0 - uIor * uIor * (1.0 - dn * dn);
+      vec3 T2 = k > 0.0 ? refract(T, uBackN, uIor) : T;
+      float w = smoothstep(0.0, 0.2, k);
+      T2 = normalize(mix(T, T2, w));
+      tir = 1.0 - w;
       exitP = pb + T2 * uBehind;
     }
     // Distortion past the physical value: push the bent ray further from
@@ -248,12 +263,25 @@ const FRAG = /* glsl */`
     // average what it covers: no stair steps.
     vec4 ec = uViewProj * vec4(exitP, 1.0);
     blurPx = max(blurPx, 0.5 * length(fwidth(ec.xy / ec.w * 0.5 * uGrabSize)));
-    vec3 seen;
+    vec3 seen = vec3(0.0);
     if (uDispersion > 0.0) {
       vec3 Tr = refract(-V, N, 1.0 / (uIor - uDispersion));
       vec3 Tb = refract(-V, N, 1.0 / (uIor + uDispersion));
       vec3 d = exitP - (vWorld + T * path);
       seen = vec3(behind(vWorld + Tr * path + d, blurPx).r, behind(exitP, blurPx).g, behind(vWorld + Tb * path + d, blurPx).b);
+    } else if (uBall.z > 0.0 && uHasRoom > 0.5) {
+      // A globe shows the room along the ray that leaves it: upside down and
+      // small, as in a crystal ball (judge round 4: sampling the frame
+      // behind its own disc showed only an even patch of wall, so the globes
+      // read as candy). The room is the backdrop, far away, so its light
+      // along a direction is all it takes, and no neighbouring globe can
+      // ghost into it. Its own bend and blur (uRoomDistort, uRoomBlur): the
+      // glyph's magnification stays with uDistort, and a ball bent further
+      // squeezes the room into a smear.
+      #ifdef ENVMAP_TYPE_CUBE_UV
+        vec3 dir = normalize(-V + (exitD + V) * uRoomDistort);
+        seen = neutral(env(dir, clamp(uRoomBlur + 0.6 * pow(1.0 - nv, 3.0), 0.0, 1.0)));
+      #endif
     } else {
       vec2 uv = screenUV(exitP);
       if (uBall.z > 0.0) {
@@ -319,7 +347,7 @@ const FRAG = /* glsl */`
     // The lookdev's lights.
     float spec = ggx(N, V, uKeyDir, specRough, uKeySize) * (F + Fc) / max(f0, 0.02) * 0.04;
     add += uKeyColor * spec;
-    add += uRimColor * ggx(N, V, uRimDir, specRough, uRimSize) * (F + Fc) / max(f0, 0.02) * 0.04;
+    add += uRimColor * ggx(N, V, uRimDir, specRough, uRimSize) * (F + Fc) / max(f0, 0.02) * 0.04 * uRimSpec;
     // Light through the glass from behind lights its edge (back light).
     add += uRimColor * hue * pow(1.0 - nv, 2.0) * max(dot(-V, uRimDir) * 0.5 + 0.5, 0.0) * 0.25;
     // Caustic: the key light focused by the curved glass gathers on the
@@ -365,7 +393,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false, globe = 
     transparent: true, depthWrite: false, toneMapped: false,
     uniforms: {
       ...grabUniforms,
-      envMap: B.envMap, uEnvRot: B.uEnvRot, uEnvIntensity: B.uEnvIntensity,
+      envMap: B.envMap, uEnvRot: B.uEnvRot, uEnvIntensity: B.uEnvIntensity, uHasRoom: B.uHasEnv,
       uViewport: { value: new THREE.Vector4() },
       uViewProj: { value: new THREE.Matrix4() },
       uColor: { value: color ? new THREE.Color(...color) : lin(P.color) },
@@ -383,6 +411,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false, globe = 
       uBackN: { value: new THREE.Vector3() }, uBackP: { value: new THREE.Vector3() },
       uBackMode: { value: 0 }, uBehind: { value: P.behind ?? 0.006 }, uEdgeDark: { value: P.edgeDark ?? 0 },
       uDistort: { value: P.distort ?? R.distort }, uReflect: { value: P.reflect ?? R.reflect }, uSat: { value: P.saturation ?? 1 }, uRimBlur: { value: P.rimBlur ?? 0 }, uBall: { value: new THREE.Vector3() },
+      uRoomDistort: { value: P.roomDistort ?? P.distort ?? R.distort }, uRoomBlur: { value: P.roomBlur ?? P.rough }, uRimSpec: { value: P.rimSpec ?? 1 },
       uEmissive: { value: new THREE.Color(0, 0, 0) }, uEmissiveRim: { value: P.emissiveRim ?? 0 },
       uSpot: { value: new THREE.Vector2() },   // (Button sets it; unused)
       uCaustic: { value: P.caustic ?? 0 },
@@ -417,7 +446,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false, globe = 
 // A copy (the Dock's mirrored tiles) that still shares the frame copy and
 // the room backdrop. Plain material.clone() would copy those textures.
 export function cloneRefractive(m) {
-  const shared = ['uGrab', 'uGrabSize', 'envMap', 'uEnvRot', 'uEnvIntensity', 'uGlyph'].filter(k => k in m.uniforms);
+  const shared = ['uGrab', 'uGrabSize', 'envMap', 'uEnvRot', 'uEnvIntensity', 'uHasRoom', 'uGlyph'].filter(k => k in m.uniforms);
   const keep = Object.fromEntries(shared.map(k => [k, m.uniforms[k]]));
   for (const k of shared) m.uniforms[k] = { value: null };
   const c = m.clone();
