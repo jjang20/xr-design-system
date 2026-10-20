@@ -347,6 +347,8 @@ const GLASS_FRAG = /* glsl */`
   uniform vec3 uTint, uAlbedo, uClearAlbedo;
   uniform mat3 uEnvRot;
   uniform vec4 uShadowRect[2];   // centre xy, half size zw (local)
+  uniform vec4 uTintRect, uTintParam;   // tinted-glass area: centre xy, half size zw; corner radius, softness, amount
+  uniform vec3 uTintColor;
   uniform vec4 uShadowParam[2];  // radius, softness, amount, drop
   #ifdef ENVMAP_TYPE_CUBE_UV
     uniform sampler2D envMap;
@@ -402,6 +404,13 @@ const GLASS_FRAG = /* glsl */`
       float cosR = clamp(-dot(Tdir, N), 0.15, 1.0);
       // A bubble's skin thins out toward an icon bead's clear glass.
       col = bg * mix(uAlbedo, uClearAlbedo, uClear * bub) * exp(-uAbsorb * uThick * (1.0 - 0.6 * rim01) / cosR);
+      // Tinted glass (accent colour): the glass itself is coloured, so the
+      // room shows through it in that colour (Jihoon, 2026-10-20).
+      float tm = 0.0;
+      if (uTintParam.z > 0.0) {
+        tm = 1.0 - smoothstep(-uTintParam.y, uTintParam.y, sdRoundRect(vLocal.xy - uTintRect.xy, uTintRect.zw, uTintParam.x));
+        col = mix(col, bg * uTintColor * exp(-uAbsorb * uThick / cosR), tm * uTintParam.z);
+      }
       // Adaptive scrim: over a bright room darken just enough to keep white
       // text legible, up to surface.scrim.max. The rim carries no text, so
       // it keeps the room's light.
@@ -430,7 +439,9 @@ const GLASS_FRAG = /* glsl */`
       // The lit ring sits on the edge, where there is no text.
       col += uGlowColor * glow.y * uGlowMix.x;
       // The core: light gathers at the bottom of the dent, under the finger.
-      col += uGlowColor * glow.z * uGlowCore;
+      // In tinted glass the light takes the glass's colour.
+      vec3 tintHue = uTintColor / max(max(uTintColor.r, uTintColor.g), uTintColor.b);
+      col += mix(uGlowColor, mix(uGlowColor, tintHue, 0.7), tm * uTintParam.z) * glow.z * uGlowCore;
       // A dent is a concave mirror: kept soft, so it doesn't focus the
       // room's lights into a sharp shape (it read as a smudge).
       float dm = vFront > 0.5 && anyBulge() ? dentMask(vLocal.xy) : 0.0;
@@ -538,6 +549,9 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
       uShadowRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uTintRect: { value: new THREE.Vector4() },
+      uTintParam: { value: new THREE.Vector4() },
+      uTintColor: { value: new THREE.Color(1, 1, 1) },
       uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uOpacity: { value: 1 },
     },
@@ -548,6 +562,15 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
 
 // Contact shadow slot `i` on a glass material: a rounded rect (local
 // coordinates of the receiving glass) floating `gap` metres in front.
+// Tinted glass over a rounded rect in local coordinates (one per material):
+// `albedo` is the glass's transmission per channel (linear; above 1 is
+// fine, the legibility scrim caps the result), `amount` 0 to 1.
+export function setTint(m, { x = 0, y = 0, hw = 0, hh = 0, r = 0, soft = 0.0008, albedo = [1, 1, 1], amount = 0 } = {}) {
+  m.uniforms.uTintRect.value.set(x, y, hw, hh);
+  m.uniforms.uTintParam.value.set(r, soft, amount, 0);
+  m.uniforms.uTintColor.value.setRGB(...albedo);
+}
+
 export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, gap = 0, amount = 0 } = {}) {
   const S = L.contactShadow;
   m.uniforms.uShadowRect.value[i].set(x, y, hw, hh);

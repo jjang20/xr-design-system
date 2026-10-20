@@ -5,6 +5,7 @@ export { Button } from './components/Button.js';
 export { ZSlider } from './components/ZSlider.js';
 export { PackagingPanel } from './components/PackagingPanel.js';
 export { Dock } from './components/Dock.js';
+export { Toolbar } from './components/Toolbar.js';
 export { InputSystem } from './core/InputSystem.js';
 export { Hysteresis } from './core/Hysteresis.js';
 export { PressModel } from './core/PressModel.js';

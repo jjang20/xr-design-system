@@ -122,6 +122,7 @@ export const DEFAULTS = {
     controlHover: 0x5a5c63,
     row: 0x5a5c63, // list row hover fill
     accent: 0x2f7cf6, // primary actions
+    accentGlass: [0.22, 0.5, 1.7], // linear transmission of accent-tinted glass (primary buttons): the room shows through it blue; the scrim caps its brightness for white text
     metal: 0xc9ccd2, // Z-Slider knob
     plate: 0x34363c,
     glow: 0xffffff,

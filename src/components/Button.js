@@ -177,7 +177,7 @@ export class Button extends Interactable {
     }
     if (o.label) {
       const size = both && narrow ? this.h * 0.16 : Math.min(this.h * 0.3, dmm(17));
-      const label = makeText(o.label, { size, weight: this.variant === 'primary' ? 600 : 500, opacity: dim });
+      const label = makeText(o.label, { size, weight: this.variant === 'primary' || o.primary ? 600 : 500, opacity: dim });
       if (both && !narrow) { label.anchorX = 'left'; label.position.set(-this.w / 2 + this.h * 0.42 + this.h * 0.42 + dmm(8), 0, z); }
       else label.position.set(0, both ? -this.h * 0.26 : 0, z);
       label.sync();

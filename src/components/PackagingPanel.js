@@ -19,6 +19,7 @@ import { clamp } from '../core/easing.js';
 import { springStep } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBulge } from '../core/look.js';
+import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
 
@@ -246,24 +247,13 @@ export class PackagingPanel extends THREE.Group {
       } else setContactShadow(m, 0);
       // The most raised rows (a bubble keeps moving after hover ends, so
       // the row being left deflates while the next one inflates).
-      const raised = r => r.emboss ? Math.abs(r.bulge) / r.lift : r.hover;
       const ranked = l.rows.filter(r => raised(r) > 0.001).sort((a, b) => raised(b) - raised(a));
       const lifted = ranked[0];
       if (lifted?.emboss) {
         // Emboss: the window itself swells under the row (no lens, no shadow).
-        for (let i = 0; i < 2; i++) {
-          const r = ranked[i];
-          if (!r?.emboss) { setBulge(m, i); continue; }
-          setBulge(m, i, {
-            x: r.position.x, y: r.position.y, hw: r.w / 2, hh: r.h / 2,
-            // Corners concentric with the window's (window radius minus the
-            // row inset), so the bubble follows the window's shape.
-            r: Math.min(r.h / 2, r.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row),
-            height: r.bulge, scale: r.k,
-            dent: r.dent && { ...r.dent, x: r.position.x + r.dent.x, y: r.position.y + r.dent.y },
-            glow: r.glow,
-          });
-        }
+        // Corners concentric with the window's (window radius minus the row
+        // inset), so the bubble follows the window's shape.
+        driveBubbles(m, l.rows, r => Math.min(r.h / 2, r.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row));
         setContactShadow(m, 1);
       } else if (lifted) {
         setContactShadow(m, 1, {

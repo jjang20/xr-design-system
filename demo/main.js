@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import tokenJson from '../tokens.json';
 import {
-  createTokens, Button, ZSlider, PackagingPanel, PACKAGING_MODES, Dock, InputSystem, unlockAudio, makePlatter,
+  createTokens, Button, ZSlider, PackagingPanel, PACKAGING_MODES, Dock, Toolbar, InputSystem, unlockAudio, makePlatter,
 } from '../src/index.js';
 import { loadBackdrop } from './backdrop.js';
 import { catalogItems } from './catalog-data.js';
@@ -49,28 +49,18 @@ catalog.addEventListener('open', e => say(`Opened ${e.item.label}`));
 catalog.addEventListener('back', () => say('Back'));
 catalog.addEventListener('select', e => say(`${e.item.label} selected`));
 
-// Toolbar ornament under the window: the three densities side by side.
-const ornament = new THREE.Group();
-const ornW = dmm(60 * 3 + 150 + 8 * 4 + 28), ornH = dmm(60 + 20);
-const plat = makePlatter(T, { w: ornW, h: ornH, r: ornH / 2, distance: D, thickness: 'regular' });
-ornament.add(plat);
+// Toolbar ornament under the window: one glass bar whose buttons are
+// bubbles in its glass; the primary action is accent-tinted glass. The three
+// densities sit side by side.
 const tools = [
-  { label: 'Place', icon: 'plus', variant: 'primary', shape: 'capsule', width: 150, density: 'firm' },
+  { label: 'Place', icon: 'plus', primary: true, shape: 'capsule', width: 150, density: 'firm' },
   { icon: 'rotate-3d', shape: 'circle', density: 'soft', name: 'Rotate (soft)' },
   { icon: 'lock', shape: 'circle', density: 'rigid', name: 'Lock (rigid)' },
   { icon: 'trash-2', shape: 'circle', disabled: true, name: 'Delete' },
 ];
-let tx = -ornW / 2 + dmm(10);
-const toolButtons = tools.map(o => {
-  const b = new Button(T, { ...o, thickness: 'regular', distance: D });
-  tx += b.w / 2 + dmm(4);
-  b.position.set(tx, 0, plat.userData.front);
-  tx += b.w / 2 + dmm(4);
-  b.addEventListener('select', () => say(`${o.label ?? o.name}`));
-  ornament.add(b);
-  return b;
-});
-place(ornament, -0.02, 1.455, -0.66);
+const ornament = place(new Toolbar(T, { tools, distance: D }), -0.02, 1.455, -0.66);
+ornament.addEventListener('select', e => say(`${e.tool.label ?? e.tool.name}`));
+const toolButtons = [ornament];
 
 // Z-Slider: lamp brightness. Push away = brighter.
 const slider = place(new ZSlider(T, { label: 'Lamp', icon: 'sun', value: 0.4, distance: D }), 0.215, 1.53, -0.6);
@@ -159,7 +149,7 @@ renderer.setAnimationLoop(time => {
 
 // Hooks for automated screenshots and checks (scripts/screenshot.mjs).
 window.contour = {
-  T, camera, panel: catalog, slider, dock, buttons: toolButtons, look,
+  T, camera, panel: catalog, slider, dock, buttons: ornament.buttons, look,
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);
     return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
