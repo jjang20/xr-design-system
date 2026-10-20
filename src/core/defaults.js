@@ -45,7 +45,7 @@ export const DEFAULTS = {
   // Text emphasis as white at an opacity, not grey (vibrancy).
   // Chosen for contrast on glass (docs/catalog-spec.md): secondary text 4.5:1,
   // tertiary graphics (chevrons) 3:1.
-  emphasis: { primary: 1, secondary: 0.72, tertiary: 0.5 },
+  emphasis: { primary: 1, secondary: 0.9, tertiary: 0.5 },
 
   // Dock: how far the body has to turn before the dock starts its lazy follow.
   // Without a dead zone every small head movement restarts the delay timer.
@@ -69,7 +69,7 @@ export const DEFAULTS = {
       frostScale: 0.0007, // m: size of the etched bumps on the face
       // Per kind: colour, brightest luminance (keeps secondary text at
       // 4.5:1), rim darkening, frost bump depth, grain, milky veil, key light.
-      window: { albedo: [0.6, 0.57, 0.53], maxLum: 0.15, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
+      window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.19, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
     },
@@ -85,7 +85,7 @@ export const DEFAULTS = {
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
       magnify: 0, // content under the bubble grows this much at full height (0: content holds still while the skin swells)
       gloss: 0.8, // how much smoother and shinier the inflated skin is
-      clear: 0.5, // how far its glass thins toward an icon bead's clear glass
+      clear: 0.25, // how far its glass thins toward an icon bead's clear glass
     },
     // Contact shadows between floating layers: softness grows with the gap,
     // and the shadow drops below the caster (light from above).
@@ -93,7 +93,7 @@ export const DEFAULTS = {
     // Icon badge: a glass bead this high (fraction of its diameter).
     beadHeight: 0.22,
     // Text sits on glass with a faint shadow, so it reads as on the surface.
-    textShadow: { blur: 0.3, offset: 0.05, opacity: 0.22 }, // fractions of font size
+    textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity
   },
 

@@ -301,7 +301,7 @@ def level(item, z, scale, dim, hovered=None, header_only=False):
     a = 1 - dim
     text(item['label'], 'title', left, y, front, root, alpha=a, valign='TOP')
     if sub and not header_only:
-        text(sub, 'subheadline', left, y - titleH - dmm(D['subtitleGap']), front, root, alpha=0.72 * a, valign='TOP')
+        text(sub, 'subheadline', left, y - titleH - dmm(D['subtitleGap']), front, root, alpha=0.9 * a, valign='TOP')
     if not header_only:
         listTop = H / 2 - dmm(D['panelPadTop']) - headerH
         rw = dmm(D['panelWidth'] - 2 * D['rowInset'])
@@ -335,7 +335,7 @@ def level(item, z, scale, dim, hovered=None, header_only=False):
             detail = r.get('sublabel') or (f"{n} {'item' if n == 1 else 'items'}" if n else None)
             gap = dmm((TYPE['headline'][0] + TYPE['footnote'][0]) * 0.6 / 2)
             text(r['label'], 'headline', x, gap if detail else 0, fz, row)
-            if detail: text(detail, 'footnote', x, -gap, fz, row, alpha=0.72)
+            if detail: text(detail, 'footnote', x, -gap, fz, row, alpha=0.9)
             if n:
                 s = dmm(D['chevron'])
                 icon('chevron-right', s, rw / 2 - pad - s / 2, 0, fz, row, alpha=0.5)
