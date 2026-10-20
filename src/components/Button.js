@@ -32,7 +32,7 @@ export class Button extends Interactable {
    * @param {'chevron'|null} [o.accessory]
    * @param {'center'|'row'} [o.layout='center']
    * @param {'rounded'|'capsule'|'circle'} [o.shape='rounded']
-   * @param {'secondary'|'primary'|'plain'|'glass'|'window'|'tinted'} [o.variant='secondary']
+   * @param {'secondary'|'primary'|'plain'|'glass'|'window'|'tinted'|'bead'|'tile'} [o.variant='secondary']
    * @param {number} [o.color]      fill colour override (tinted variant)
    * @param {'soft'|'firm'|'rigid'} [o.density='firm']
    * @param {'thin'|'regular'|'thick'} [o.thickness='regular']
@@ -96,6 +96,14 @@ export class Button extends Interactable {
       this.body.renderOrder = 2;
       this.skin = this.body.material;
       setTint(this.skin, { hw: this.w / 2, hh: this.w / 2, r: this.w / 2, soft: this.w * 0.02, albedo: glassAlbedo(fill), amount: this.disabled ? 0.3 : 1 });
+    } else if (this.variant === 'tile') {
+      // An app tile (the shelf Dock): a thin, upright rounded square of
+      // tinted glass that floats over the shelf, like a Snow Leopard dock icon.
+      this.r = this.w * DEFAULTS.look.dockTileRadius;
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'bead' }));
+      this.body.renderOrder = 2;
+      this.skin = this.body.material;
+      setTint(this.skin, { hw: this.w / 2, hh: this.h / 2, r: this.r, soft: this.w * 0.02, albedo: glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral), amount: this.disabled ? 0.3 : 1 });
     } else if (this.variant === 'plain') {
       // A light glass lens: invisible at rest, it lifts out of the window
       // on hover, carrying the row's content with it.
@@ -317,10 +325,10 @@ export class Button extends Interactable {
 // Tinted-glass transmission for a colour: its hue at full strength, so the
 // room shows through in that colour (the scrim caps brightness for text).
 // A grey (unsaturated) colour gets the window's own glass instead.
-function glassAlbedo(hex) {
+function glassAlbedo(hex, neutral = DEFAULTS.look.glass.window.albedo) {
   const c = new THREE.Color(hex);
   const hi = Math.max(c.r, c.g, c.b, 1e-3), lo = Math.min(c.r, c.g, c.b);
-  if ((hi - lo) / hi < 0.25) return DEFAULTS.look.glass.window.albedo;
+  if ((hi - lo) / hi < 0.25) return neutral;
   return [c.r / hi * 1.3, c.g / hi * 1.3, c.b / hi * 1.3];
 }
 

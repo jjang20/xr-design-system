@@ -71,6 +71,8 @@ export const DEFAULTS = {
       // 4.5:1), rim darkening, frost bump depth, grain, milky veil, key light.
       window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.19, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
+      shelf: { albedo: [0.6, 0.61, 0.64], maxLum: 0.14, edge: 0.5, frost: 0, grain: 0.01, veil: 0, key: 0.9 }, // the Dock's smoky, mirror-smooth shelf
+      tileNeutral: [0.62, 0.62, 0.65], // grey app tiles (Settings): a grey glass, not clear
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
@@ -110,6 +112,10 @@ export const DEFAULTS = {
     // Icon badge: a glass bead this high (fraction of its diameter).
     beadHeight: 0.22,
     dockBeadHeight: 0.2, // Dock icons: a low dome (fuller domes read as candy marbles)
+    // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
+    // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
+    dockTileRadius: 0.24,  // icon tile corner, fraction of its side
+    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.22 }, // float height; depth x icon side; glass mm; mirrored icon strength
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity
