@@ -93,14 +93,27 @@ const FRAG = /* glsl */`
   uniform vec2 uGrabSize;
   uniform vec4 uViewport;          // the eye's viewport in the drawing buffer
   uniform mat4 uViewProj;
-  uniform vec3 uColor, uAttColor;
+  uniform vec3 uColor, uTransColor, uAttColor;
   uniform float uAttDist, uThick, uIor, uRough, uCoat, uCoatRough, uDispersion;
-  uniform float uScatter, uDiffuse, uCaustic, uEnvIntensity, uOpacity, uHover;
+  uniform float uScatter, uDiffuse, uCaustic, uEnvIntensity, uOpacity, uHover, uSheen;
   uniform vec3 uKeyDir, uKeyColor, uRimDir, uRimColor;
   uniform float uKeySize, uRimSize;
   uniform vec3 uBackN, uBackP;   // a flat back face (beads, slabs): its outward-facing front axis and a point on it
-  uniform float uBackMode, uBehind, uEdgeDark;
+  uniform float uBackMode, uBehind, uEdgeDark, uDistort, uReflect;
+  uniform vec4 uFadePlane;   // a mirrored copy fades with distance from its mirror (xyz normal, w offset)
+  uniform float uFadeLen;
+  uniform vec3 uEmissive;
+  uniform float uEmissiveRim;
   uniform mat3 uEnvRot;
+  #ifdef GLYPH
+    // A glyph hanging in a globe, on the plane through its centre: sampled
+    // where the bent ray crosses that plane, so the glass magnifies it
+    // exactly as it bends everything else. It gives off light (a lit sign
+    // in a glass ball), so it reads through the milky glass.
+    uniform sampler2D uGlyph;
+    uniform vec3 uGlyphX, uGlyphY, uGlyphColor;
+    uniform float uGlyphOn, uGlyphGlow, uGlyphBloom, uGlyphBlur;
+  #endif
   #ifdef ENVMAP_TYPE_CUBE_UV
     uniform sampler2D envMap;
     #include <cube_uv_reflection_fragment>
@@ -162,8 +175,10 @@ const FRAG = /* glsl */`
     if (!gl_FrontFacing) N = -N;
     float nv = clamp(dot(N, V), 0.0, 1.0);
     float f0 = pow((uIor - 1.0) / (uIor + 1.0), 2.0);
-    float F = f0 + (1.0 - f0) * pow(1.0 - nv, 5.0);
-    float Fc = (0.04 + 0.96 * pow(1.0 - nv, 5.0)) * uCoat;
+    // uReflect strengthens the reflection past the physical value (a design
+    // choice: the room reads more clearly in the glass, as Jihoon asked).
+    float F = min(1.0, (f0 + (1.0 - f0) * pow(1.0 - nv, 5.0)) * uReflect);
+    float Fc = min(1.0, (0.04 + 0.96 * pow(1.0 - nv, 5.0)) * uCoat * uReflect);
 
     // Transmission: the ray bends in, crosses the glass and leaves on the
     // far side; what is there, tinted and absorbed along the way.
@@ -171,7 +186,26 @@ const FRAG = /* glsl */`
     vec3 T = refract(-V, N, 1.0 / uIor);
     vec3 exitP = vWorld + T * path;
     float tir = 0.0;
-    if (uBackMode > 0.5) {
+    vec3 glyphP = exitP;
+    if (uBackMode > 1.5) {
+      // A glass globe. The glyph hangs on the plane through its centre
+      // (uBackP, facing uBackN): follow the bent ray to it, so the ball
+      // magnifies it like a paperweight. At a grazing angle, use the plane
+      // facing the eye.
+      float dn = dot(T, uBackN);
+      float tc = abs(dn) > 0.2 ? dot(uBackP - vWorld, uBackN) / dn : dot(uBackP - vWorld, -V) / max(dot(T, -V), 0.2);
+      glyphP = vWorld + T * clamp(tc, 0.0, uThick);
+      // The room: the ray crosses the whole ball (diameter uThick) and bends
+      // again where it leaves, so the room shows upside down and small, as
+      // in a crystal ball.
+      float tb = clamp(-2.0 * dot(T, vWorld - uBackP), 0.0, uThick);
+      vec3 pb = vWorld + T * tb;
+      vec3 nb = normalize(pb - uBackP);
+      vec3 T2 = refract(T, -nb, uIor);
+      if (dot(T2, T2) < 1e-6) { T2 = reflect(T, -nb); tir = 1.0; }
+      exitP = pb + T2 * uBehind;
+      path = tb;
+    } else if (uBackMode > 0.5) {
       // A plano-convex piece (a bead: the knob, the foot) or a slab: follow
       // the ray to the flat back face, bend it out into the air there, and
       // look a little way beyond. This is what makes the knob a lens: the
@@ -185,7 +219,16 @@ const FRAG = /* glsl */`
       if (dot(T2, T2) < 1e-6) { T2 = T; tir = 1.0; }   // trapped by total internal reflection: it leaves elsewhere; keep going
       exitP = pb + T2 * uBehind;
     }
-    float blurPx = uRough * uRough * uGrabSize.y * 0.06;
+    // Distortion past the physical value: push the bent ray further from
+    // the straight one, so the bend reads at a glance.
+    vec3 straight = vWorld - V * dot(exitP - vWorld, -V);
+    exitP = straight + (exitP - straight) * uDistort;
+    vec3 straightG = vWorld - V * dot(glyphP - vWorld, -V);
+    glyphP = straightG + (glyphP - straightG) * uDistort;
+    // At a grazing angle the bent ray sweeps across the frame from pixel to
+    // pixel; a little blur there keeps fine detail behind (rings, edges)
+    // from breaking into moire.
+    float blurPx = uRough * uRough * uGrabSize.y * 0.06 + pow(1.0 - nv, 4.0) * uGrabSize.y * 0.004;
     vec3 seen;
     if (uDispersion > 0.0) {
       vec3 Tr = refract(-V, N, 1.0 / (uIor - uDispersion));
@@ -195,13 +238,24 @@ const FRAG = /* glsl */`
     } else {
       seen = behind(exitP, blurPx);
     }
+    float glyph = 0.0;
+    #ifdef GLYPH
+      vec3 gd = glyphP - uBackP;
+      vec2 guv = vec2(dot(gd, uGlyphX), dot(gd, uGlyphY)) + 0.5;
+      vec2 inside = step(vec2(0.0), guv) * step(guv, vec2(1.0));
+      glyph = texture2D(uGlyph, guv, uGlyphBlur).a * inside.x * inside.y * uGlyphOn;
+      seen = mix(seen, uGlyphColor, glyph);
+      // Its bloom: the glyph's light spread a little into the glass (a
+      // blurred copy from a smaller mip level).
+      float bloom = texture2D(uGlyph, guv, 3.5).a * smoothstep(0.0, 0.08, min(min(guv.x, guv.y), min(1.0 - guv.x, 1.0 - guv.y)) + 0.08) * uGlyphOn;
+    #endif
     // Back to scene light (the copy is tone mapped; near-linear in the mids).
     vec3 absorb = pow(uAttColor, vec3(path / uAttDist)) * (1.0 - 0.25 * tir);
-    // A rod or other rounded piece seen at its edge: the ray skims along it
-    // and is trapped, so the silhouette reads as a dark line (the path
-    // tracer's stem has them).
-    if (uBackMode < 0.5) absorb *= 1.0 - uEdgeDark * smoothstep(0.55, 0.95, 1.0 - nv);
-    vec3 col = seen * uColor * absorb * (1.0 - F) * (1.0 - Fc) * (1.0 - uDiffuse);
+    // A rod, ball or a slab's rounded rim seen at its edge: the ray skims
+    // along it and is trapped, so the edge reads darker (the path tracer's
+    // stem and plate rim have it).
+    absorb *= 1.0 - uEdgeDark * smoothstep(0.55, 0.95, 1.0 - nv);
+    vec3 col = seen * uTransColor * absorb * (1.0 - F) * (1.0 - Fc) * (1.0 - uDiffuse);
 
     // Light scattered inside the glass, in its own colour (milky glass).
     vec3 hue = uColor / max(max(uColor.r, uColor.g), max(uColor.b, 1e-3));
@@ -226,21 +280,36 @@ const FRAG = /* glsl */`
     // side away from it, in the glass's colour.
     float away = clamp(-dot(N, uKeyDir), 0.0, 1.0);
     add += hue * uKeyColor * uCaustic * pow(away, 1.5) * pow(1.0 - nv, 1.0);
+    // Glow: light from inside the glass (a lit lamp), strongest through the
+    // middle where the most glass is seen.
+    // uEmissiveRim moves it to the rim, where light trapped in the glass
+    // leaves (a bead lit from within glows at its edge, as in the lookdev).
+    add += uEmissive * mix(0.45 + 0.55 * nv, 0.15 + 1.8 * pow(1.0 - nv, 2.0), uEmissiveRim);
+    #ifdef GLYPH
+      add += uGlyphColor * (glyph * uGlyphGlow + bloom * uGlyphBloom);
+    #endif
     // Hover: a soft light under the pointer.
     add += vec3(uHover * 0.02);
+    // Hover sheen (the Dock's globes): the glass brightens, most at its rim,
+    // as if it turned toward the light.
+    add += vec3(uSheen) * (0.04 + 0.6 * pow(1.0 - nv, 3.0));
 
     vec3 outc = toDisplay(col + neutral(add));
     // Fade (window levels): fade to what is behind.
     vec3 bg = texture2D(uGrab, (gl_FragCoord.xy - uViewport.xy) / uGrabSize).rgb;
-    gl_FragColor = vec4(mix(bg, outc, uOpacity), 1.0);
+    float op = uOpacity;
+    if (uFadeLen > 0.0) op *= exp(-abs(dot(vWorld, uFadePlane.xyz) + uFadePlane.w) / uFadeLen);
+    gl_FragColor = vec4(mix(bg, outc, op), 1.0);
   }`;
 
 /**
  * A refractive glass material. `kind` names a preset in DEFAULTS.look.refract
- * (amber, plate, tile, shelf); `o` overrides it.
- * thick: the glass's greatest thickness along the view (m).
+ * (amber, rod, plate, tile, shelf); `o` overrides it.
+ * thick: the glass's greatest thickness along the view (m). flatBack: a
+ * bead or slab with a flat back at local z = 0. globe: a ball whose centre
+ * is mesh.userData.globeCenter (local).
  */
-export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
+export function refractiveGlass(kind, { thick, color, flatBack = false, globe = false, glyph = null } = {}) {
   const P = R[kind];
   const B = backdropUniforms();
   const light = R.lights;
@@ -254,6 +323,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
       uViewport: { value: new THREE.Vector4() },
       uViewProj: { value: new THREE.Matrix4() },
       uColor: { value: color ? new THREE.Color(...color) : lin(P.color) },
+      uTransColor: { value: new THREE.Color() },
       uAttColor: { value: lin(P.attColor ?? [1, 1, 1]) },
       uAttDist: { value: P.attDist ?? 1 },
       uThick: { value: thick ?? P.thick ?? 0.005 },
@@ -266,10 +336,12 @@ export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
       uDiffuse: { value: P.diffuse ?? 0 },
       uBackN: { value: new THREE.Vector3() }, uBackP: { value: new THREE.Vector3() },
       uBackMode: { value: 0 }, uBehind: { value: P.behind ?? 0.006 }, uEdgeDark: { value: P.edgeDark ?? 0 },
+      uDistort: { value: P.distort ?? R.distort }, uReflect: { value: P.reflect ?? R.reflect },
+      uEmissive: { value: new THREE.Color(0, 0, 0) }, uEmissiveRim: { value: P.emissiveRim ?? 0 },
       uSpot: { value: new THREE.Vector2() },   // (Button sets it; unused)
       uCaustic: { value: P.caustic ?? 0 },
-      uOpacity: { value: 1 },
-      uHover: { value: 0 },
+      uOpacity: { value: 1 }, uFadePlane: { value: new THREE.Vector4() }, uFadeLen: { value: 0 },
+      uHover: { value: 0 }, uSheen: { value: 0 },
       uKeyDir: { value: new THREE.Vector3(...light.key.dir).normalize() },
       uKeyColor: { value: lin(light.key.color).multiplyScalar(light.key.intensity) },
       uKeySize: { value: light.key.size },
@@ -278,7 +350,20 @@ export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
       uRimSize: { value: light.rim.size },
     },
   });
-  m.uniforms.uBackMode.value = flatBack ? 1 : 0;
+  m.uniforms.uBackMode.value = globe ? 2 : flatBack ? 1 : 0;
+  // A globe's glyph: { map, size (m), color }. See GLYPH in the shader.
+  if (glyph) {
+    m.defines = { ...m.defines, GLYPH: '' };
+    Object.assign(m.uniforms, {
+      uGlyph: { value: glyph.map }, uGlyphX: { value: new THREE.Vector3() }, uGlyphY: { value: new THREE.Vector3() },
+      uGlyphColor: { value: new THREE.Color(glyph.color ?? 0xffffff) }, uGlyphOn: { value: 1 }, uGlyphGlow: { value: P.glyphGlow ?? 0.5 }, uGlyphBloom: { value: P.glyphBloom ?? 0 }, uGlyphBlur: { value: 0 },
+    });
+    m.userData.glyphSize = glyph.size;
+  }
+  // What shows through may be tinted less than the glass's own colour
+  // (transTint < 1): a milky globe keeps its colour from the scattering,
+  // so the glyph inside stays light.
+  m.uniforms.uTransColor.value.setRGB(1, 1, 1).lerp(m.uniforms.uColor.value, P.transTint ?? 1);
   m.userData.refractive = true;
   return trackGlass(m);
 }
@@ -286,7 +371,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
 // A copy (the Dock's mirrored tiles) that still shares the frame copy and
 // the room backdrop. Plain material.clone() would copy those textures.
 export function cloneRefractive(m) {
-  const shared = ['uGrab', 'uGrabSize', 'envMap', 'uEnvRot', 'uEnvIntensity'];
+  const shared = ['uGrab', 'uGrabSize', 'envMap', 'uEnvRot', 'uEnvIntensity', 'uGlyph'].filter(k => k in m.uniforms);
   const keep = Object.fromEntries(shared.map(k => [k, m.uniforms[k]]));
   for (const k of shared) m.uniforms[k] = { value: null };
   const c = m.clone();
@@ -308,9 +393,21 @@ export function attachGrab(mesh) {
     grabFrame(renderer, camera, mesh);
     u.uViewport.value.copy(vp);
     u.uViewProj.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-    if (u.uBackMode.value) {
+    if (u.uBackMode.value === 1) {
       u.uBackN.value.setFromMatrixColumn(mesh.matrixWorld, 2).normalize();   // local +z: the back face's normal, facing in
       u.uBackP.value.setFromMatrixPosition(mesh.matrixWorld);               // local z = 0
+    } else if (u.uBackMode.value === 2) {
+      u.uBackP.value.copy(mesh.userData.globeCenter ?? new THREE.Vector3()).applyMatrix4(mesh.matrixWorld);
+      u.uBackN.value.setFromMatrixColumn(mesh.matrixWorld, 2).normalize();
+      if (u.uGlyphX) {
+        // World offset -> glyph uv: each local axis over its squared length
+        // (undoes the mesh's scale) and the glyph's size.
+        const size = mesh.material.userData.glyphSize;
+        for (const [k, col] of [['uGlyphX', 0], ['uGlyphY', 1]]) {
+          const a = u[k].value.setFromMatrixColumn(mesh.matrixWorld, col);
+          a.divideScalar(a.lengthSq() * size);
+        }
+      }
     }
     mesh.material.uniformsNeedUpdate = true;   // per eye
   };

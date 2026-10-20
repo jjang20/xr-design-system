@@ -93,8 +93,91 @@ else renderer.setAnimationLoop(time => {
   renderer.render(scene, camera);
 });
 
+// Eval passes (scripts/match.mjs --eval): a part drawn as a flat mask on
+// black, or the frame with one feature switched off, so a script can
+// measure shape, glow, reflection and refraction from real renders.
+function parts() {
+  const P = {};
+  const add = (k, o) => { if (o) (P[k] ??= []).push(o); };
+  if (dock) {
+    add('shelf', dock.base);
+    dock.icons.forEach((b, i) => { add('icon' + i, b.body); add('glyph', b.icon); });
+    dock.mirrors.forEach(m => add('mirror', m));
+    dock.dots.forEach(d => add('dot', d));
+  }
+  if (slider) {
+    add('knob', slider.knobSkin && slider.knob.children.find(c => c.material === slider.knobSkin));
+    add('stem', slider.stem);
+    slider.joints?.forEach(j => add('joint', j));
+    add('plate', slider.plate);
+    add('glyph', slider.knob.children.find(c => c.material?.map));
+    slider.bubble.children.filter(c => typeof c.sync === 'function').forEach(t => add('label', t));
+    add('bubble', slider.bubble);
+    add('labelglass', slider.labelGlass);
+  }
+  scene.traverse(o => { if (o.userData.glow) add('glow', o); });
+  return P;
+}
+const undo = [];
+function restore() { while (undo.length) undo.pop()(); }
+function set(o, k, v) { const old = o[k]; undo.push(() => { o[k] = old; }); o[k] = v; }
+const drawn = m => m.isMesh || m.isSprite;
+function eachMesh(objs, f) { for (const o of objs ?? []) o.traverse(m => { if (drawn(m)) f(m); }); }
+function eachUniform(name, v) {
+  scene.traverse(m => { const u = m.material?.uniforms?.[name]; if (u) set(u, 'value', typeof v === 'function' ? v(u.value) : v); });
+}
+function pass(name) {
+  restore();
+  const P = parts();
+  if (name.startsWith('mask:')) {
+    // mask:a,b=0.5 draws parts a (white) and b (grey 0.5), nothing else.
+    const want = Object.fromEntries(name.slice(5).split(',').map(s => { const [k, g] = s.split('='); return [k, Number(g ?? 1)]; }));
+    set(scene, 'background', new THREE.Color(0));
+    scene.traverse(m => { if (drawn(m)) set(m, 'visible', false); });
+    for (const [k, g] of Object.entries(want)) eachMesh(P[k], m => {
+      set(m, 'visible', true);
+      set(m, 'onBeforeRender', () => {});
+      const map = m.material.map ?? null;
+      set(m, 'material', new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(g, g, g, THREE.SRGBColorSpace), map, alphaTest: map ? 0.5 : 0, toneMapped: false, side: THREE.DoubleSide }));
+    });
+  } else if (name === 'nolabel') eachMesh(P.label, m => set(m, 'visible', false));
+  else if (name === 'nomirror') eachMesh(P.mirror, m => set(m, 'visible', false));
+  else if (name === 'noglyph') { eachMesh(P.glyph, m => set(m, 'visible', false)); eachUniform('uGlyphOn', 0); }
+  else if (name === 'noglow') { eachUniform('uEmissive', new THREE.Color(0)); eachMesh(P.glow, m => set(m, 'visible', false)); }
+  else if (name.startsWith('hide:')) eachMesh(P[name.slice(5)], m => set(m, 'visible', false));
+  // The room swapped for flat grey: what changes inside a piece of glass is
+  // the room seen through it.
+  else if (name === 'flatroom') set(scene, 'background', new THREE.Color().setRGB(0.5, 0.5, 0.5, THREE.SRGBColorSpace));
+  else if (name === 'norefract') eachUniform('uDistort', 0);
+  else if (name === 'physical-refract') eachUniform('uDistort', 1);
+  else if (name === 'noreflect') eachUniform('uReflect', 0);
+  else if (name === 'physical-reflect') eachUniform('uReflect', 1);
+  else if (name !== 'beauty') throw new Error('unknown pass ' + name);
+  return capture();
+}
+// The frame as a PNG data URL, read back right after drawing (a page
+// screenshot on a software renderer sometimes catches a blank buffer).
+function capture() {
+  renderer.setRenderTarget(null);
+  renderer.render(scene, camera);
+  const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight;
+  const px = new Uint8Array(w * h * 4);
+  gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d'), img = g.createImageData(w, h);
+  for (let y = 0; y < h; y++) img.data.set(px.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4);
+  g.putImageData(img, 0, 0);
+  return c.toDataURL('image/png');
+}
+
 window.contour = {
-  panel, dock, slider, camera, hands, scene,
+  panel, dock, slider, camera, hands, scene, pass, renderer,
+  // Screen points (px) of local points of an object, for eval scripts.
+  screenPoints(obj, pts) {
+    obj.updateMatrixWorld();
+    return pts.map(p => { const v = new THREE.Vector3(...p).applyMatrix4(obj.matrixWorld).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; });
+  },
   tick(frames = 1, dt = 1 / 60) { for (let i = 0; i < frames; i++) step(dt); renderer.render(scene, camera); },
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);

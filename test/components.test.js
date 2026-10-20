@@ -133,9 +133,9 @@ test('dock ignores a short glance', () => {
 
 test('dock magnify uses the cosine falloff', () => {
   const r = T.dmm('dock.magnify.radius', 0.55), max = T.get('dock.magnify.scale.max');
-  near(magnifyScale(0, r, max), 1.6);
+  near(magnifyScale(0, r, max), max);
   near(magnifyScale(r, r, max), 1);
-  near(magnifyScale(r / 2, r, max), 1 + 0.6 * Math.cos(Math.PI / 4));
+  near(magnifyScale(r / 2, r, max), 1 + (max - 1) * Math.cos(Math.PI / 4));
 });
 
 test('packaging compress recedes, fades and never drops below the minimum', () => {

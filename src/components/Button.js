@@ -19,7 +19,7 @@ import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, glassBallGeometry, setTint, makeText, makeIcon } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
 
@@ -33,7 +33,7 @@ export class Button extends Interactable {
    * @param {'chevron'|null} [o.accessory]
    * @param {'center'|'row'} [o.layout='center']
    * @param {'rounded'|'capsule'|'circle'} [o.shape='rounded']
-   * @param {'secondary'|'primary'|'plain'|'glass'|'window'|'tinted'|'bead'|'tile'} [o.variant='secondary']
+   * @param {'secondary'|'primary'|'plain'|'glass'|'window'|'tinted'|'bead'|'tile'} [o.variant='secondary']  tile: a glass globe (Dock)
    * @param {number} [o.color]      fill colour override (tinted variant)
    * @param {'soft'|'firm'|'rigid'} [o.density='firm']
    * @param {'thin'|'regular'|'thick'} [o.thickness='regular']
@@ -60,8 +60,9 @@ export class Button extends Interactable {
     if (o.shape === 'circle') this.w = this.h = Math.min(this.w, this.h);
     this.r = o.shape === 'circle' || o.shape === 'capsule' ? Math.min(this.w, this.h) / 2
       : dmm(o.radius ?? DEFAULTS.radius.control);
-    // An app tile is a rounded glass ball, as deep as a good part of its side.
-    if (this.variant === 'tile') this.t = this.w * DEFAULTS.look.dockShelf.tileDepth;
+    // An app tile is a glass globe: as deep as it is wide.
+    this.globe = this.variant === 'tile';
+    if (this.globe) this.t = this.w;
     this.frontZ = this.t;
 
     this.press = new PressModel({
@@ -99,13 +100,23 @@ export class Button extends Interactable {
       this.body.renderOrder = 2;
       this.skin = this.body.material;
       setTint(this.skin, { hw: this.w / 2, hh: this.w / 2, r: this.w / 2, soft: this.w * 0.02, albedo: glassAlbedo(fill), amount: this.disabled ? 0.3 : 1 });
-    } else if (this.variant === 'tile') {
-      // An app tile (the shelf Dock): an upright, rounded ball of milky
-      // tinted glass that floats over the shelf, like a Snow Leopard dock icon.
-      this.r = this.w * DEFAULTS.look.dockTileRadius;
-      // Refractive milky glass, as lookdev/dock_slider.py's milky() material.
-      const tint = glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral).map(v => this.disabled ? 0.7 + 0.3 * v : v);
-      this.body = refractiveMesh(glassBallGeometry(this.w, this.h, this.t), refractiveGlass('tile', { thick: this.t, color: tint }));
+    } else if (this.globe) {
+      // An app icon (the shelf Dock): a globe of tinted glass that floats
+      // over the shelf, its glyph hanging at the centre and magnified by the
+      // ball like a paperweight (Jihoon 2026-10-20: "literally globe, not
+      // rounded square"). Part milky, as lookdev/dock_slider.py's milky().
+      const r = this.w / 2;
+      this.r = r;
+      // Every hue lets the same amount of light through (equal luminance),
+      // so a white glyph reads as well in a green globe as in a blue one.
+      const tint = equalLuminance(glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral), DEFAULTS.look.refract.tile.luminance).map(v => this.disabled ? 0.7 + 0.3 * v : v);
+      this.body = refractiveMesh(new THREE.SphereGeometry(r, 64, 48).translate(0, 0, r), refractiveGlass('tile', { thick: this.t, color: tint, globe: true, glyph: { map: null, size: 1 } }));
+      this.body.userData.globeCenter = new THREE.Vector3(0, 0, r);
+      // The tint is also what the glass absorbs: deeper colour through the
+      // middle of the ball, where the path is longest.
+      const hi = Math.max(...tint);
+      this.body.material.uniforms.uAttColor.value.setRGB(...tint.map(v => v / hi));
+      this.body.material.uniforms.uAttDist.value = this.t * DEFAULTS.look.refract.tile.absorb;
       this.body.renderOrder = 2;
       this.skin = this.body.material;
     } else if (this.variant === 'plain') {
@@ -140,6 +151,16 @@ export class Button extends Interactable {
       this.skin = this.fx.material;
     }
     this.buildContent(o, dmm);
+    if (this.globe) {
+      // The glyph is drawn by the globe's glass (see GLYPH in core/refract.js).
+      const u = this.skin.uniforms;
+      u.uGlyphOn.value = this.icon ? 1 : 0;
+      if (this.icon) {
+        u.uGlyph.value = this.icon.material.map;
+        this.skin.userData.glyphSize = this.icon.geometry.parameters.width;
+        this.icon.visible = false;
+      }
+    }
     this.layoutFront();
   }
 
@@ -188,7 +209,8 @@ export class Button extends Interactable {
     const both = o.icon && o.label;
     const narrow = this.w < this.h * 1.6;
     if (o.icon) {
-      const s = Math.min(this.h, this.w) * (both && narrow ? 0.36 : 0.42);
+      // In a globe the glyph is magnified by the glass, so it starts smaller.
+      const s = Math.min(this.h, this.w) * (both && narrow ? 0.36 : 0.42) * (this.globe ? DEFAULTS.look.globeGlyph : 1);
       const icon = makeIcon(o.icon, s, { opacity: dim });
       if (both && !narrow) icon.position.set(-this.w / 2 + this.h * 0.42 + s / 2, 0, z);
       else icon.position.set(0, both ? this.h * 0.1 : 0, z);
@@ -215,6 +237,7 @@ export class Button extends Interactable {
     this.body.position.z = lift;
     this.face.position.z = this.emboss ? Math.max(0, this.bulge) + 0.0004
       : this.beadH ? this.beadH * front / this.t + 0.0004   // a pressed bead squashes; its glyph rides the top
+      : this.globe ? front / 2                               // the glyph hangs at the globe's centre
       : front + lift;
   }
 
@@ -334,6 +357,13 @@ function glassAlbedo(hex, neutral = DEFAULTS.look.glass.window.albedo) {
   const hi = Math.max(c.r, c.g, c.b, 1e-3), lo = Math.min(c.r, c.g, c.b);
   if ((hi - lo) / hi < 0.25) return neutral;
   return [c.r / hi * 1.3, c.g / hi * 1.3, c.b / hi * 1.3];
+}
+
+// A tint scaled to a given luminance (Rec. 709 weights, linear), no channel
+// above 1.6.
+function equalLuminance(c, target) {
+  const k = target / Math.max(0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2], 1e-3);
+  return c.map(v => Math.min(v * k, 1.6));
 }
 
 // One spring step (response in s, damping ratio), substepped for stability.

@@ -82,7 +82,7 @@ A knob you push away from you (value up) and pull back (value down), along Z ins
 | Hover, glow, surface | as Button |
 
 ![Z-Slider lookdev, direction A: an amber glass bead on a glass stem over five etched detents, two lit at 40%](images/lookdev/slider-stem.jpg)
-*Rendered 2026-10-20 in Blender.* **In progress:** Jihoon picked this direction (A, stem) on 2026-10-20. The live knob (see the overview) is built to it: an amber glass bead on an amber stem from a flared foot, five etched rings that light amber up to the value, and the value label on lens glass beside the plate. Its glass still reads more opaque than the render.
+*Rendered 2026-10-20 in Blender.* **In progress:** Jihoon picked this direction (A, stem) on 2026-10-20. The live knob (see the overview) is built to it: a clear amber glass bead on an amber stem that flows into the plate and into the knob through curved fillets (stem and fillets are one piece of glass), a thin clear glass plate (`material.t.thin`, so its rim reads as a crisp edge), five etched rings that light amber up to the value, a glow that rises with the value (inside the glass, round the lit rings, and a halo in the knob's own plane), and the value label on a small capsule of window glass beside the plate, the value larger and bolder than the name. Values: `DEFAULTS.look.lampGlow`, `DEFAULTS.look.valueLabel`.
 
 How each input moves it: a fingertip can only **push** the face (like a real knob). **Pinching** near the knob grabs it so it can be pulled back. A **ray** (mouse, controller) drags it: moving the pointer further away pushes. The value is shown beside the knob, not on it, so the hand doesn't cover it. Five rings on the plate show the value at a glance (each is two detents); the 10 detents are felt as ticks. Events: `change`, `detent`.
 
@@ -121,14 +121,14 @@ An ornament of actions under a window: one glass bar whose buttons are places wh
 The app launcher, body-locked 25° below your view.
 
 ![Dock lookdev: a curved glass shelf with icons floating above it, Scan magnified](images/dock-magnify.png)
-*Rendered 2026-10-20 in Blender (`lookdev/dock_slider.py --part dock --option shelf --state hover`), 2560 × 1600.* **In progress:** this is the lookdev target. The live Dock (built 2026-10-20, see the overview) follows it: tinted glass tiles floating over a smoky glass shelf on an arc centred on you, reflections as soft colour in the glass. The hand is not modelled in the render; the shown state is the magnification a nearby hand triggers.
+*Rendered 2026-10-20 in Blender (`lookdev/dock_slider.py --part dock --option shelf --state hover`), 2560 × 1600.* **In progress:** this is the lookdev target. The live Dock (built 2026-10-20, see the overview) follows it with the globes Jihoon asked for: clear tinted glass globes that show the room upside down (a ball lens), each glyph glowing inside its globe, over a clear glass shelf on an arc centred on you. Each globe has a soft mirror image in the shelf, a contact shadow and a caustic in its colour; a hovered globe also lifts and its glass brightens. Every hue lets through the same light, so glyph contrast holds in every colour. Values: `DEFAULTS.look.dockShelf`, `DEFAULTS.look.refract.tile`. The hand is not modelled in the render; the shown state is the magnification a nearby hand triggers.
 
 | Behaviour | Tokens |
 |---|---|
 | Body-lock (only mode implemented) | `anchor.mode` |
 | 25° below the centre of view | `anchor.eccentricity.vertical` |
 | Waits 350 ms after a turn, then follows without wobble | `anchor.follow.delay`, `.damping`, `.frequency` |
-| Icons grow up to 1.6× within 250 dmm of the hand, cosine falloff | `dock.magnify.*` |
+| Icons grow up to 1.2× within 100 dmm of the hand, cosine falloff, and the hovered one lifts 8 dmm (matches the Blender lookdev: one icon in focus, not a zoom of the row). The size eases toward the hand's value with a critically damped spring that settles in the hover duration, so tracking jitter doesn't shake the icons and a lost hand doesn't pop them | `dock.magnify.*`, `motion.hover.in.duration` |
 | Icon size and gaps | `size.button.default`, `size.gap.min` |
 
 WebXR doesn't track the torso, so the dock treats a sustained head turn (more than 20°, held for the delay) as a body turn. A quick glance away never moves it. Events: `select`.
@@ -191,8 +191,8 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Trade-offs:** Tinted glass changes with the room behind it; over a saturated room the hue shifts. Unsaturated colours (Settings' grey) use the plain window glass.
 
 ### Known gaps handed to the arena (2026-10-20)
-- **Dock:** built live as the curved shelf (Jihoon's Snow Leopard direction). Reflections are colour decals, not a real mirror; tiles are a little thick.
-- **Z-Slider:** built live as direction A (stem). The amber glass reads more opaque and pastel than the lookdev; the value label needs a scrim beyond `surface.scrim.max` over bright windows (proposed `surface.scrim.label`).
+- **Dock:** built live as the curved shelf with glass globes. Neighbouring globes show faintly inside each globe (a ball lens does that; it can look busy), and every globe reflects the same window, because the room is a distant photo.
+- **Z-Slider:** built live as direction A (stem). The plate is `thin` glass, not the lookdev's `regular`, so its rim reads crisp; the value label sits on window glass rather than a shade.
 - **Backdrop:** the room photo is 1K; renders at 6K show it soft. A 4K+ file is needed (Poly Haven is blocked from the cloud).
 
 ### Bubble: the hover and press language (locked 2026-10-20)

@@ -214,33 +214,6 @@ export function glassSlabGeometry(w, h, t, r, { tessellate = 0 } = {}) {
   return g;
 }
 
-// A rounded glass ball with a squarish outline (a superellipsoid), front at
-// z = d, back at z = 0: the Dock's app tiles, puffy like a cushion rather
-// than a flat card. `round` shapes the side profile (1 = ellipse, lower =
-// flatter faces), `square` the outline (1 = circle, lower = squarer).
-export function glassBallGeometry(w, h, d, { round = 0.9, square = 0.45, segments = 64, rings = 32 } = {}) {
-  const pw = (x, e) => Math.sign(x) * Math.abs(x) ** e;
-  const pos = [], idx = [];
-  for (let i = 0; i <= rings; i++) {
-    const u = -Math.PI / 2 + Math.PI * i / rings;
-    for (let j = 0; j <= segments; j++) {
-      const v = -Math.PI + 2 * Math.PI * j / segments;
-      const cu = pw(Math.cos(u), round);
-      pos.push(w / 2 * cu * pw(Math.cos(v), square), h / 2 * cu * pw(Math.sin(v), square), d / 2 * (1 + pw(Math.sin(u), round)));
-    }
-  }
-  for (let i = 0; i < rings; i++) for (let j = 0; j < segments; j++) {
-    const a = i * (segments + 1) + j, b = a + segments + 1;
-    idx.push(a, b, a + 1, b, b + 1, a + 1);
-  }
-  let g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setIndex(idx);
-  g = mergeVertices(g, 1e-7);
-  g.computeVertexNormals();
-  return g;
-}
-
 // A glass bead (icon badge): a low dome that catches light like a droplet.
 export function glassBeadGeometry(diameter, height) {
   const g = new THREE.SphereGeometry(diameter / 2, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2);

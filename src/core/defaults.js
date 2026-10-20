@@ -83,17 +83,21 @@ export const DEFAULTS = {
     // flat back face the bent ray looks (m); edgeDark: dark silhouette of a
     // rounded piece (the stem).
     refract: {
-      grabMargin: 0.35, // the frame copy around a glass reaches this far past it (fraction of its size): room for the refracted offset
+      // Past physical, by design (Jihoon, 2026-10-20: "reflection and
+      // distortion should be larger"): reflection strength and how far the
+      // bent ray strays from the straight one, x the physical value.
+      reflect: 2.2, distort: 2.0,
+      grabMargin: 0.6, // the frame copy around a glass reaches this far past it (fraction of its size): room for the refracted offset
       // The lookdev light rig: direction toward the light (three.js axes,
       // from the component), colour, strength, angular size.
       lights: {
         key: { dir: [-0.7, 0.9, 0.5], color: [1, 0.92, 0.82], intensity: 5, size: 0.1 },
         rim: { dir: [-0.35, 0.35, -0.4], color: [1, 0.85, 0.65], intensity: 3, size: 0.1 },
       },
-      amber: { edgeDark: 0.7, color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.012, rough: 0.05, coat: 1, caustic: 0.8, scatter: 0.02 },
-      rod: { edgeDark: 0.85, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.008, rough: 0.05, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge
-      plate: { color: [0.66, 0.65, 0.64], attColor: [0.55, 0.54, 0.53], attDist: 0.033, rough: 0.4, coat: 0.6 },
-      tile: { rough: 0.16, coat: 1, diffuse: 0.4, color: [1, 1, 1] }, // milky: Blender's transmission 0.6
+      amber: { behind: 0.002, distort: 1.8, emissiveRim: 1, edgeDark: 0, color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.025, rough: 0.05, coat: 1, caustic: 0.8, scatter: 0.02 },
+      rod: { reflect: 2, coat: 0.4, coatRough: 0.06, edgeDark: 0.85, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.008, rough: 0.05, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge
+      plate: { reflect: 1, edgeDark: 0.6, color: [0.92, 0.9, 0.88], attColor: [0.62, 0.6, 0.58], attDist: 0.012, rough: 0.15, coat: 0.6, coatRough: 0.02 }, // clear frosted glass: the room shows through, a little darker (Blender: about 0.6 of the wall's light)
+      tile: { rough: 0.2, coatRough: 0.03, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.45, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows
       shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
@@ -133,12 +137,30 @@ export const DEFAULTS = {
     // Icon badge: a glass bead this high (fraction of its diameter).
     beadHeight: 0.22,
     dockBeadHeight: 0.2, // Dock icons: a low dome (fuller domes read as candy marbles)
+    // Z-Slider lamp (Jihoon, 2026-10-20: "lighting should be glow"; the joints
+    // curved). fillet: joint length x the knob side, its flare x the stem
+    // radius (a quarter ellipse, tangent to stem and plate). Glow scales
+    // from min (at 0%) to 1 (at 100%): emissive light inside the amber glass,
+    // the halo round the knob (size x the side), the glow round lit rings.
+    lampGlow: { fillet: { length: 0.25, flare: 1 }, min: 0.45, emissive: { stem: 0.55, knob: 0.25 }, halo: { size: 2.2, opacity: 0.6 }, ring: 0.8, ringWidth: 1.2 },
+    // The Z-Slider's value label: a capsule of window glass (dmm) beside the
+    // plate, gap from its rim; the value larger and bolder than the name.
+    valueLabel: { width: 112, height: 34, pad: 12, gap: 12, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
-    dockTileRadius: 0.24,  // icon tile corner, fraction of its side
-    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.35, arc: 0.45, tileDepth: 0.42 }, // float height; depth x icon side; glass mm; mirrored icon strength;
-    // arc: radius of the dock's curve x its distance (0.45 at 0.55 m = 25 cm, about the forearm: the hand sweeps round the elbow, so every icon stays in reach,
-    // and the curve reads at a glance; 1 = centred on the body, which looked straight); tileDepth: app tile depth x its side (a rounded ball, not a card)
+    // lift: float height (dmm); depth: x icon side; thickness: glass mm;
+    // reflection: mirrored icon strength, fading over fade x the icon side
+    // below the glass; mirrorBlur: how soft the mirror image is (roughness,
+    // and the glyph's blur in mip levels); contact: the soft shadow under
+    // each globe (opacity, size x the icon side); arc: radius of the dock's
+    // curve x its distance (0.75 at 0.56 m = 0.42 m, a little tighter than
+    // the lookdev's 0.5 m so the curve reads at a glance; every icon is the
+    // same reach away); hoverLift: how far the hovered globe rises (dmm, as
+    // the lookdev); hoverSheen: light on the hovered globe's glass; caustic: the coloured light each globe focuses on the
+    // glass under it; runGlow: the running light's halo (size in dmm).
+    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.75, mirrorBlur: { rough: 0.45, glyph: 3 }, contact: { opacity: 0.22, size: 0.8 }, fade: 0.6, arc: 0.75, hoverLift: 8, hoverSheen: 0.35, caustic: 0.35, runGlow: { color: [0.75, 0.88, 1], opacity: 0.8, size: 18 } },
+    // Dock globe: glyph size before the glass magnifies it, x a flat icon's.
+    globeGlyph: 0.62,
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity
