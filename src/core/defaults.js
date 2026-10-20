@@ -76,7 +76,7 @@ export const DEFAULTS = {
     // Hovered row: 'lens' lifts a light glass lens out of the window by
     // lensLift; 'emboss' inflates the window's skin into a bubble under the
     // row, like a fluid-filled tactile display (Jihoon's reference).
-    hoverStyle: 'lens',
+    hoverStyle: 'emboss', // decided 2026-10-20 (Jihoon): the bubble is Contour's hover language
     lensLift: 5, // mm
     // Sizes in mm are as seen at `distance` (0.6 m) and grow with the
     // window's distance like dmm, so a far window's bubble and dent fill the

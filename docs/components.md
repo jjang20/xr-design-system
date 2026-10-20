@@ -96,7 +96,7 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 | Up to 3 levels deep; deeper rows show as disabled | `packaging.depth.max` |
 | Open and close: a critically damped spring, response = the dropdown duration | `motion.expand.dropdown.duration` |
 
-Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
+Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside. Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
 
 ## Dock
 
@@ -135,10 +135,10 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 | Hover fade out | same as in | only `motion.hover.in` exists | `motion.hover.out.*` |
 | Panel layout | width 240, row 48, padding 18 dmm, and the gaps in [the spec](catalog-spec.md) | the packaging panel's layout | `size.panel.*`, `size.row.*` |
 | Type ramp | title 21 / headline 12.4 / body 12.4 / subheadline 11 / footnote 9.5 dmm (Apple's kit × 0.73) | text needs sizes, weights and tracking | `type.*` |
-| Text emphasis | white at 100 / 72 / 50 % | contrast on glass | `color.text.*` |
+| Text emphasis | white at 100 / 90 / 50 % | contrast on glass | `color.text.*` |
 | Dock follow threshold | 20° | without it, every small head move restarts the delay | `anchor.follow.threshold` |
 | Dock distance | 0.55 m | body-lock needs a distance | `anchor.distance` |
-| Glass (blur, refraction, Fresnel, grain, veil), lens lift, contact shadows, text shadow | see `look` | appearance of windows and rows | `look.*` |
+| Glass (blur, refraction, Fresnel, grain, veil), bubble (`look.emboss`: height, dent, glow), contact shadows | see `look` | appearance of windows and rows | `look.*`, `feedback.press.*` |
 | Colours | dark graphite surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
 
 ## Known limits
@@ -150,6 +150,14 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
 
 ## Decisions
+
+### Bubble: the hover and press language (locked 2026-10-20)
+- **Decision:** A hovered row doesn't get a separate lens or a colour fill. The window's own glass swells into a soft pillow under it (6 mm at 0.6 m, domed like the icon beads, glossy and clearer on the crown). Pressing makes a dent where the press lands (bell-shaped, 20 mm wide at half depth, 4.5 mm deep), shaded as a hollow with an inner shadow on the wall facing the light. Light gathers in an 8 mm core at the bottom of the dent and travels to the bubble's edge, brightest nearest the finger. On release the dent springs back past flat once; the bubble deflates without a wobble. Values: `DEFAULTS.look.emboss`.
+- **Why:** Jihoon's reference is a fluid-filled tactile display: the surface itself becomes the button. Path-traced lookdev (`lookdev/catalog.py`) chose the pillow over a flat plateau, and a blind critique chose the shading and glow fixes. The glow makes the press visible by light as well as by shape (WCAG 1.4.11, non-text contrast); the bloom under text stays under the legibility cap.
+- **Distance and input:** sizes are mm as seen at 0.6 m and grow with the window's distance like dmm, so a far window reads the same. A fingertip drags the dent along; a ray or gaze-and-pinch pins it where the pinch began (eye tracking wobbles about 1°). Far away the dent reads by shading and glow, since stereo depth fades with the square of distance.
+- **Alternatives:** A light glass lens lifted over the row (`hoverStyle: 'lens'`, still available). It reads fast, but as a separate slab, not the window's own material. A squash press (whole pillow flattens): calmer, but hard to tell from hover.
+- **Trade-offs:** The bubble is a shader effect on a finely split window mesh, so windows cost more vertices. Pressing directly on text briefly lowers that text's contrast under the glow core. With reduced motion, the bubble and dent move without settle or rebound.
+
 
 ### Components take tokens as an argument instead of importing them
 - **Decision:** `new Button(T, …)` receives a token object; no component imports `tokens.json` itself.
