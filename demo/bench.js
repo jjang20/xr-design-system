@@ -144,7 +144,7 @@ function pass(name) {
   else if (name === 'nomirror') eachMesh(P.mirror, m => set(m, 'visible', false));
   else if (name === 'noglyph') { eachMesh(P.glyph, m => set(m, 'visible', false)); eachUniform('uGlyphOn', 0); }
   else if (name === 'noglow') { eachUniform('uEmissive', new THREE.Color(0)); eachMesh(P.glow, m => set(m, 'visible', false)); }
-  else if (name.startsWith('hide:')) eachMesh(P[name.slice(5)], m => set(m, 'visible', false));
+  else if (name.startsWith('hide:')) for (const k of name.slice(5).split(',')) eachMesh(P[k], m => set(m, 'visible', false));
   // The room swapped for flat grey: what changes inside a piece of glass is
   // the room seen through it.
   else if (name === 'flatroom') set(scene, 'background', new THREE.Color().setRGB(0.5, 0.5, 0.5, THREE.SRGBColorSpace));

@@ -83,6 +83,33 @@ def split_columns(m):
     return out
 
 
+def components(m, min_px=30):
+    """Connected pieces of a mask (4-neighbour flood fill), largest first:
+    a slanted line of text has letters whose columns overlap, so splitting
+    at empty columns would merge them."""
+    seen = np.zeros_like(m, dtype=bool)
+    out = []
+    H_, W_ = m.shape
+    for y0, x0 in zip(*np.nonzero(m)):
+        if seen[y0, x0]:
+            continue
+        stack, px = [(y0, x0)], []
+        seen[y0, x0] = True
+        while stack:
+            y, x = stack.pop()
+            px.append((y, x))
+            for yy, xx in ((y + 1, x), (y - 1, x), (y, x + 1), (y, x - 1)):
+                if 0 <= yy < H_ and 0 <= xx < W_ and m[yy, xx] and not seen[yy, xx]:
+                    seen[yy, xx] = True
+                    stack.append((yy, xx))
+        if len(px) >= min_px:
+            part = np.zeros_like(m, dtype=bool)
+            ys, xs = zip(*px)
+            part[list(ys), list(xs)] = True
+            out.append(part)
+    return sorted(out, key=lambda p: -p.sum())
+
+
 def ellipse_fit(m):
     """IoU of a mask with the ellipse of the same area and second moments,
     and that ellipse's minor/major axis ratio. A sphere seen in perspective
@@ -117,6 +144,17 @@ def profile(m, p0, p1, n=120, reach=200):
             width += k
         out.append(width + 1 if m[int(round(c[1])), int(round(c[0]))] else 0)
     return np.array(out, dtype=float)
+
+
+def sharp(img):
+    """Pixel-scale detail: the 4-neighbour Laplacian of the grey level."""
+    g = img.mean(axis=2)
+    return np.abs(4 * g - np.roll(g, 1, 0) - np.roll(g, -1, 0) - np.roll(g, 1, 1) - np.roll(g, -1, 1))
+
+
+def chroma(px):
+    """Median colourfulness of pixels (max - min channel, 0-1)."""
+    return float(np.median(px.max(axis=1) - px.min(axis=1)))
 
 
 def contrast(a, b):
@@ -264,6 +302,53 @@ if have('dock-rest-beauty'):
         t = float(flat[inner].mean() / max(flat[beside].mean(), 1e-3))
         check('D10', 'Dock', 'Globes are clear glass: the room shows through them', f'{t:.2f} of the room passes', t >= 0.3,
               '>= 0.30 (tinted clear glass; milky glass is lower)', 'Judge round 2: "milky, opaque globes with no refraction"')
+    # Judge round 3: hovering pushed the neighbours aside and stretched the
+    # shelf. Looking at a target must never move the others (visionOS): the
+    # hovered globe grows in place.
+    if have('dock-hover-icons'):
+        rest_i = split_columns(icons)
+        hov_i = split_columns(rgb('dock-hover-icons').mean(axis=2) > 0.1)
+        cx = lambda m: float(np.nonzero(m)[1].mean())
+        if len(rest_i) == 5 and len(hov_i) == 5:
+            move = max(abs(cx(a) - cx(b)) for i, (a, b) in enumerate(zip(rest_i, hov_i)) if i != 2)
+        else:
+            move = 99.0
+        cols = lambda m: np.where(m.any(axis=0))[0]
+        sh = mask('dock-hover-shelf')
+        stretch = max(abs(int(cols(shelf).min()) - int(cols(sh).min())), abs(int(cols(shelf).max()) - int(cols(sh).max())))
+        check('D11', 'Dock', 'Hover grows the globe in place: neighbours and shelf stay put', f'neighbours move {move:.1f} px, shelf ends {stretch} px', move <= 2 and stretch <= 2,
+              '<= 2 px each', 'Judge round 3: "hovering pushes the neighbours about 25 px outward and widens the shelf"; lookdev hover keeps them')
+        # Hover lights the globe as well as growing it (a sheen on its glass).
+        if have('dock-hover-noglyph'):
+            gh = np.abs(rgb('dock-hover-beauty') - rgb('dock-hover-noglyph')).max(axis=2) > 0.04
+            a_ = erode(rest_i[2], 4) & ~dilate(diff > 0.04, 4)
+            b_ = erode(hov_i[2], 4) & ~dilate(gh, 4)
+            lift = float(lum(rgb('dock-hover-beauty'))[b_].mean() - lum(rgb('dock-rest-beauty'))[a_].mean())
+            check('D14', 'Dock', 'Hover lights the globe, not only scales it', f'{lift:+.3f} mean luminance', lift >= 0.03,
+                  '>= +0.03 over the same globe at rest', 'Judge round 3: "there is no highlight, only scale"; apple-design: hover = light, not size alone')
+    # Judge round 3: the reflections were a second row of milky half-domes,
+    # as big and bright as the globes. A reflection in clear glass is faint
+    # and keeps the globe's colour.
+    if have('dock-rest-noicons'):
+        m_e = energy('dock-rest-beauty', 'dock-rest-nomirror', mirror)
+        g_e = energy('dock-rest-beauty', 'dock-rest-noicons', erode(icons, 2))
+        dm = rgb('dock-rest-beauty') - rgb('dock-rest-nomirror')
+        tint = []
+        for one in split_columns(mask('dock-rest-mirror') & shelf)[:4]:   # the four coloured globes
+            d = dm[one & (np.abs(dm).max(axis=2) > 0.02)]
+            if len(d):
+                tint.append(float(np.abs(d.mean(axis=0) - d.mean()).mean() / max(np.abs(d).mean(), 1e-3)))
+        t = min(tint) if tint else 0
+        check('D12', 'Dock', 'Reflections are faint and coloured, not a second row of globes', f'{m_e / max(g_e, 1e-3):.2f} of the globes\' strength; colour share {t:.2f}',
+              m_e <= 0.35 * g_e and t >= 0.15, 'strength <= 0.35 of the globes; colour share (hue in the added light) >= 0.15',
+              'Judge round 3: "a second row of milky half-domes, as big and as bright as the globes"; lookdev mirror is faint')
+    # Judge round 3: dirt and ghost icons in every globe. The room seen in
+    # the glass should be soft light, not pixel-scale detail: share of
+    # pixels where the reflection carries sharp detail (glyph left out).
+    refl_d = sharp(np.abs(rgb('dock-rest-beauty') - rgb('dock-rest-noreflect')))
+    dirt = [float((refl_d[erode(one, 3) & ~dilate(diff > 0.04, 3)] > 0.04).mean()) for one in split_columns(icons)]
+    check('D13', 'Dock', 'Globes are clean: reflections are soft, no fine dirt or ghost icons', 'worst ' + f'{max(dirt):.1%} (' + ', '.join(f'{x:.0%}' for x in dirt) + ')',
+          max(dirt) <= 0.05, '<= 5% of each globe has pixel-scale detail in its reflection', 'Judge round 3: "room-reflection artifacts that read as dirt or bugs"')
     region = dilate(icons | shelf, 6)
     for state in ('rest', 'hover'):
         if have(f'shown-dock-{state}'):
@@ -276,7 +361,10 @@ if have('slider-rest-beauty'):
     p0, p1 = geo['axis']
     stem = mask('slider-rest-stem')
     prof = profile(stem, p0, p1)
-    core = float(np.median(prof[int(len(prof) * 0.4):int(len(prof) * 0.6)]))
+    # The stem's own width: its waist (the knob's fillet is a long bell, so
+    # the middle of the stem is already part of a curve).
+    inner = prof[int(len(prof) * 0.1):int(len(prof) * 0.9)]
+    core = float(inner[inner > 0].min()) if (inner > 0).any() else 1.0
     ends = (float(prof[:4].max()), float(prof[-4:].max()))
     step = float(np.abs(np.diff(prof[2:-2])).max() / max(core, 1))
     flare = [float((prof[:len(prof) // 2] > 1.15 * core).mean() * 2), float((prof[len(prof) // 2:] > 1.15 * core).mean() * 2)]
@@ -334,10 +422,15 @@ if have('slider-rest-beauty'):
     dl = np.abs(rgb('slider-rest-beauty') - rgb('slider-rest-nolabel')).max(axis=2)
     txt = dl > max(0.25, float(np.percentile(dl[dl > 0.25], 60))) if (dl > 0.25).sum() > 50 else dl > 0.25
     # Every letter, not the median: the room behind the label is uneven.
-    each = [contrast(float(np.median(L[g])), float(np.median(L0[g]))) for g in split_columns(txt) if g.sum() > 30]
+    # Each letter by itself (the name is lighter than the value, so one
+    # threshold over the whole label would keep only the value's strokes).
+    each = []
+    for g in components(dl > 0.25, 20):
+        strokes = g & (dl >= np.percentile(dl[g], 60))
+        each.append(contrast(float(np.median(L[strokes])), float(np.median(L0[strokes]))))
     c = min(each) if each else 0
     check('S6', 'Z-Slider', 'Value label is legible over the room, every letter (text vs what is behind it)', f'worst {c:.1f}:1 over {len(each)} letters', c >= 4.5,
-          '>= 4.5:1 (WCAG 1.4.3)', 'accessibility-review skill; judge round 2: 3.3:1 at the "L" and "%"')
+          '>= 4.5:1 (WCAG 1.4.3)', 'accessibility-review skill; judge round 2: 3.3:1 at the "L" and "%"; each letter measured on its own strokes (one threshold across the label had skipped the lighter name)')
     if have('slider-rest-nobubble'):
         # What the label adds round its letters: either nothing, or a piece
         # of glass with a defined edge and an even tone, never a soft patch
@@ -359,6 +452,37 @@ if have('slider-rest-beauty'):
         check('S10', 'Z-Slider', 'Label backing is a defined piece of glass, not a soft shade (no spill round it, even tone on it)',
               f'spill {spill:.4f} (3-30 px outside), blotchiness {blotch:.3f}' + ('' if back.sum() > 200 else ' (no backing)'), spill <= 0.01 and blotch <= 0.02,
               'spill <= 0.01; blotchiness (tone left after its smooth gradient) <= 0.02', 'Judge round 2: "a dark smudge sits behind the label and reads as dirt"; text sits on glass (catalog-spec)')
+    # Judge round 3: a bright seam and stair-stepped highlights where the
+    # stem enters the knob, and along the stem.
+    refl_s = sharp(np.abs(rgb('slider-rest-beauty') - rgb('slider-rest-noreflect')))
+    gk = np.abs(rgb('slider-rest-beauty') - rgb('slider-rest-noglyph')).max(axis=2) > 0.04
+    j_stem = float((refl_s[erode(stem & ~knob, 1)] > 0.04).mean())
+    j_knob = float((refl_s[erode(knob, 1) & ~dilate(gk, 3)] > 0.04).mean())
+    check('S12', 'Z-Slider', 'Glass edges are clean: no stair-stepped or cross-hatched reflections on the stem and knob',
+          f'stem {j_stem:.1%}, knob {j_knob:.1%}', j_stem <= 0.06 and j_knob <= 0.04, 'stem <= 6%, knob <= 4% of pixels with pixel-scale detail in the reflection',
+          'Judge round 3: "a striped, jagged highlight runs along the stem"')
+    # The knob's joint must curve where you can see it: in the stem left
+    # visible beside the knob, it widens before it goes behind the glass.
+    vis = profile(stem & ~knob, p0, p1)
+    seen = np.nonzero(vis)[0]
+    k_end = float(vis[seen[-3:]].max() / max(core, 1)) if len(seen) else 0
+    check('S13', 'Z-Slider', 'Knob joint curves in view: the visible stem flares before it enters the knob', f'{k_end:.2f}x the stem at the knob\'s edge',
+          k_end >= 1.3, '>= 1.3x the stem', 'Judge round 3: "where the stem meets the knob there is a hard bright vertical seam and no curve"')
+    # Judge round 3: the label was a chocolate-brown plastic bar, and the
+    # plate muddy. Lookdev plate: clear glass that greys the wall (its face
+    # is less colourful than the wall). The label's glass: neutral, not the
+    # darkest thing in the frame (and S6 keeps the text legible on it).
+    if have('slider-rest-labelglass'):
+        Sb = rgb('slider-rest-beauty')
+        wall = dilate(plate, 40) & ~dilate(plate, 8) & ~dilate(knob, 40) & ~dilate(mask('slider-rest-labelglass'), 20)
+        face = erode(plate, 6) & ~dilate(knob | stem, 14)
+        lab_face = erode(mask('slider-rest-labelglass'), 8) & ~dilate(dl > 0.05, 4)
+        cw, cp, cl = chroma(Sb[wall]), chroma(Sb[face]), chroma(Sb[lab_face]) if lab_face.any() else 1
+        lp, ll = float(np.median(lum(Sb[face]))), float(np.median(lum(Sb[lab_face]))) if lab_face.any() else 0
+        check('S11', 'Z-Slider', 'Plate and label are clear neutral glass: the plate greys the wall, the label is neutral and not the heaviest mass',
+              f'plate {cp / cw:.2f}x the wall\'s colour; label {cl / cw:.2f}x, {ll / max(lp, 1e-3):.2f}x the plate\'s light',
+              cp <= 0.85 * cw and cl <= 0.6 * cw and ll >= 0.45 * lp, 'plate <= 0.85x, label <= 0.6x the wall\'s colour; label >= 0.45x the plate\'s light (Blender plate: 0.6-0.75x)',
+              'Judge round 3: "the label is a chocolate-brown plastic bar"; "the plate is muddy grey-brown"')
     if have('shown-slider-rest'):
         region = dilate(glass, 6)
         c = float(((np.abs(rgb('shown-slider-rest') - np.asarray(Image.open('shots/match/live-slider-rest.png').convert('RGB'), dtype=np.float32) / 255).max(axis=2) > 0.06) & region).sum() / region.sum())

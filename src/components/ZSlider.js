@@ -25,7 +25,7 @@ import { Interactable, markComponent } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { cubicBezier, clamp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { flatMaterial, makeText, makeIcon, softTexture, glassSlabGeometry, glassBeadGeometry, glassMaterial } from '../core/look.js';
+import { flatMaterial, makeText, makeIcon, softTexture, glassSlabGeometry, glassBeadGeometry } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { detentIndex, shadowAt } from '../core/detent.js';
 import { playTick } from '../core/audio.js';
@@ -102,7 +102,8 @@ export class ZSlider extends Interactable {
     // and fillets are one surface (judge round 2: separate pieces showed an
     // inner rod and its end through the glass).
     const stemR = side * 0.1;
-    this.stemShape = new StemGeometry(stemR, stemR * G.fillet.flare, Math.min(side * G.fillet.length, this.travel * 0.3));
+    const F = G.fillet;
+    this.stemShape = new StemGeometry(stemR, ...[F.plate, F.knob].map(f => ({ a: stemR * f.flare, b: side * f.length, p: f.shape })));
     this.stem = refractiveMesh(this.stemShape, refractiveGlass('rod', { thick: stemR * 2 }));
     this.stem.renderOrder = 2.5;  // over the rings
     this.add(this.stem);
@@ -140,22 +141,25 @@ export class ZSlider extends Interactable {
     this.t = knobH;
 
     // Value label beside the plate, in the plate's plane (as in the lookdev
-    // render), clear of the hand on the knob. It sits on a small platter of
-    // window glass, as text in Contour always sits on glass: the glass tone
-    // keeps it legible over a bright room (judge round 2: a soft dark shade
-    // read as dirt). The value leads: larger and bolder than the name, and
-    // right-aligned so the digits stay put as the value changes.
+    // render), clear of the hand on the knob. It sits on a capsule of the
+    // plate's own glass, smoked and greyed (refract.label), as text in
+    // Contour always sits on glass: legible over a bright room, and one
+    // material with the plate (judge round 2: a soft shade read as dirt;
+    // round 3: window glass over the warm room read as brown plastic). The
+    // value leads: larger and bolder than the name, and right-aligned so the
+    // digits stay put as the value changes.
     const L = DEFAULTS.look.valueLabel;
     const lw = dmm(L.width), lh = dmm(L.height), pad = dmm(L.pad);
     this.bubble = new THREE.Group();
-    this.labelGlass = new THREE.Mesh(glassSlabGeometry(lw, lh, T.get('material.t.thin'), lh / 2), glassMaterial(T, { w: lw, h: lh, t: T.get('material.t.thin') }));
-    this.labelGlass.position.set(lw / 2, 0, -T.get('material.t.thin'));
-    this.labelGlass.material.uniforms.uGrain.value = 0;   // the frost's grain reads as leather on a piece this small
+    this.labelGlass = refractiveMesh(glassSlabGeometry(lw, lh, plateT, lh / 2), refractiveGlass('label', { thick: plateT, flatBack: true }));
+    this.labelGlass.position.set(lw / 2, 0, -plateT);
     this.labelGlass.renderOrder = 1;
     this.bubble.add(this.labelGlass);
     const bz = 0.0004;
     if (o.label) {
-      const name = makeText(o.label, { size: dmm(L.name.size), weight: L.name.weight, anchorX: 'left', opacity: DEFAULTS.emphasis.secondary });
+      // Full white like the value (hierarchy comes from size and weight): at
+      // secondary emphasis it fell to 4.1:1 on the smoked glass.
+      const name = makeText(o.label, { size: dmm(L.name.size), weight: L.name.weight, anchorX: 'left' });
       name.position.set(pad, 0, bz);
       this.bubble.add(name);
     }
@@ -276,14 +280,16 @@ export class ZSlider extends Interactable {
 }
 
 // The stem with a fillet at each end, as one lathe round +z from the plate
-// (z = 0) to the knob (z = length). Each fillet flares the radius r to r + a
-// over b (a quarter ellipse, tangent to the stem and to the face it meets);
-// on a stem shorter than 2b both flatten together. fit() moves the rings
-// for a new length in place, so pushing the knob never rebuilds the mesh.
+// (z = 0) to the knob (z = length). Each fillet ({a, b, p}) flares the
+// radius r to r + a over b, tangent to the stem and to the face it meets: a
+// superellipse quarter, p = 2 an ellipse, lower p swelling sooner (a bell).
+// On a stem shorter than both b together, both flatten in step.
+// fit() moves the rings for a new length in place, so pushing the knob
+// never rebuilds the mesh.
 class StemGeometry extends THREE.BufferGeometry {
-  constructor(r, a, b, steps = 20, around = 48) {
+  constructor(r, plate, knob, steps = 20, around = 48) {
     super();
-    Object.assign(this, { r, a, b, steps, around });
+    Object.assign(this, { r, plate, knob, steps, around });
     const rings = 2 * (steps + 1), n = rings * (around + 1);
     this.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
     this.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -295,21 +301,23 @@ class StemGeometry extends THREE.BufferGeometry {
       }
     }
     this.setIndex(index);
-    this.fit(4 * b);
+    this.fit(2 * (plate.b + knob.b));
   }
 
   fit(length) {
-    const { r, a, steps, around } = this;
-    const b = Math.max(1e-5, Math.min(this.b, length / 2));
+    const { r, steps, around } = this;
+    const squeeze = Math.min(1, length / (this.plate.b + this.knob.b));
     const pos = this.attributes.position.array, nor = this.attributes.normal.array;
     let o = 0;
     // Ring k of 2 (steps + 1): the plate's fillet going up, then the knob's.
     for (let k = 0; k < 2 * (steps + 1); k++) {
       const top = k > steps, i = top ? 2 * steps + 1 - k : k;
+      const { a, p } = top ? this.knob : this.plate;
+      const b = Math.max(1e-5, (top ? this.knob : this.plate).b * squeeze);
       const u = i / steps, z = b * (1 - Math.cos(u * Math.PI / 2));   // denser near the face, where it curves most
-      const t = 1 - z / b, root = Math.sqrt(Math.max(1e-6, 1 - t * t));
-      const rr = r + a * (1 - root);
-      const slope = -a * t / (b * root);   // d radius / d z, toward the stem
+      const t = 1 - z / b, root = Math.max(1e-6, 1 - t ** p);
+      const rr = r + a * (1 - root ** (1 / p));
+      const slope = -a / b * t ** (p - 1) * root ** (1 / p - 1);   // d radius / d z, toward the stem
       const zz = top ? length - z : z, nz = top ? slope : -slope;
       const len = Math.hypot(1, nz);
       for (let j = 0; j <= around; j++, o += 3) {

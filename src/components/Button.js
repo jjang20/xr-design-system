@@ -112,9 +112,12 @@ export class Button extends Interactable {
       const tint = equalLuminance(glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral), DEFAULTS.look.refract.tile.luminance).map(v => this.disabled ? 0.7 + 0.3 * v : v);
       this.body = refractiveMesh(new THREE.SphereGeometry(r, 64, 48).translate(0, 0, r), refractiveGlass('tile', { thick: this.t, color: tint, globe: true, glyph: { map: null, size: 1 } }));
       this.body.userData.globeCenter = new THREE.Vector3(0, 0, r);
+      this.body.userData.globeRadius = r;
       // The tint is also what the glass absorbs: deeper colour through the
       // middle of the ball, where the path is longest.
-      const hi = Math.max(...tint);
+      // A grey globe absorbs evenly: smoked glass, so it reads as tinted
+      // like the others rather than clear (and its glyph keeps contrast).
+      const hi = Math.max(...tint, DEFAULTS.look.refract.tile.neutralDepth);
       this.body.material.uniforms.uAttColor.value.setRGB(...tint.map(v => v / hi));
       this.body.material.uniforms.uAttDist.value = this.t * DEFAULTS.look.refract.tile.absorb;
       this.body.renderOrder = 2;

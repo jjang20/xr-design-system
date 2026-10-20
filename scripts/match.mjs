@@ -20,8 +20,9 @@ const ICONS = 'mask:icon0,icon1,icon2,icon3,icon4';
 const PASSES = {
   'dock-rest': [['shelf', 'mask:shelf'], ['icons', ICONS], ['mirror', 'mask:mirror'], ['dot', 'mask:dot'],
     ['noglyph', 'noglyph'], ['nomirror', 'nomirror'], ['noglow', 'noglow'], ['flatroom', 'flatroom'],
-    ['norefract', 'norefract'], ['physical-refract', 'physical-refract'], ['noreflect', 'noreflect'], ['physical-reflect', 'physical-reflect']],
-  'dock-hover': [['shelf', 'mask:shelf'], ['icons', ICONS]],
+    ['norefract', 'norefract'], ['physical-refract', 'physical-refract'], ['noreflect', 'noreflect'], ['physical-reflect', 'physical-reflect'],
+    ['noicons', 'hide:icon0,icon1,icon2,icon3,icon4,mirror']],
+  'dock-hover': [['shelf', 'mask:shelf'], ['icons', ICONS], ['noglyph', 'noglyph']],
   'slider-rest': [['knob', 'mask:knob'], ['stem', 'mask:stem,joint'], ['plate', 'mask:plate'], ['noglow', 'noglow'], ['noglyph', 'noglyph'], ['nolabel', 'nolabel'],
     ['labelglass', 'mask:labelglass'], ['noplate', 'hide:plate'], ['nostem', 'hide:stem'], ['nobubble', 'hide:bubble'], ['flatroom', 'flatroom'],
     ['norefract', 'norefract'], ['physical-refract', 'physical-refract'], ['noreflect', 'noreflect'], ['physical-reflect', 'physical-reflect']],
