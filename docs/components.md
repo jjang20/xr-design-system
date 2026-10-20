@@ -98,6 +98,10 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 
 Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside. Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
 
+## Toolbar
+
+An ornament of actions under a window: one glass bar whose buttons are places where its own glass swells into a bubble on hover and dents on press. The primary action is a patch of accent-tinted glass (`DEFAULTS.color.accentGlass`), so the room shows through it blue; in tinted glass the press light takes the glass's colour. Events: `select` (with the tool and its index).
+
 ## Dock
 
 The app launcher, body-locked 25° below your view.
@@ -150,6 +154,17 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
 
 ## Decisions
+
+### Colour lives in the glass (2026-10-20)
+- **Decision:** Accent colour is tinted glass: the glass's own transmission is coloured, so the room shows through it in that colour (the toolbar's primary button, Dock icons). No opaque colour fills on glass.
+- **Why:** One material everywhere, and tint darkens what's behind white text, so legibility holds (Place: 11:1).
+- **Alternatives:** A coloured light inside clear glass (reads as a state, not an identity); an opaque fill (clearest, but breaks the material).
+- **Trade-offs:** Tinted glass changes with the room behind it; over a saturated room the hue shifts. Unsaturated colours (Settings' grey) use the plain window glass.
+
+### Known gaps handed to the arena (2026-10-20)
+- **Dock:** tinted glass beads on a glass shelf are a first pass. Seen from above, the domes read as candy marbles; it needs Blender lookdev like the bubble had.
+- **Z-Slider:** still the old opaque knob. Proposed: a glass bead in a shallow well in the glass, sinking deeper as the value rises, with a light ring per detent.
+- **Backdrop:** the room photo is 1K; renders at 6K show it soft. A 4K+ file is needed (Poly Haven is blocked from the cloud).
 
 ### Bubble: the hover and press language (locked 2026-10-20)
 - **Decision:** A hovered row doesn't get a separate lens or a colour fill. The window's own glass swells into a soft pillow under it (6 mm at 0.6 m, domed like the icon beads, glossy and clearer on the crown). Pressing makes a dent where the press lands (bell-shaped, 20 mm wide at half depth, 4.5 mm deep), shaded as a hollow with an inner shadow on the wall facing the light. Light gathers in an 8 mm core at the bottom of the dent and travels to the bubble's edge, brightest nearest the finger. On release the dent springs back past flat once; the bubble deflates without a wobble. Values: `DEFAULTS.look.emboss`.
