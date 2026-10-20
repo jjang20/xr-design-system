@@ -12,7 +12,7 @@ import argparse, math, os, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ap = argparse.ArgumentParser()
 ap.add_argument('--part', default='dock', choices=['dock', 'slider'])
-ap.add_argument('--option', default='bead')  # dock: bead | inlay | layered; slider: stem | column | membrane
+ap.add_argument('--option', default='bead')  # dock: bead | inlay | layered | shelf; slider: stem | column | membrane
 ap.add_argument('--state', default='rest', choices=['rest', 'hover', 'press'])
 ap.add_argument('--value', type=float, default=0.4)  # slider value, 0 pulled out .. 1 pushed in
 ap.add_argument('--samples', type=int, default=64)
@@ -123,6 +123,72 @@ def holder(name, parent=ui):
     return link(bpy.data.objects.new(name, None), parent)
 
 
+
+# ---------------------------------------------------------------- Dock, shelf
+def milky(name, rgb):
+    """Icon tile glass: partly milky, so its colour holds over any room."""
+    m, p = principled(name, **{'Base Color': (*rgb, 1), 'Transmission Weight': 0.6, 'Roughness': 0.16,
+                               'IOR': 1.45, 'Coat Weight': 1.0, 'Coat Roughness': 0.03, 'Coat IOR': 1.5})
+    return m
+
+
+def shelf_dock():
+    """Jihoon's direction (2026-10-20): a Snow Leopard style dock. A thin,
+    flat glass shelf curved around the user at reach, so every icon is the
+    same distance from the eye, with the icons floating upright above it
+    and reflected in it."""
+    R = 0.5                       # the arc's radius: the user's reach at the desk
+    dist = R
+    dm = lambda v: v / 1000 * dist
+    side, gap, pad = dm(60), dm(18), dm(16)
+    L = 5 * side + 4 * gap + 2 * pad; D = side * 1.7; T = 0.003
+    lift = dm(10)                 # how high the icons float over the glass
+    hovered = own.state in ('hover', 'press')
+    C = Vector((0, -R, 0))        # the user, at the arc's centre
+    on_arc = lambda s, t, z=0.0: C + Vector(((R + t) * math.sin(s / R), (R + t) * math.cos(s / R), z))
+    # The shelf: a rounded rect laid along the arc, then given a polished rim.
+    bm = bmesh.new()
+    pts = rounded_rect(L, D, D / 2 * 0.98, 16)
+    # Subdivide the long sides so the arc stays smooth.
+    dense = []
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
+        n = max(1, int(abs(x1 - x0) / 0.002))
+        dense += [(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) for i in range(n)]
+    face = bm.faces.new([bm.verts.new(on_arc(x, y)) for x, y in dense])
+    ext = bmesh.ops.extrude_face_region(bm, geom=[face])
+    for v in [e for e in ext['geom'] if isinstance(e, bmesh.types.BMVert)]: v.co.z += T
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    me = bpy.data.meshes.new('shelf'); bm.to_mesh(me); bm.free()
+    sh = bpy.data.objects.new('shelf', me); scene.collection.objects.link(sh)
+    bev = sh.modifiers.new('rim', 'BEVEL'); bev.width = T * 0.49; bev.segments = 8; bev.limit_method = 'ANGLE'
+    bev.angle_limit = math.radians(60)
+    me.materials.append(glass('shelfglass', (0.74, 0.76, 0.8), 0.02, 6, coat=1.0))  # smoky, mirror-smooth: it carries the reflections
+    for pl in me.polygons: pl.use_smooth = True
+    # The icons: upright tiles of milky tinted glass, each turned to face
+    # the user. The hovered one rises and grows, macOS magnification style.
+    xs = [-L / 2 + pad + side / 2 + i * (side + gap) for i in range(5)]
+    for i, (ic, rgb) in enumerate(APPS):
+        up = hovered and i == HOVER
+        k = 1.18 if up else 1.0
+        d = side * k
+        th = -xs[i] / R
+        h = link(bpy.data.objects.new(f'tile{i}', None), None)
+        h.location = on_arc(xs[i], 0, T + lift + (dm(8) if up else 0) + d / 2)
+        h.rotation_euler = (math.pi / 2, 0, th)
+        col = tuple(min(1.0, v * 1.3) for v in lin(rgb or NEUTRAL))
+        tile = slab(f't{i}', d, d, d * 0.24, dm(5) * k, milky(f'm{i}', col), h)
+        tile.location = (0, 0, -dm(2.5) * k)
+        icon(ic, d * 0.5, 0, 0, dm(2.5) * k + 0.0004, h)
+    # Snow Leopard's running light: a small glowing dot on the glass in
+    # front of an open app (Home here).
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=dm(2.5))
+    rd = bpy.context.object; rd.scale = (1, 1, 0.35); rd.location = on_arc(xs[0], -D * 0.38, T + 0.0004)
+    rd.data.materials.append(emissive('runlight', (0.75, 0.88, 1.0), strength=4))
+    # Camera: the user's eye, 0.28 m above the shelf and looking down at it.
+    eye = C + Vector((0, 0.02, 0.28))
+    return eye, Vector((0, 0, T + lift + side * 0.3)), 24
+
+
 # ---------------------------------------------------------------- Dock
 def dock():
     dist = 0.55
@@ -208,24 +274,41 @@ def slider():
             ring = bpy.context.object; ring.parent = root; ring.location = (0, 0, T_WINDOW + z)
             ring.data.materials.append(text_mat(0.5))
         icon('sun', side * 0.42, 0, 0, T_WINDOW + out + 0.0004, root)
-    else:  # stem: a clear bead knob on a thin glass stem over detent rings
-        slab('plate', plateD, plateD, plateD / 2, T_WINDOW, M_WINDOW, root)
-        bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=side * 0.12, depth=out, location=(0, 0, 0))
+    else:  # stem: an amber glass bead knob on a glass stem over detent rings
+        # Refined after the critique: amber glass instead of clear (it read as
+        # a pin), a flared foot so the stem grows out of the plate rather than
+        # being stuck into it, and five etched detents instead of ten white
+        # rings (a dartboard). Detents up to the value glow lamp amber.
+        slab('plate', plateD, plateD, plateD / 2 * 0.98, T_WINDOW, M_WINDOW, root)  # a hair under round: full round left a seam
+        glassA = tinted('amberglass', lin(amber), rough=0.05, absorb=3)
+        bpy.ops.mesh.primitive_cylinder_add(vertices=64, radius=side * 0.1, depth=out, location=(0, 0, 0))
         st = bpy.context.object; st.parent = root; st.location = (0, 0, T_WINDOW + out / 2)
-        st.data.materials.append(M_BEAD)
-        for i in range(10):
-            bpy.ops.mesh.primitive_torus_add(major_radius=side * (0.2 + 0.055 * i), minor_radius=0.00025, location=(0, 0, 0))
-            ring = bpy.context.object; ring.parent = root; ring.location = (0, 0, T_WINDOW + 0.0003)
-            ring.data.materials.append(text_mat(0.5 if i < round((1 - own.value) * 10) else 0.15))
-        knob = bead('knob', side, side * 0.3, M_BEAD, root); knob.location = (0, 0, T_WINDOW + out)
-        icon('sun', side * 0.42, 0, 0, T_WINDOW + out + side * 0.3 + 0.0003, root)
+        st.data.materials.append(glassA)
+        for p in st.data.polygons: p.use_smooth = True
+        foot = bead('foot', side * 0.5, side * 0.07, glassA, root); foot.location = (0, 0, T_WINDOW)
+        lit = emissive('detent-lit', lin(amber), strength=2.2)
+        etched = emissive('detent', (1, 1, 1), strength=0.35)  # faint, like an etch in the frost
+        n = 5
+        for i in range(n):
+            on = i < round(own.value * n)
+            bpy.ops.mesh.primitive_torus_add(major_radius=side * (0.34 + 0.07 * i), minor_radius=0.0003 if on else 0.0002, location=(0, 0, 0))
+            ring = bpy.context.object; ring.parent = root; ring.location = (0, 0, T_WINDOW + 0.0002)
+            ring.data.materials.append(lit if on else etched)
+        knob = bead('knob', side, side * 0.22, glassA, root); knob.location = (0, 0, T_WINDOW + out)
+        icon('sun', side * 0.42, 0, 0, T_WINDOW + out + side * 0.22 + 0.0003, root)
+        # A rim light from behind, so the amber glass edges catch light.
+        rim = bpy.data.lights.new('rim', 'AREA'); rim.size = 0.3; rim.energy = 6; rim.color = (1.0, 0.85, 0.65)
+        rob = bpy.data.objects.new('rim', rim); scene.collection.objects.link(rob)
+        rob.location = (-0.35, 0.4, 0.35); rob.rotation_euler = (Vector((0, 0, 0)) - rob.location).to_track_quat('-Z', 'Y').to_euler()
     # Value label beside the knob, as the live component has it.
     text(f'Lamp  {round(own.value * 100)}%', 'headline', plateD / 2 + dmm(10), 0, T_WINDOW + 0.0004, root)
     a = 0.75
     return Vector((math.sin(a) * dist, -math.cos(a) * dist, 0.05)), 11
 
 
-eye, fov = dock() if own.part == 'dock' else slider()
+aim = Vector((0, 0, 0))
+if own.part == 'dock' and own.option == 'shelf': eye, aim, fov = shelf_dock()
+else: eye, fov = dock() if own.part == 'dock' else slider()
 
 key = bpy.data.lights.new('key', 'AREA'); key.size = 0.6; key.energy = 18; key.color = (1.0, 0.92, 0.82)
 kob = bpy.data.objects.new('key', key); scene.collection.objects.link(kob)
@@ -234,8 +317,8 @@ cam = bpy.data.cameras.new('cam'); cam.sensor_fit = 'VERTICAL'; cam.angle_y = ma
 cam.dof.use_dof = True; cam.dof.aperture_fstop = 5.6
 cob = bpy.data.objects.new('cam', cam); scene.collection.objects.link(cob); scene.camera = cob
 cob.location = eye
-cob.rotation_euler = (Vector((0, 0, 0)) - eye).to_track_quat('-Z', 'Y').to_euler()
-cam.dof.focus_distance = eye.length
+cob.rotation_euler = (aim - eye).to_track_quat('-Z', 'Y').to_euler()
+cam.dof.focus_distance = (aim - eye).length
 os.makedirs(os.path.dirname(own.out), exist_ok=True)
 scene.render.filepath = own.out
 bpy.ops.render.render(write_still=True)
