@@ -109,6 +109,7 @@ export const DEFAULTS = {
     contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.55, lens: 0.4 },
     // Icon badge: a glass bead this high (fraction of its diameter).
     beadHeight: 0.22,
+    dockBeadHeight: 0.2, // Dock icons: a low dome (fuller domes read as candy marbles)
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity

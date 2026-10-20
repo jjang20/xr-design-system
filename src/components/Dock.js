@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, makeText } from '../core/look.js';
+import { glassMaterial, glassSlabGeometry, makeText } from '../core/look.js';
 import { springStep } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { Button } from './Button.js';
@@ -44,10 +44,10 @@ export class Dock extends THREE.Group {
     this.posStarted = false;
     this.rotation.order = 'YXZ';
 
-    // App icons: round, tinted, with a glyph. Names appear on hover.
+    // App icons: tinted glass beads with a glyph. Names appear on hover.
     const dmm = v => (v / 1000) * dist;
     this.icons = o.apps.map(app => {
-      const b = new Button(T, { icon: app.icon, shape: 'circle', variant: 'tinted', color: app.color, thickness: 'regular', density: 'firm', distance: dist });
+      const b = new Button(T, { icon: app.icon, shape: 'circle', variant: 'bead', color: app.color, thickness: 'regular', density: 'firm', distance: dist });
       b.addEventListener('select', () => this.dispatchEvent({ type: 'select', app }));
       const name = makeText(app.label, { size: dmm(13), weight: 500, opacity: 0 });
       name.position.set(0, -b.h / 2 - dmm(14), b.t);
@@ -59,11 +59,11 @@ export class Dock extends THREE.Group {
     this.side = this.icons[0].w;
     this.tBase = T.get('material.t.thick');
     this.pad = dmm(14);
-    this.base = new THREE.Mesh(new THREE.BufferGeometry(), bodyMaterial(T, { color: DEFAULTS.color.window }));
+    // The shelf: a glass bar, the same material as windows and the toolbar.
+    this.base = new THREE.Mesh(new THREE.BufferGeometry(), glassMaterial(T, { w: 0.3, h: 0.08, t: this.tBase }));
     this.base.position.z = -this.tBase;
+    this.base.renderOrder = 1;
     this.add(this.base);
-    this.baseFx = new THREE.Mesh(new THREE.BufferGeometry(), faceMaterial(T, { w: 1, h: 1, r: 0.5, distance: dist }));
-    this.add(this.baseFx);
     this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * (this.side + this.gap));
     this.scales = this.icons.map(() => 1);
     this.layout();
@@ -85,13 +85,7 @@ export class Dock extends THREE.Group {
     if (this._baseW === undefined || Math.abs(this._baseW - w) > 0.002) {
       this._baseW = w;
       this.base.geometry.dispose();
-      this.base.geometry = bodyGeometry(w, h, this.tBase, h / 2);
-      this.baseFx.geometry.dispose();
-      this.baseFx.geometry = new THREE.PlaneGeometry(w, h);
-      const u = this.baseFx.material.uniforms;
-      u.uSize.value.set(w, h);
-      u.uRadius.value = h / 2;
-      this.baseFx.position.z = 0.0002;
+      this.base.geometry = glassSlabGeometry(w, h, this.tBase, h / 2);
     }
   }
 

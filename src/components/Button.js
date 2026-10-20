@@ -18,7 +18,7 @@ import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, makeText, makeIcon } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
 
@@ -87,6 +87,15 @@ export class Button extends Interactable {
       this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r, { tessellate: 0.002 }), glassMaterial(T, { w: this.w, h: this.h, t: this.t }));
       this.body.renderOrder = 1;
       this.skin = this.body.material;
+    } else if (this.variant === 'bead') {
+      // A tinted glass bead (Dock icons): a dome of coloured glass, like the
+      // Catalog's icon beads, so the room shows through it in the app's
+      // colour (accent colour lives in the glass, Jihoon 2026-10-20).
+      this.beadH = this.w * DEFAULTS.look.dockBeadHeight;
+      this.body = new THREE.Mesh(glassBeadGeometry(this.w, this.beadH), glassMaterial(T, { w: this.w, h: this.w, t: this.beadH, kind: 'bead' }));
+      this.body.renderOrder = 2;
+      this.skin = this.body.material;
+      setTint(this.skin, { hw: this.w / 2, hh: this.w / 2, r: this.w / 2, soft: this.w * 0.02, albedo: glassAlbedo(fill), amount: this.disabled ? 0.3 : 1 });
     } else if (this.variant === 'plain') {
       // A light glass lens: invisible at rest, it lifts out of the window
       // on hover, carrying the row's content with it.
@@ -192,7 +201,9 @@ export class Button extends Interactable {
     // A row lens rises out of the window on hover; pressing pushes it back.
     const lift = this.lift ? this.lift * (this.hover ?? 0) : 0;
     this.body.position.z = lift;
-    this.face.position.z = this.emboss ? Math.max(0, this.bulge) + 0.0004 : front + lift;
+    this.face.position.z = this.emboss ? Math.max(0, this.bulge) + 0.0004
+      : this.beadH ? this.beadH * front / this.t + 0.0004   // a pressed bead squashes; its glyph rides the top
+      : front + lift;
   }
 
   // Emboss style: how far the window swells under this row. Driven by a
@@ -301,6 +312,16 @@ export class Button extends Interactable {
     }
     this.layoutFront();
   }
+}
+
+// Tinted-glass transmission for a colour: its hue at full strength, so the
+// room shows through in that colour (the scrim caps brightness for text).
+// A grey (unsaturated) colour gets the window's own glass instead.
+function glassAlbedo(hex) {
+  const c = new THREE.Color(hex);
+  const hi = Math.max(c.r, c.g, c.b, 1e-3), lo = Math.min(c.r, c.g, c.b);
+  if ((hi - lo) / hi < 0.25) return DEFAULTS.look.glass.window.albedo;
+  return [c.r / hi * 1.3, c.g / hi * 1.3, c.b / hi * 1.3];
 }
 
 // One spring step (response in s, damping ratio), substepped for stability.
