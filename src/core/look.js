@@ -559,7 +559,7 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
 // ({x, y, radius, depth}, metres) presses a dimple into it; `glow` (0 to 1)
 // lights it from the dent. `scale` grows the mm sizes with distance.
 export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, scale = 1, ramp = L.emboss.ramp * scale / 1000, dent, glow = 0 } = {}) {
-  m.uniforms.uBulgeScale.value = scale;
+  if (height) m.uniforms.uBulgeScale.value = scale;   // clearing a slot keeps the other slot's scale
   m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
   const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
