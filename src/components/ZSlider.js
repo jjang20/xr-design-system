@@ -60,11 +60,11 @@ export class ZSlider extends Interactable {
     // slider's glass refracts what is behind it (core/refract.js): the stem
     // bends inside the knob as in the lookdev render. Drawn back to front.
     const plateD = side * 1.55;
-    const plate = refractiveMesh(glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), refractiveGlass('plate', { thick: plateT }));
+    const plate = refractiveMesh(glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), refractiveGlass('plate', { thick: plateT, flatBack: true }));
     plate.position.z = -plateT;
     plate.renderOrder = 1;
     this.add(plate);
-    const amber = (geo, t) => refractiveMesh(geo, refractiveGlass('amber', { thick: t }));
+    const amber = (geo, t, flatBack = true) => refractiveMesh(geo, refractiveGlass('amber', { thick: t, flatBack }));
 
     // Contact shadow on the plate, under the knob.
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(side * 1.15, side * 1.15), flatMaterial(C.shadow, this.shadowMin, { map: softTexture() }));
@@ -86,7 +86,7 @@ export class ZSlider extends Interactable {
 
     // Stem: amber glass, rising from a flared foot; shorter as the knob goes in.
     const stemR = side * 0.1;
-    this.stem = amber(new THREE.CylinderGeometry(stemR, stemR, 1, 48), stemR * 6);  // light crosses it twice, edge to edge: a deep amber, as in lookdev
+    this.stem = refractiveMesh(new THREE.CylinderGeometry(stemR, stemR, 1, 48), refractiveGlass('rod', { thick: stemR * 2 }));
     this.stem.rotation.x = Math.PI / 2;
     this.stem.renderOrder = 2.5;  // over the rings
     this.add(this.stem);

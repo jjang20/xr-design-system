@@ -19,7 +19,7 @@ import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, glassBallGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
 
@@ -60,6 +60,8 @@ export class Button extends Interactable {
     if (o.shape === 'circle') this.w = this.h = Math.min(this.w, this.h);
     this.r = o.shape === 'circle' || o.shape === 'capsule' ? Math.min(this.w, this.h) / 2
       : dmm(o.radius ?? DEFAULTS.radius.control);
+    // An app tile is a rounded glass ball, as deep as a good part of its side.
+    if (this.variant === 'tile') this.t = this.w * DEFAULTS.look.dockShelf.tileDepth;
     this.frontZ = this.t;
 
     this.press = new PressModel({
@@ -98,12 +100,12 @@ export class Button extends Interactable {
       this.skin = this.body.material;
       setTint(this.skin, { hw: this.w / 2, hh: this.w / 2, r: this.w / 2, soft: this.w * 0.02, albedo: glassAlbedo(fill), amount: this.disabled ? 0.3 : 1 });
     } else if (this.variant === 'tile') {
-      // An app tile (the shelf Dock): a thin, upright rounded square of
+      // An app tile (the shelf Dock): an upright, rounded ball of milky
       // tinted glass that floats over the shelf, like a Snow Leopard dock icon.
       this.r = this.w * DEFAULTS.look.dockTileRadius;
       // Refractive milky glass, as lookdev/dock_slider.py's milky() material.
       const tint = glassAlbedo(fill, DEFAULTS.look.glass.tileNeutral).map(v => this.disabled ? 0.7 + 0.3 * v : v);
-      this.body = refractiveMesh(glassSlabGeometry(this.w, this.h, this.t, this.r), refractiveGlass('tile', { thick: this.t, color: tint }));
+      this.body = refractiveMesh(glassBallGeometry(this.w, this.h, this.t), refractiveGlass('tile', { thick: this.t, color: tint }));
       this.body.renderOrder = 2;
       this.skin = this.body.material;
     } else if (this.variant === 'plain') {

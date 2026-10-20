@@ -98,6 +98,8 @@ const FRAG = /* glsl */`
   uniform float uScatter, uDiffuse, uCaustic, uEnvIntensity, uOpacity, uHover;
   uniform vec3 uKeyDir, uKeyColor, uRimDir, uRimColor;
   uniform float uKeySize, uRimSize;
+  uniform vec3 uBackN, uBackP;   // a flat back face (beads, slabs): its outward-facing front axis and a point on it
+  uniform float uBackMode, uBehind, uEdgeDark;
   uniform mat3 uEnvRot;
   #ifdef ENVMAP_TYPE_CUBE_UV
     uniform sampler2D envMap;
@@ -167,17 +169,38 @@ const FRAG = /* glsl */`
     // far side; what is there, tinted and absorbed along the way.
     float path = uThick * mix(1.0, 0.35, pow(1.0 - nv, 2.0)) / max(nv, 0.35);
     vec3 T = refract(-V, N, 1.0 / uIor);
+    vec3 exitP = vWorld + T * path;
+    float tir = 0.0;
+    if (uBackMode > 0.5) {
+      // A plano-convex piece (a bead: the knob, the foot) or a slab: follow
+      // the ray to the flat back face, bend it out into the air there, and
+      // look a little way beyond. This is what makes the knob a lens: the
+      // stem behind it is magnified and bent the way the path tracer shows.
+      float dn = dot(T, uBackN);
+      float tb = dn < -1e-4 ? dot(uBackP - vWorld, uBackN) / dn : uThick;
+      tb = clamp(tb, 0.0, uThick * 4.0);
+      path = tb;
+      vec3 pb = vWorld + T * tb;
+      vec3 T2 = refract(T, uBackN, uIor);
+      if (dot(T2, T2) < 1e-6) { T2 = T; tir = 1.0; }   // trapped by total internal reflection: it leaves elsewhere; keep going
+      exitP = pb + T2 * uBehind;
+    }
     float blurPx = uRough * uRough * uGrabSize.y * 0.06;
     vec3 seen;
     if (uDispersion > 0.0) {
       vec3 Tr = refract(-V, N, 1.0 / (uIor - uDispersion));
       vec3 Tb = refract(-V, N, 1.0 / (uIor + uDispersion));
-      seen = vec3(behind(vWorld + Tr * path, blurPx).r, behind(vWorld + T * path, blurPx).g, behind(vWorld + Tb * path, blurPx).b);
+      vec3 d = exitP - (vWorld + T * path);
+      seen = vec3(behind(vWorld + Tr * path + d, blurPx).r, behind(exitP, blurPx).g, behind(vWorld + Tb * path + d, blurPx).b);
     } else {
-      seen = behind(vWorld + T * path, blurPx);
+      seen = behind(exitP, blurPx);
     }
     // Back to scene light (the copy is tone mapped; near-linear in the mids).
-    vec3 absorb = pow(uAttColor, vec3(path / uAttDist));
+    vec3 absorb = pow(uAttColor, vec3(path / uAttDist)) * (1.0 - 0.25 * tir);
+    // A rod or other rounded piece seen at its edge: the ray skims along it
+    // and is trapped, so the silhouette reads as a dark line (the path
+    // tracer's stem has them).
+    if (uBackMode < 0.5) absorb *= 1.0 - uEdgeDark * smoothstep(0.55, 0.95, 1.0 - nv);
     vec3 col = seen * uColor * absorb * (1.0 - F) * (1.0 - Fc) * (1.0 - uDiffuse);
 
     // Light scattered inside the glass, in its own colour (milky glass).
@@ -217,7 +240,7 @@ const FRAG = /* glsl */`
  * (amber, plate, tile, shelf); `o` overrides it.
  * thick: the glass's greatest thickness along the view (m).
  */
-export function refractiveGlass(kind, { thick, color } = {}) {
+export function refractiveGlass(kind, { thick, color, flatBack = false } = {}) {
   const P = R[kind];
   const B = backdropUniforms();
   const light = R.lights;
@@ -241,6 +264,8 @@ export function refractiveGlass(kind, { thick, color } = {}) {
       uDispersion: { value: P.dispersion ?? 0 },
       uScatter: { value: P.scatter ?? 0 },
       uDiffuse: { value: P.diffuse ?? 0 },
+      uBackN: { value: new THREE.Vector3() }, uBackP: { value: new THREE.Vector3() },
+      uBackMode: { value: 0 }, uBehind: { value: P.behind ?? 0.006 }, uEdgeDark: { value: P.edgeDark ?? 0 },
       uSpot: { value: new THREE.Vector2() },   // (Button sets it; unused)
       uCaustic: { value: P.caustic ?? 0 },
       uOpacity: { value: 1 },
@@ -253,6 +278,7 @@ export function refractiveGlass(kind, { thick, color } = {}) {
       uRimSize: { value: light.rim.size },
     },
   });
+  m.uniforms.uBackMode.value = flatBack ? 1 : 0;
   m.userData.refractive = true;
   return trackGlass(m);
 }
@@ -282,6 +308,10 @@ export function attachGrab(mesh) {
     grabFrame(renderer, camera, mesh);
     u.uViewport.value.copy(vp);
     u.uViewProj.value.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    if (u.uBackMode.value) {
+      u.uBackN.value.setFromMatrixColumn(mesh.matrixWorld, 2).normalize();   // local +z: the back face's normal, facing in
+      u.uBackP.value.setFromMatrixPosition(mesh.matrixWorld);               // local z = 0
+    }
     mesh.material.uniformsNeedUpdate = true;   // per eye
   };
   return mesh;

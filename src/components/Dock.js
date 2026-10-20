@@ -12,8 +12,9 @@
 // Look (Jihoon, 2026-10-20; lookdev/dock_slider.py --option shelf): a Snow
 // Leopard style dock. Upright tiles of milky tinted glass float over a thin,
 // clear glass shelf and are mirrored in it. All of it is refractive glass
-// (core/refract.js), lit by the lookdev rig. Shelf and icons follow an arc centred
-// on the user at the dock's distance, so every icon is the same reach away.
+// (core/refract.js), lit by the lookdev rig. Shelf and icons follow an arc that curves
+// toward the user (a tight arc, about the forearm's sweep round the elbow),
+// so every icon is the same reach away and the curve reads at a glance.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
@@ -75,6 +76,7 @@ export class Dock extends THREE.Group {
     this.lift = dmm(S.lift);
     this.pad = dmm(16);
     this.shelfT = S.thickness / 1000 * dist / 0.6;
+    this.arcR = S.arc * dist;
     // The shelf, just under the floating icons.
     this.shelf = new THREE.Group();
     this.shelf.position.y = -this.side / 2 - this.lift;
@@ -125,10 +127,11 @@ export class Dock extends THREE.Group {
     this.layout();
   }
 
-  // A point on the arc around the user: s along the arc, t toward the user.
+  // A point on the dock's arc: s along the arc, t toward the user. The arc
+  // curves toward the user around a point arcR in front of the icons.
   arc(s, t = 0) {
-    const R = this.distance - t, a = s / this.distance;
-    return [R * Math.sin(a), this.distance - R * Math.cos(a), -a];
+    const A = this.arcR, R = A - t, a = s / A;
+    return [R * Math.sin(a), A - R * Math.cos(a), -a];
   }
 
   layout() {
@@ -158,7 +161,7 @@ export class Dock extends THREE.Group {
     if (this._baseW === undefined || Math.abs(this._baseW - w) > 0.002) {
       this._baseW = w;
       this.base.geometry.dispose();
-      const g = shelfGeometry(w, d, this.shelfT, this.distance);
+      const g = shelfGeometry(w, d, this.shelfT, this.arcR);
       this.base.geometry = this.mask.geometry = g;
     }
   }

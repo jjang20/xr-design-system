@@ -79,7 +79,9 @@ export const DEFAULTS = {
     // attDist: Beer-Lambert absorption (attColor left after attDist metres);
     // rough: surface roughness (0.4 = frosted); coat: clear coat; scatter:
     // light scattered inside in the glass's own colour (milky glass);
-    // caustic: focused key light on the far side.
+    // caustic: focused key light on the far side; behind: how far past a
+    // flat back face the bent ray looks (m); edgeDark: dark silhouette of a
+    // rounded piece (the stem).
     refract: {
       grabMargin: 0.35, // the frame copy around a glass reaches this far past it (fraction of its size): room for the refracted offset
       // The lookdev light rig: direction toward the light (three.js axes,
@@ -88,7 +90,8 @@ export const DEFAULTS = {
         key: { dir: [-0.7, 0.9, 0.5], color: [1, 0.92, 0.82], intensity: 5, size: 0.1 },
         rim: { dir: [-0.35, 0.35, -0.4], color: [1, 0.85, 0.65], intensity: 3, size: 0.1 },
       },
-      amber: { color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.012, rough: 0.05, coat: 1, caustic: 0.8, scatter: 0.02 },
+      amber: { edgeDark: 0.7, color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.012, rough: 0.05, coat: 1, caustic: 0.8, scatter: 0.02 },
+      rod: { edgeDark: 0.85, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.008, rough: 0.05, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge
       plate: { color: [0.66, 0.65, 0.64], attColor: [0.55, 0.54, 0.53], attDist: 0.033, rough: 0.4, coat: 0.6 },
       tile: { rough: 0.16, coat: 1, diffuse: 0.4, color: [1, 1, 1] }, // milky: Blender's transmission 0.6
       shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
@@ -133,7 +136,9 @@ export const DEFAULTS = {
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
     dockTileRadius: 0.24,  // icon tile corner, fraction of its side
-    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.35 }, // float height; depth x icon side; glass mm; mirrored icon strength
+    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.35, arc: 0.45, tileDepth: 0.42 }, // float height; depth x icon side; glass mm; mirrored icon strength;
+    // arc: radius of the dock's curve x its distance (0.45 at 0.55 m = 25 cm, about the forearm: the hand sweeps round the elbow, so every icon stays in reach,
+    // and the curve reads at a glance; 1 = centred on the body, which looked straight); tileDepth: app tile depth x its side (a rounded ball, not a card)
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity
