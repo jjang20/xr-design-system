@@ -200,12 +200,12 @@ export class Button extends Interactable {
   // The press dent (metres deep, at dentAt in local coordinates), or null.
   get dent() {
     const D = DEFAULTS.look.emboss.dent;
-    return this.dz ? { x: this.dentAt.x, y: this.dentAt.y, radius: D.radius / 1000, depth: this.dz } : null;
+    return this.dz ? { x: this.dentAt.x, y: this.dentAt.y, radius: D.width / 2000 / Math.sqrt(Math.LN2), depth: this.dz } : null;
   }
   // Press glow, 0 to 1: follows the dent in, fades as it springs back.
   get glow() {
     const E = DEFAULTS.look.emboss;
-    return this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.lift), 0, 1) : 0;
+    return this.dz > 0 ? clamp(this.dz / (E.dent.depth / 1000), 0, 1) : 0;
   }
 
   stepBulge(dt) {
@@ -223,7 +223,7 @@ export class Button extends Interactable {
     this.dentAt ??= new THREE.Vector2();
     if (this.press.amount > 0.01 && !this.dz) this.dentAt.copy(this.spot);
     if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
-    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth * this.lift * this.press.amount : 0, E.dent.response, E.dent.damping, dt);
+    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth / 1000 * this.press.amount : 0, E.dent.response, E.dent.damping, dt);
     this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 

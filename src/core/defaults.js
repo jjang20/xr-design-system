@@ -84,7 +84,10 @@ export const DEFAULTS = {
       // Press (Jihoon picked 'dent' in lookdev/ press-options): a finger-sized
       // dimple where the press lands, while the pillow around it stays full.
       squash: 0.15, // the pillow loses this fraction of its height when fully pressed
-      dent: { radius: 28, depth: 0.55, response: 0.16, damping: 0.55 }, // mm (wide and shallow, Jihoon: not steep); depth as a fraction of height; s, ratio (springs back past flat once: the rebound)
+      // Dent profile: a bell curve (Gaussian). width is its diameter at half
+      // depth; the visible dip (to 10% depth) is 1.82x that. depth is below the
+      // pressed crown. Jihoon: 20 mm wide, deeper (2026-10-20).
+      dent: { width: 20, depth: 4.5, response: 0.16, damping: 0.55 }, // mm, mm; s, ratio (springs back past flat once: the rebound)
       // Press glow (Jihoon: shape alone is not enough to see a press): light
       // blooms out from the press point, and the bubble's edge lights up as a
       // ring. The ring carries the state change (no text sits on it); the

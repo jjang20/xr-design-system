@@ -269,6 +269,17 @@ const BULGE_GLSL = /* glsl */`
     }
     return s;
   }
+  // How much of a press dent covers p (0 to 1).
+  float dentMask(vec2 p) {
+    float m = 0.0;
+    for (int i = 0; i < 2; i++) {
+      vec4 D = uBulgeDent[i];
+      if (D.w <= 0.0) continue;
+      vec2 q = p - D.xy;
+      m = max(m, exp(-dot(q, q) / (D.z * D.z)));
+    }
+    return m;
+  }
   // Press glow at p: a bloom spreading from the press point (x) and a lit
   // ring just inside the bubble's edge (y).
   vec2 bulgeGlow(vec2 p) {
@@ -395,7 +406,10 @@ const GLASS_FRAG = /* glsl */`
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
       // The lit ring sits on the edge, where there is no text.
       col += uGlowColor * glow.y * uGlowMix.x;
-      refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur * (1.0 - 0.7 * uGloss * bub)).rgb * uEnvIntensity;
+      // A dent is a concave mirror: kept soft, so it doesn't focus the
+      // room's lights into a sharp shape (it read as a smudge).
+      float dm = vFront > 0.5 && anyBulge() ? dentMask(vLocal.xy) : 0.0;
+      refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur * (1.0 - 0.7 * uGloss * bub * (1.0 - dm))).rgb * uEnvIntensity;
       refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
     #endif
