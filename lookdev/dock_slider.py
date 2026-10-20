@@ -28,8 +28,10 @@ exec(src[:src.index('# ---------------------------------------------------------
 import bmesh
 from mathutils import Vector
 
+GROOVE = 0.0
 APPS = [('house', (0.18, 0.49, 0.96)), ('ruler', (0.88, 0.54, 0.12)), ('scan', (0.14, 0.64, 0.43)),
         ('image', (0.85, 0.27, 0.37)), ('settings', None)]
+NEUTRAL = (0.62, 0.62, 0.65)  # Settings' patch in the inlay dock: a grey glass, not a hole
 HOVER = 2  # Scan
 
 
@@ -57,6 +59,11 @@ def field_glass(name, base_tint, rough):
     p = nodes['Principled BSDF']
     ca = nodes.new('ShaderNodeAttribute'); ca.attribute_name = 'tint'
     links.new(ca.outputs['Color'], p.inputs['Base Color'])
+    # Inside a colour patch the glass is milkier ('patch' 1): fully clear
+    # tinted glass lets a warm room mute a blue patch to slate.
+    pa = nodes.new('ShaderNodeAttribute'); pa.attribute_name = 'patch'
+    mr = nodes.new('ShaderNodeMapRange'); mr.inputs['To Min'].default_value = 1.0; mr.inputs['To Max'].default_value = 0.55
+    links.new(pa.outputs['Fac'], mr.inputs['Value']); links.new(mr.outputs['Result'], p.inputs['Transmission Weight'])
     return m
 
 
@@ -82,9 +89,9 @@ def surface(ob, bubbles, step=0.0008):
     while y <= max(ys): cut((0, y, 0), (0, 1, 0)); y += step
     bmesh.ops.triangulate(bm, faces=front())
     base = tuple(map(float, args.tint.split(',')))
-    gl, tn = {}, {}
+    gl, tn, pt = {}, {}, {}
     for v in {v for f in front() for v in f.verts}:
-        z, g, col = 0.0, 0.0, base
+        z, g, col, pm = 0.0, 0.0, base, 0.0
         for cx, cy, r, hgt, rgb, dent in bubbles:
             d = math.hypot(v.co.x - cx, v.co.y - cy) - r
             u = min(max(-d / r, 0.0), 1.0)
@@ -98,11 +105,17 @@ def surface(ob, bubbles, step=0.0008):
             if rgb:
                 m = smootherstep((0.0006 - d) / 0.0012)
                 col = tuple(c0 * (1 - m) + c1 * m for c0, c1 in zip(col, rgb))
-        v.co.z += z; gl[v.index] = g; tn[v.index] = col
+                # A tinted patch is polished glass, not paint on the frost,
+                # and a fine groove at its edge catches a crisp line of light.
+                g = max(g, 0.4 * m); pm = max(pm, m if max(rgb) - min(rgb) > 0.05 else 0.0)  # grey stays clear
+                z -= GROOVE * math.exp(-(d / 0.0008) ** 2)
+        v.co.z += z; gl[v.index] = g; tn[v.index] = col; pt[v.index] = pm
     bm.to_mesh(me); bm.free()
     a = me.attributes.new('gloss', 'FLOAT', 'POINT'); c = me.attributes.new('tint', 'FLOAT_COLOR', 'POINT')
     for i in range(len(me.vertices)):
         a.data[i].value = gl.get(i, 0.0); c.data[i].color = (*tn.get(i, base), 1)
+    b = me.attributes.new('patch', 'FLOAT', 'POINT')
+    for i in range(len(me.vertices)): b.data[i].value = pt.get(i, 0.0)
     for pl in me.polygons: pl.use_smooth = True
 
 
@@ -117,22 +130,28 @@ def dock():
     side, gap, pad = dm(60), dm(16), dm(14)
     W = 5 * side + 4 * gap + 2 * pad; H = side + 2 * pad
     root = holder('dock')
-    root.rotation_euler = (math.radians(-25), 0, 0)  # faces the eye above it
+    root.rotation_euler = (math.radians(-35), 0, 0)  # faces the eye above it
     hovered = own.state in ('hover', 'press')
     o = own.option
     xs = [-W / 2 + pad + side / 2 + i * (side + gap) for i in range(5)]
     tint = lambda rgb: tuple(min(1.0, c * 1.25) for c in lin(rgb)) if rgb else None
+    bright = lambda rgb, k: tuple(min(1.0, v * k) for v in tint(rgb))
     if o == 'inlay':
         # The icons are tinted patches of the shelf's own glass; the hovered
         # one swells into a bubble, like the toolbar's Place button.
         sh = slab('shelf', W, H, H / 2 * 0.98, T_WINDOW, field_glass('shelf', (0.72, 0.695, 0.66), 0.4), root)
         hgt = 0.006 * dist / 0.6
+        global GROOVE; GROOVE = 0.0003 * dist / 0.6
         bub = []
         for i, (ic, rgb) in enumerate(APPS):
             up = hovered and i == HOVER
             dent = (xs[i] + side * 0.08, 0, side * 0.2, hgt * 0.55) if up and own.state == 'press' else None
-            bub.append((xs[i], 0, side / 2 * 0.92, hgt * (0.85 if dent else 1) if up else 0.0, tint(rgb), dent))
-        surface(sh, bub)
+            # Hovered: the patch grows about 12% as it swells and its colour
+            # brightens, so the lift reads as light, not as a darker lump.
+            rgb = rgb or NEUTRAL
+            c = bright(rgb, 1.7 if up else 1.45)
+            bub.append((xs[i], 0, side / 2 * (1.03 if up else 0.92), hgt * (0.85 if dent else 1) if up else 0.0, c, dent))
+        surface(sh, bub, step=0.0005)
         for i, (ic, rgb) in enumerate(APPS):
             up = hovered and i == HOVER
             icon(ic, side * 0.42, xs[i], 0, T_WINDOW + (hgt * 0.95 if up else 0) + 0.0004, root)
@@ -152,8 +171,9 @@ def dock():
                 icon(ic, d * 0.42, xs[i], 0, T_WINDOW + 0.0016, root)
                 bh = d * 0.1  # a low lens cap: fuller domes read as marbles
                 bead(f'b{i}', d, bh, M_BEAD, root).location = (xs[i], 0, T_WINDOW + 0.0017)
-    # Camera: 0.55 m away, 25° above the dock's centre.
-    e = math.radians(25)
+    # Camera: 0.55 m away, 35° above the dock's centre, so the bubble's
+    # height reads (25° looked nearly straight-on).
+    e = math.radians(35)
     return Vector((0, -math.cos(e) * dist, math.sin(e) * dist)), 19
 
 
