@@ -229,7 +229,7 @@ const BULGE_GLSL = /* glsl */`
   uniform vec4 uBulgeDent[2];   // press dent: centre xy (local), radius, depth
   uniform vec4 uBulgeGlow[2];   // press glow: ring falloff distance, amount (0 to 1), bloom radius
   uniform vec3 uGlowColor; uniform vec2 uGlowMix;   // ring, bloom strength
-  uniform float uDentShade;
+  uniform float uDentShade, uDentShadow, uGlowCore;
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
@@ -284,16 +284,18 @@ const BULGE_GLSL = /* glsl */`
     }
     return m;
   }
-  // Press glow at p: a bloom spreading from the press point (x) and a lit
-  // ring just inside the bubble's edge (y).
-  vec2 bulgeGlow(vec2 p) {
-    vec2 g = vec2(0.0);
+  // Press glow at p: a bloom spreading from the press point (x), a lit
+  // ring just inside the bubble's edge (y), and a bright core at the bottom
+  // of the dent (z).
+  vec3 bulgeGlow(vec2 p) {
+    vec3 g = vec3(0.0);
     for (int i = 0; i < 2; i++) {
       vec4 R = uBulgeRect[i], P = uBulgeParam[i], D = uBulgeDent[i], G = uBulgeGlow[i];
       if (G.y <= 0.0 || P.y == 0.0) continue;
       vec2 q = p - D.xy;
       float d = bulgeD(p, R, P);
       g.x = max(g.x, G.y * exp(-dot(q, q) / (G.z * G.z)) * smoothstep(0.0, 0.25, bulgeT(p, R, P)));
+      g.z = max(g.z, G.y * exp(-dot(q, q) / (G.w * G.w)));
       // Light carried through the glass catches at the edge, brightest
       // nearest the press (edge-lit, like acrylic), so it reads as one light.
       g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.06 + 0.94 * exp(-length(q) / G.x)));   // far side stays at ~6%
@@ -404,7 +406,8 @@ const GLASS_FRAG = /* glsl */`
       // it keeps the room's light.
       // A press glow blooms inside the glass, so the scrim below keeps the
       // text over it legible.
-      vec2 glow = vFront > 0.5 && anyBulge() ? bulgeGlow(vLocal.xy) : vec2(0.0);
+      vec3 glow = vFront > 0.5 && anyBulge() ? bulgeGlow(vLocal.xy) : vec3(0.0);
+      float occl = 0.0;
       // The dent is shaded as a hollow by the key light (top left): the wall
       // facing the light brightens into a crescent on the far lip, the wall
       // turned away darkens. Refraction alone read as a smudge.
@@ -414,12 +417,19 @@ const GLASS_FRAG = /* glsl */`
                        dentHAll(vLocal.xy + vec2(0.0, ed)) - dentHAll(vLocal.xy - vec2(0.0, ed))) / (2.0 * ed);
         float shade = -dot(gd, normalize(vec2(-0.45, 0.8)));
         col *= 1.0 + clamp(shade * uDentShade, -0.4, 0.6);
+        // Inner shadow: the lip shades the dent's walls, most on the side
+        // toward the light (the lip hides it), so the hollow reads as below
+        // the surface. Applied after the scrim (darkening never hurts text).
+        occl = clamp(length(gd) * uDentShadow, 0.0, 0.6) * (0.2 + 0.8 * clamp(-shade * 3.0, 0.0, 1.0));   // mostly the wall toward the light: a ball would be shaded the other way
       }
       col += uGlowColor * glow.x * uGlowMix.y;
       float lc = dot(col, LUMA);
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
+      col *= 1.0 - occl;
       // The lit ring sits on the edge, where there is no text.
       col += uGlowColor * glow.y * uGlowMix.x;
+      // The core: light gathers at the bottom of the dent, under the finger.
+      col += uGlowColor * glow.z * uGlowCore;
       // A dent is a concave mirror: kept soft, so it doesn't focus the
       // room's lights into a sharp shape (it read as a smudge).
       float dm = vFront > 0.5 && anyBulge() ? dentMask(vLocal.xy) : 0.0;
@@ -520,6 +530,8 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
       uGlowMix: { value: new THREE.Vector2(L.emboss.glow.ring, L.emboss.glow.bloom) },
       uDentShade: { value: L.emboss.dent.shade },
+      uDentShadow: { value: L.emboss.dent.shadow },
+      uGlowCore: { value: L.emboss.glow.core },
       uClear: { value: L.emboss.clear },
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
@@ -550,7 +562,7 @@ export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0
   p.set(r, height, ramp, p.w);
   const d = dent ?? { x: 0, y: 0, radius: 1, depth: 0 };
   m.uniforms.uBulgeDent.value[i].set(d.x, d.y, d.radius, d.depth);
-  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff / 1000, glow, L.emboss.glow.bloomRadius / 1000, 0);
+  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff / 1000, glow, L.emboss.glow.bloomRadius / 1000, L.emboss.glow.coreRadius / 1000);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {
