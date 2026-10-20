@@ -260,6 +260,8 @@ export class PackagingPanel extends THREE.Group {
             // row inset), so the bubble follows the window's shape.
             r: Math.min(r.h / 2, r.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row),
             height: r.bulge,
+            dent: r.dent && { ...r.dent, x: r.position.x + r.dent.x, y: r.position.y + r.dent.y },
+            glow: r.glow,
           });
         }
         setContactShadow(m, 1);

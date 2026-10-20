@@ -193,24 +193,38 @@ export class Button extends Interactable {
     this.face.position.z = this.emboss ? Math.max(0, this.bulge) + 0.0004 : front + lift;
   }
 
-  // Emboss style: how far the window swells under this row (negative is a
-  // dimple). Driven by a slightly underdamped spring in update(), like a
-  // fluid-filled skin (see docs/catalog-spec.md, "Bubble").
+  // Emboss style: how far the window swells under this row. Driven by a
+  // slightly underdamped spring in update(), like a fluid-filled skin (see
+  // docs/catalog-spec.md, "Bubble").
   get bulge() { return this.bz ?? 0; }
+  // The press dent (metres deep, at dentAt in local coordinates), or null.
+  get dent() {
+    const D = DEFAULTS.look.emboss.dent;
+    return this.dz ? { x: this.dentAt.x, y: this.dentAt.y, radius: D.radius / 1000, depth: this.dz } : null;
+  }
+  // Press glow, 0 to 1: follows the dent in, fades as it springs back.
+  get glow() {
+    const E = DEFAULTS.look.emboss;
+    return this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.lift), 0, 1) : 0;
+  }
 
   stepBulge(dt) {
-    const E = DEFAULTS.look.emboss;
-    // Hover inflates; pressing pushes the bubble through flat into a shallow
-    // dimple (E.dimple of its height), like a key giving way.
-    const target = this.hovered && !this.disabled ? this.lift * (1 - (1 + E.dimple) * this.press.amount) : 0;
+    const E = DEFAULTS.look.emboss, on = this.hovered && !this.disabled;
+    // Hover inflates; pressing lets the pillow sag a little (E.squash)
+    // while a dent gives way where the press lands.
+    const target = on ? this.lift * (1 - E.squash * this.press.amount) : 0;
     // Deflating settles without a wobble (critically damped), so leaving a
     // row stays quiet; only inflating carries the fluid settle.
-    const w = 2 * Math.PI / E.response, z = target === 0 ? 1 : E.damping;
-    this.bz ??= 0; this.bv ??= 0;
-    for (let i = 0, n = 4, h = dt / n; i < n; i++) {
-      this.bv += (-w * w * (this.bz - target) - 2 * z * w * this.bv) * h;
-      this.bz += this.bv * h;
-    }
+    const s = spring(this.bz ?? 0, this.bv ?? 0, target, E.response, target === 0 ? 1 : E.damping, dt);
+    this.bz = s.x; this.bv = s.v;
+    // The dent is quicker and springs back past flat once on release: the
+    // skin rebounds. It is placed at the press point and stays there while
+    // it recovers, so it never slides.
+    this.dentAt ??= new THREE.Vector2();
+    if (this.press.amount > 0.01 && !this.dz) this.dentAt.copy(this.spot);
+    if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
+    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth * this.lift * this.press.amount : 0, E.dent.response, E.dent.damping, dt);
+    this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 
   // Distance from a local point to the face rectangle at the front plane.
@@ -280,4 +294,14 @@ export class Button extends Interactable {
     }
     this.layoutFront();
   }
+}
+
+// One spring step (response in s, damping ratio), substepped for stability.
+function spring(x, v, target, response, damping, dt) {
+  const w = 2 * Math.PI / response;
+  for (let i = 0, n = 4, h = dt / n; i < n; i++) {
+    v += (-w * w * (x - target) - 2 * damping * w * v) * h;
+    x += v * h;
+  }
+  return { x, v };
 }

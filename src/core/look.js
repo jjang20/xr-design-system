@@ -226,6 +226,9 @@ export function glassBeadGeometry(diameter, height) {
 const BULGE_GLSL = /* glsl */`
   uniform vec4 uBulgeRect[2];   // centre xy, half size zw (local)
   uniform vec4 uBulgeParam[2];  // corner radius, height (signed), ramp width, front z (slot 0)
+  uniform vec4 uBulgeDent[2];   // press dent: centre xy (local), radius, depth
+  uniform vec4 uBulgeGlow[2];   // press glow: radius, amount (0 to 1)
+  uniform vec3 uGlowColor; uniform vec2 uGlowMix;   // ring, bloom strength
   float sdRoundRect(vec2 p, vec2 b, float r) {
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
@@ -244,7 +247,17 @@ const BULGE_GLSL = /* glsl */`
     float u = clamp(-bulgeD(p, R, P) / min(R.z, R.w), 0.0, 1.0);
     return P.y * bulgeT(p, R, P) * sqrt(1.0 - (1.0 - u) * (1.0 - u));
   }
-  float bulgeH(vec2 p) { return bulgeH1(p, uBulgeRect[0], uBulgeParam[0]) + bulgeH1(p, uBulgeRect[1], uBulgeParam[1]); }
+  // A pressed bubble gives way under the finger: a soft round dent, held
+  // inside the bubble so the window around it never moves.
+  float dentH(vec2 p, vec4 R, vec4 P, vec4 D) {
+    if (D.w == 0.0 || P.y == 0.0) return 0.0;
+    vec2 q = p - D.xy;
+    return -D.w * exp(-dot(q, q) / (D.z * D.z)) * bulgeT(p, R, P);
+  }
+  float bulgeH(vec2 p) {
+    return bulgeH1(p, uBulgeRect[0], uBulgeParam[0]) + dentH(p, uBulgeRect[0], uBulgeParam[0], uBulgeDent[0])
+         + bulgeH1(p, uBulgeRect[1], uBulgeParam[1]) + dentH(p, uBulgeRect[1], uBulgeParam[1], uBulgeDent[1]);
+  }
   bool anyBulge() { return uBulgeParam[0].y != 0.0 || uBulgeParam[1].y != 0.0; }
   // How much of the bubble's glossy skin covers p (0 to 1).
   float bulgeSkin(vec2 p) {
@@ -255,6 +268,22 @@ const BULGE_GLSL = /* glsl */`
       s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / 0.0015, 0.0, 1.0));
     }
     return s;
+  }
+  // Press glow at p: a bloom spreading from the press point (x) and a lit
+  // ring just inside the bubble's edge (y).
+  vec2 bulgeGlow(vec2 p) {
+    vec2 g = vec2(0.0);
+    for (int i = 0; i < 2; i++) {
+      vec4 R = uBulgeRect[i], P = uBulgeParam[i], D = uBulgeDent[i], G = uBulgeGlow[i];
+      if (G.y <= 0.0 || P.y == 0.0) continue;
+      vec2 q = p - D.xy;
+      float d = bulgeD(p, R, P);
+      g.x = max(g.x, G.y * exp(-dot(q, q) / (G.x * G.x)) * smoothstep(0.0, 0.25, bulgeT(p, R, P)));
+      // Light carried through the glass catches at the edge, brightest
+      // nearest the press (edge-lit, like acrylic), so it reads as one light.
+      g.y = max(g.y, G.y * exp(-pow((d + 0.0014) / 0.0012, 2.0)) * (0.35 + 0.65 * exp(-dot(q, q) / (4.0 * G.x * G.x))));
+    }
+    return g;
   }`;
 
 const GLASS_VERT = /* glsl */`
@@ -358,8 +387,14 @@ const GLASS_FRAG = /* glsl */`
       // Adaptive scrim: over a bright room darken just enough to keep white
       // text legible, up to surface.scrim.max. The rim carries no text, so
       // it keeps the room's light.
+      // A press glow blooms inside the glass, so the scrim below keeps the
+      // text over it legible.
+      vec2 glow = vFront > 0.5 && anyBulge() ? bulgeGlow(vLocal.xy) : vec2(0.0);
+      col += uGlowColor * glow.x * uGlowMix.y;
       float lc = dot(col, LUMA);
       col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
+      // The lit ring sits on the edge, where there is no text.
+      col += uGlowColor * glow.y * uGlowMix.x;
       refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur * (1.0 - 0.7 * uGloss * bub)).rgb * uEnvIntensity;
       refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
@@ -452,6 +487,10 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uBulgeParam: { value: [new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')), new THREE.Vector4()] },
+      uBulgeDent: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uBulgeGlow: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
+      uGlowMix: { value: new THREE.Vector2(L.emboss.glow.ring, L.emboss.glow.bloom) },
       uClear: { value: L.emboss.clear },
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
@@ -473,12 +512,16 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
 }
 
 // Embossed bubble slot `i` (0 or 1) on a glass material: the front skin
-// rises `height` metres (negative: a dimple) over a rounded rect in local
-// coordinates.
-export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, ramp = L.emboss.ramp / 1000 } = {}) {
+// rises `height` metres over a rounded rect in local coordinates. `dent`
+// ({x, y, radius, depth}, metres) presses a dimple into it; `glow` (0 to 1)
+// lights it from the dent.
+export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, ramp = L.emboss.ramp / 1000, dent, glow = 0 } = {}) {
   m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
   const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
+  const d = dent ?? { x: 0, y: 0, radius: 1, depth: 0 };
+  m.uniforms.uBulgeDent.value[i].set(d.x, d.y, d.radius, d.depth);
+  m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.radius / 1000, glow, 0, 0);
 }
 
 export function flatMaterial(color, opacity = 1, extra = {}) {

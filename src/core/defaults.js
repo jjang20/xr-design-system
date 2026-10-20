@@ -81,7 +81,15 @@ export const DEFAULTS = {
     emboss: {
       height: 6, // mm at the crown; 4–6 reads as a bubble (Jihoon, lookdev/ pillow)
       ramp: 4, // mm: the meniscus where the window glass rises into the bubble
-      dimple: 0.3, // pressed fully, it sinks to this fraction of its height below flat
+      // Press (Jihoon picked 'dent' in lookdev/ press-options): a finger-sized
+      // dimple where the press lands, while the pillow around it stays full.
+      squash: 0.15, // the pillow loses this fraction of its height when fully pressed
+      dent: { radius: 28, depth: 0.55, response: 0.16, damping: 0.55 }, // mm (wide and shallow, Jihoon: not steep); depth as a fraction of height; s, ratio (springs back past flat once: the rebound)
+      // Press glow (Jihoon: shape alone is not enough to see a press): light
+      // blooms out from the press point, and the bubble's edge lights up as a
+      // ring. The ring carries the state change (no text sits on it); the
+      // bloom under the text stays under the legibility cap (maxLum).
+      glow: { radius: 45, ring: 0.32, bloom: 0.07, color: [1, 0.97, 0.92] }, // mm; ring and bloom strength
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
       magnify: 0, // content under the bubble grows this much at full height (0: content holds still while the skin swells)
       gloss: 0.8, // how much smoother and shinier the inflated skin is

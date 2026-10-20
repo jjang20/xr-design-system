@@ -24,7 +24,7 @@ try {
   await frames(6);                       // rest
   await page.mouse.move(p.x + 60, p.y);  // hover: inflate
   await frames(24);
-  await page.mouse.down();               // press: sinks to a dimple
+  await page.mouse.down();               // press: a dent gives way under the pointer
   await frames(15);
   await page.mouse.move(p.x + 60, p.y + 200); // slide off before release, so the press cancels (no navigation)
   await page.mouse.up();
