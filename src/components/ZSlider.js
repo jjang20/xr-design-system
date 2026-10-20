@@ -10,6 +10,11 @@
 //   pinch  near the knob grabs it, so it can be pulled back too
 //   ray    press on the knob and drag: moving the pointer away pushes
 //
+// Look (Jihoon picked direction A, 2026-10-20; lookdev/dock_slider.py --part
+// slider --option stem): an amber glass bead on a glass stem that rises
+// from a flared foot in a round glass plate. Five etched detent rings on the
+// plate light up lamp amber up to the value.
+//
 // Tokens used: zslider.travel, feedback.detent.*, feedback.shadow.press.*,
 // size.button.default, material.t.*, proximity.hover.*, feedback.glow.edge,
 // motion.hover.in.*, surface.*
@@ -18,7 +23,7 @@ import { Interactable, markComponent } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { cubicBezier, clamp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture } from '../core/look.js';
+import { bodyGeometry, bodyMaterial, faceMaterial, flatMaterial, makeText, makeIcon, softTexture, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint } from '../core/look.js';
 import { detentIndex, shadowAt } from '../core/detent.js';
 import { playTick } from '../core/audio.js';
 
@@ -50,76 +55,83 @@ export class ZSlider extends Interactable {
     this.side = side;
     this.t = t;
 
-    // Plate: a round socket the knob is pushed into.
+    // Plate: a round disc of window glass the stem rises out of.
     const plateD = side * 1.55;
-    const plate = new THREE.Mesh(bodyGeometry(plateD, plateD, plateT, plateD / 2), bodyMaterial(T, { color: C.window }));
+    const plate = new THREE.Mesh(glassSlabGeometry(plateD, plateD, plateT, plateD / 2 * 0.98), glassMaterial(T, { w: plateD, h: plateD, t: plateT }));
     plate.position.z = -plateT;
+    plate.renderOrder = 1;
     this.add(plate);
-    const plateFx = new THREE.Mesh(new THREE.PlaneGeometry(plateD, plateD), faceMaterial(T, { w: plateD, h: plateD, r: plateD / 2, distance }));
-    plateFx.position.z = 0.0002;
-    this.add(plateFx);
+    const amber = m => { setTint(m, { hw: 1, hh: 1, r: 0, albedo: DEFAULTS.color.lampGlass, amount: 1 }); return m; };
 
     // Contact shadow on the plate, under the knob.
     this.shadow = new THREE.Mesh(new THREE.PlaneGeometry(side * 1.15, side * 1.15), flatMaterial(C.shadow, this.shadowMin, { map: softTexture() }));
     this.shadow.position.z = 0.0004;
     this.add(this.shadow);
 
-    // Stem: joins the knob to the plate, like the stem of an air vent. It
-    // gets shorter as the knob is pushed in.
-    const stemR = side * 0.07;
-    this.stem = new THREE.Mesh(new THREE.CylinderGeometry(stemR, stemR, 1, 24), bodyMaterial(T, { color: C.metal, metal: true, opacity: 1 }));
-    this.stem.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(this.stem.geometry.attributes.position.count * 3).fill(0.8), 3));
-    this.stem.rotation.x = Math.PI / 2;
-    this.add(this.stem);
-
-    // Depth ruler under the knob: one dot per detent, so the push axis and
-    // the steps are visible (a depth cue, since people judge depth poorly).
-    const rulerY = -side / 2 - dmm(10);
-    const marks = Math.round(1 / this.interval);
-    const dotGeo = new THREE.CircleGeometry(dmm(1.6), 16);
-    for (let i = 0; i <= marks; i++) {
-      const major = i % 5 === 0;
-      const m = new THREE.Mesh(dotGeo, flatMaterial(0xffffff, major ? 0.75 : 0.35));
-      m.scale.setScalar(major ? 1.4 : 1);
-      m.rotation.x = -Math.PI / 2;
-      m.position.set(0, rulerY, this.travel * (1 - i * this.interval));
-      this.add(m);
+    // Detents: five etched rings on the plate (a 1/10 step is too fine to
+    // read at a glance); rings up to the value glow lamp amber.
+    this.rings = [];
+    const n = 5, ringW = dmm(0.9);
+    for (let i = 0; i < n; i++) {
+      const r = side * (0.34 + 0.07 * i);
+      const ring = new THREE.Mesh(new THREE.RingGeometry(r - ringW / 2, r + ringW / 2, 96), flatMaterial(0xffffff, 0.22));
+      ring.position.z = 0.0003;
+      ring.renderOrder = 2;
+      this.add(ring);
+      this.rings.push(ring);
     }
 
-    // Knob: a round metal puck with an icon.
+    // Stem: amber glass, rising from a flared foot; shorter as the knob goes in.
+    const stemR = side * 0.1;
+    this.stem = new THREE.Mesh(new THREE.CylinderGeometry(stemR, stemR, 1, 48), amber(glassMaterial(T, { w: stemR * 2, h: stemR * 2, t: stemR * 2, kind: 'bead' })));
+    this.stem.rotation.x = Math.PI / 2;
+    this.stem.renderOrder = 2;
+    this.add(this.stem);
+    const foot = new THREE.Mesh(glassBeadGeometry(side * 0.5, side * 0.07), amber(glassMaterial(T, { w: side * 0.5, h: side * 0.5, t: side * 0.07, kind: 'bead' })));
+    foot.renderOrder = 2;
+    this.add(foot);
+
+    // Knob: a low bead of amber glass with the icon on its crown.
     this.knob = new THREE.Group();
-    const knobBody = new THREE.Mesh(bodyGeometry(side, side, t, side / 2), bodyMaterial(T, { color: C.metal, metal: true, opacity: 1 }));
+    const knobH = side * 0.22;
+    const knobBody = new THREE.Mesh(glassBeadGeometry(side, knobH), amber(glassMaterial(T, { w: side, h: side, t: knobH, kind: 'bead' })));
+    knobBody.renderOrder = 3;
     this.knob.add(knobBody);
-    this.fx = new THREE.Mesh(new THREE.PlaneGeometry(side, side), faceMaterial(T, { w: side, h: side, r: side / 2, distance, rimStrength: 0.35 }));
-    this.fx.position.z = t + 0.0002;
-    this.fx.renderOrder = 2;
-    this.knob.add(this.fx);
+    this.knobSkin = knobBody.material;
+    this.knobSkin.uniforms.uSpotRadius.value = side * 0.6;
     if (o.icon) {
-      const icon = makeIcon(o.icon, side * 0.42, { color: 0x2a2c31 });
-      icon.position.z = t + 0.0004;
+      const icon = makeIcon(o.icon, side * 0.42);
+      icon.position.z = knobH + 0.0004;
+      icon.renderOrder = 4;
       this.knob.add(icon);
     }
     this.add(this.knob);
     this.hitMeshes.push(knobBody);
+    // The knob's thickness for input: its back face to its crown.
+    this.t = knobH;
 
     // Value bubble beside the knob, not on it, so the hand doesn't cover it.
     const bw = dmm(120), bh = dmm(40);
     this.bubble = new THREE.Group();
-    const bubbleBody = new THREE.Mesh(bodyGeometry(bw, bh, T.get('material.t.thin'), bh / 2), bodyMaterial(T, { color: C.window }));
+    const bubbleBody = new THREE.Mesh(glassSlabGeometry(bw, bh, T.get('material.t.thin'), bh / 2 * 0.98), glassMaterial(T, { w: bw, h: bh, t: T.get('material.t.thin'), kind: 'lens' }));
+    // Lens glass: darker than the window, so the value stays legible where
+    // the knob sits in front of a bright window.
+    bubbleBody.material.uniforms.uFade.value = 1;
+    // It carries the value, so it may darken further than surface.scrim.max
+    // over a bright window (proposed token: surface.scrim.label).
+    bubbleBody.material.uniforms.uScrimMax.value = 0.7;
+    bubbleBody.renderOrder = 1;
     this.bubble.add(bubbleBody);
-    const bubbleFx = new THREE.Mesh(new THREE.PlaneGeometry(bw, bh), faceMaterial(T, { w: bw, h: bh, r: bh / 2, distance }));
-    bubbleFx.position.z = T.get('material.t.thin') + 0.0002;
-    this.bubble.add(bubbleFx);
     const bz = T.get('material.t.thin') + 0.0004;
     if (o.label) {
-      const name = makeText(o.label, { size: dmm(14), weight: 500, anchorX: 'left', color: C.textSecondary });
+      const name = makeText(o.label, { size: dmm(14), weight: 500, anchorX: 'left', opacity: DEFAULTS.emphasis.secondary });
       name.position.set(-bw / 2 + dmm(16), 0, bz);
       this.bubble.add(name);
     }
     this.valueLabel = makeText('0%', { size: dmm(17), weight: 600, anchorX: 'right' });
     this.valueLabel.position.set(bw / 2 - dmm(16), 0, bz);
     this.bubble.add(this.valueLabel);
-    this.bubble.position.x = side / 2 + dmm(14) + bw / 2;
+    this.bubble.position.x = plateD / 2 + dmm(10) + bw / 2;  // beside the plate, clear of the rings
     this.add(this.bubble);
 
     this.knobZ = this.travel; // back face of the knob
@@ -215,6 +227,14 @@ export class ZSlider extends Interactable {
     const hovered = this.hoverBand.update(hoverD) || engaged;
     this.engaged = engaged;
     this.hoverT = clamp(this.hoverT + (hovered ? 1 : -1) * dt / this.hoverIn, 0, 1);
-    this.fx.material.uniforms.uHover.value = this.hoverEase(this.hoverT) * (engaged ? 1 : 0.7);
+    const h = this.hoverEase(this.hoverT) * (engaged ? 1 : 0.7);
+    this.knobSkin.uniforms.uHover.value = h * 6;
+    this.knob.scale.setScalar(1 + 0.06 * h);  // swells a little toward you, like a bubble
+    const lit = Math.round(push * this.rings.length);
+    this.rings.forEach((r, i) => {
+      const on = i < lit;
+      r.material.color.set(on ? C.lampLit : 0xffffff);
+      r.material.opacity = r.material.userData.baseOpacity = on ? 0.95 : 0.22;
+    });
   }
 }
