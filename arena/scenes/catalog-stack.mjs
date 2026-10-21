@@ -27,7 +27,7 @@ export async function renderCatalogStack({ browser, baseUrl, variant, exp, root 
   }));
 
   const shots = {};
-  let metrics;
+  const metrics = {};
   for (const view of ['front', 'angle']) {
     await page.goto(`${baseUrl}bench.html?view=${view === 'angle' ? 'angle' : ''}&dist=${exp.fixtures.distanceM}`);
     await page.waitForFunction(() => window.ready, null, { timeout: 120000 });
@@ -38,11 +38,13 @@ export async function renderCatalogStack({ browser, baseUrl, variant, exp, root 
     await page.waitForTimeout(800);
     const png = await page.screenshot();
     shots[view] = png;
-    if (view === 'front') metrics = await titleContrast(page, png, `/@fs${root}/src/core/defaults.js`);
+    metrics[view] = await titleContrast(page, png, `/@fs${root}/src/core/defaults.js`);
   }
   await page.close();
   if (errors.length) throw new Error(`bench errors: ${errors.join('; ')}`);
-  return { shots, metrics };
+  // Title checks read the front view; the side view is where a ghosted list
+  // behind the front window shows most.
+  return { shots, metrics: { levels: metrics.front, angle: metrics.angle } };
 }
 
 // Hover row i of the front window, press it, and wait until level `active`

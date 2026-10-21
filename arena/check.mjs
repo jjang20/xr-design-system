@@ -97,10 +97,11 @@ const CHECKS = [
     scenes: ['catalog-stack'],
     why: "A receded window shows only its title (PackagingPanel: its list would compete with the level in front). Anything readable below the title is a ghost of the list.",
     run: (_t, m) => {
-      const parents = m?.levels?.filter(l => l.depth > 0 && l.below);
-      if (!parents?.length) return { level: 'warn', detail: 'no render metrics yet, run render first' };
-      const worst = parents.reduce((a, b) => (b.below.contrast > a.below.contrast ? b : a));
-      return { level: worst.below.contrast <= BARE_GLASS_MAX ? 'pass' : 'fail', detail: `${parents.map(p => `"${p.label}" ${p.below.contrast.toFixed(2)}:1`).join(', ')} below the title (max ${BARE_GLASS_MAX}:1)` };
+      const views = { front: m?.levels, side: m?.angle };
+      const parents = Object.entries(views).flatMap(([view, ls]) => (ls ?? []).filter(l => l.depth > 0 && l.below).map(l => ({ ...l, view })));
+      if (!parents.length) return { level: 'warn', detail: 'no render metrics yet, run render first' };
+      const worst = Math.max(...parents.map(p => p.below.contrast));
+      return { level: worst <= BARE_GLASS_MAX ? 'pass' : 'fail', detail: `${parents.map(p => `"${p.label}" ${p.view} ${p.below.contrast.toFixed(2)}:1`).join(', ')} below the title (max ${BARE_GLASS_MAX}:1)` };
     },
   },
 ];
