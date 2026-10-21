@@ -356,6 +356,9 @@ const GLASS_FRAG = /* glsl */`
   uniform vec4 uTintRect, uTintParam;   // tinted-glass area: centre xy, half size zw; corner radius, softness, amount
   uniform vec3 uTintColor;
   uniform vec4 uShadowParam[2];  // radius, softness, amount, drop
+  uniform vec4 uBehindRect[2];   // a layer behind: centre xy, half size zw (local)
+  uniform vec4 uBehindParam[2];  // radius, softness, amount, gap (local units)
+  uniform float uKnee, uSat, uDimFloor, uRimLine, uShoulder, uRimClear;
   #ifdef ENVMAP_TYPE_CUBE_UV
     uniform sampler2D envMap;
     #include <cube_uv_reflection_fragment>
@@ -392,6 +395,9 @@ const GLASS_FRAG = /* glsl */`
                       vnoise(fp + vec2(0.0, e)) - vnoise(fp - vec2(0.0, e))) / (2.0 * e);
     slope += 0.5 * vec2(vnoise(fp * 3.1 + vec2(e, 7.0)) - vnoise(fp * 3.1 - vec2(e, -7.0)),
                         vnoise(fp * 3.1 + vec2(7.0, e)) - vnoise(fp * 3.1 - vec2(-7.0, e))) / (2.0 * e);
+    // Off the flat face (the rounded rim, from its first degrees): there the
+    // key light's highlight spreads, as from the reference's large soft key.
+    float bev = 1.0 - smoothstep(0.97, 0.999, abs(dot(N, vAxisZ)));
     // An inflated bubble's skin is stretched smooth.
     N = normalize(N - (vAxisX * slope.x + vAxisY * slope.y) * uFrost * (1.0 - rim01) * (1.0 - uGloss * bub));
     float cosT = clamp(dot(-V, N), 0.0, 1.0);
@@ -409,7 +415,12 @@ const GLASS_FRAG = /* glsl */`
       // reference (lookdev/). The room keeps its own colour.
       float cosR = clamp(-dot(Tdir, N), 0.15, 1.0);
       // A bubble's skin thins out toward an icon bead's clear glass.
-      col = bg * mix(uAlbedo, uClearAlbedo, uClear * bub) * exp(-uAbsorb * uThick * (1.0 - 0.6 * rim01) / cosR);
+      // A window's rim is a rounded edge: a ray through it crosses about the
+      // slab's thickness, not a long slant, so it stays as light as the face
+      // (the path-traced rim is a light, polished edge, not a dark bevel).
+      // uRimClear 0 keeps the long slant (a bead's dark droplet rim).
+      float path = mix((1.0 - 0.6 * rim01) / cosR, mix(1.0 / cosR, 1.0, rim01), uRimClear);
+      col = bg * mix(uAlbedo, uClearAlbedo, uClear * bub) * exp(-uAbsorb * uThick * path);
       // Tinted glass (accent colour): the glass itself is coloured, so the
       // room shows through it in that colour (Jihoon, 2026-10-20).
       float tm = 0.0;
@@ -440,8 +451,26 @@ const GLASS_FRAG = /* glsl */`
       }
       col += uGlowColor * glow.x * uGlowMix.y;
       float lc = dot(col, LUMA);
-      col *= 1.0 - clamp(1.0 - uMaxLum / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
+      // A soft knee, not a hard clamp: a clamp flattens the room's light to
+      // one even brown, and the glass reads as a painted slab. uKnee keeps
+      // part of the gradient (0 is the hard clamp).
+      float target = lc > uMaxLum ? uMaxLum * pow(lc / uMaxLum, uKnee) : lc;
+      col *= 1.0 - clamp(1.0 - target / max(lc, 1e-4), 0.0, uScrimMax) * (1.0 - rim01);
       col *= 1.0 - occl;
+      // Layers behind (the levels a child opened from): the room is seen
+      // through their glass too, so this glass is darker where they sit, and
+      // softly, since both are frosted (as in the path-traced reference).
+      vec3 Vl = vec3(dot(V, vAxisX), dot(V, vAxisY), dot(V, vAxisZ));
+      for (int i = 0; i < 2; i++) {
+        vec4 R = uBehindRect[i], P = uBehindParam[i];
+        if (P.z <= 0.0) continue;
+        vec2 hit = vLocal.xy + Vl.xy * P.w / max(-Vl.z, 0.2);
+        float c = 1.0 - smoothstep(-P.y, P.y, sdRoundRect(hit - R.xy, R.zw, P.x));
+        col *= 1.0 - c * P.z * (1.0 - rim01);
+      }
+      // Frosted glass mixes the room's light: its colour is a little greyer
+      // than the room's (uSat 1 keeps it as is).
+      col = mix(vec3(dot(col, LUMA)), col, uSat);
       // The lit ring sits on the edge, where there is no text.
       col += uGlowColor * glow.y * uGlowMix.x;
       // The core: light gathers at the bottom of the dent, under the finger.
@@ -482,13 +511,15 @@ const GLASS_FRAG = /* glsl */`
       col *= 1.0 - s * P.z;
     }
 
-    col *= mix(1.0, 0.42, uDim);               // pushed-back levels go dark, not see-through
+    col *= mix(1.0, uDimFloor, uDim);          // pushed-back levels go dark, not see-through
 
     // Reflection (Fresnel) and the key light on the curved rim.
     col = mix(col, refl, F * (1.0 - 0.5 * uDim));
     vec3 Lk = normalize(vec3(-0.45, 0.8, 0.6));
     vec3 H = normalize(Lk - V);
-    float spec = pow(max(dot(N, H), 0.0), 90.0);
+    // On the rim the highlight spreads over the rounded shoulder: a thin hard
+    // line there read as a cut bevel.
+    float spec = pow(max(dot(N, H), 0.0), mix(90.0, 10.0, bev * uRimClear)) * mix(1.0, 0.25, bev * uRimClear);
     float rim = 1.0 - cosT;
     col += vec3(1.0) * spec * uKey * (0.3 + rim);
     // The inflated skin mirrors a soft box above (a broad, tapered highlight
@@ -501,7 +532,10 @@ const GLASS_FRAG = /* glsl */`
       col += vec3(1.0) * pow(max(dot(N, H), 0.0), 300.0) * uKey * 1.6 * uGloss * bub;
     }
     // Rim light: curved glass edges gather light, brightest along the top.
-    col += vec3(1.0) * pow(rim, 3.0) * uKey * 0.5 * (0.35 + 0.65 * clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+    col += vec3(1.0) * pow(rim, 3.0) * uKey * uRimLine * (0.35 + 0.65 * clamp(N.y * 0.5 + 0.5, 0.0, 1.0));
+    // The rounded shoulder gathers the room's light softly, brightest where
+    // it faces up (as in the path-traced reference).
+    col += vec3(1.0) * bev * uKey * uShoulder * smoothstep(-0.3, 1.0, N.y);
 
     // Hover (receded levels are pressable): a soft light under the pointer.
     float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
@@ -562,6 +596,14 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uTintParam: { value: new THREE.Vector4() },
       uTintColor: { value: new THREE.Color(1, 1, 1) },
       uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uBehindRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uBehindParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uKnee: { value: K.knee ?? 0 },
+      uSat: { value: K.sat ?? 1 },
+      uDimFloor: { value: G.dimFloor },
+      uRimLine: { value: K.rimLine ?? 0.5 },
+      uShoulder: { value: K.shoulder ?? 0 },
+      uRimClear: { value: K.rimClear ?? 0 },
       uOpacity: { value: 1 },
     },
   });
@@ -597,6 +639,16 @@ export function setContactShadow(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, ga
   const S = L.contactShadow;
   m.uniforms.uShadowRect.value[i].set(x, y, hw, hh);
   m.uniforms.uShadowParam.value[i].set(r, S.minSoft + gap * S.softPerGap, amount, gap * S.dropPerGap);
+}
+
+// Behind slot `i` on a glass material: a layer of glass (a rounded rect in
+// local coordinates of this glass) `gap` metres behind it, through which
+// this glass sees the room. `scale` is this glass's own scale, so the gap is
+// measured in its local units.
+export function setBehind(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, gap = 0, scale = 1, amount = 0 } = {}) {
+  const B = L.behind;
+  m.uniforms.uBehindRect.value[i].set(x, y, hw, hh);
+  m.uniforms.uBehindParam.value[i].set(r, (B.minSoft + gap * B.softPerGap) / scale, amount, gap / scale);
 }
 
 // Embossed bubble slot `i` (0 or 1) on a glass material: the front skin

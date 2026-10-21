@@ -18,7 +18,7 @@ import { markComponent } from '../core/Interactable.js';
 import { clamp } from '../core/easing.js';
 import { springStep } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBulge } from '../core/look.js';
+import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, setBulge } from '../core/look.js';
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
 import { Button } from './Button.js';
@@ -248,6 +248,17 @@ export class PackagingPanel extends THREE.Group {
           r: next.panel.r * k, gap: Math.max(0, c.z - p.z), amount: S.child * clamp(c.opacity, 0, 1),
         });
       } else setContactShadow(m, 0);
+      // The levels behind it show through it: up to two, nearest first.
+      for (let s = 0; s < 2; s++) {
+        const back = this.levels[i - 1 - s];
+        if (!back) { setBehind(m, s); continue; }
+        const c = back.cur, k = c.sx / p.sx;
+        setBehind(m, s, {
+          x: (c.x - p.x) / p.sx, y: (c.y - p.y) / p.sy,
+          hw: back.size.W / 2 * k, hh: back.size.H / 2 * k, r: back.panel.r * k,
+          gap: Math.max(0, p.z - c.z), scale: p.sx, amount: DEFAULTS.look.behind.amount * clamp(c.opacity, 0, 1),
+        });
+      }
       // The most raised rows (a bubble keeps moving after hover ends, so
       // the row being left deflates while the next one inflates).
       const ranked = l.rows.filter(r => raised(r) > 0.001).sort((a, b) => raised(b) - raised(a));

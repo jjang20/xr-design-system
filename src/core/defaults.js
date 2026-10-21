@@ -67,12 +67,17 @@ export const DEFAULTS = {
     glass: {
       blur: 0.36, reflBlur: 0.16, absorb: 40, ior: 1.45, f0: 0.04,
       frostScale: 0.0007, // m: size of the etched bumps on the face
+      dimFloor: 0.7, // how dark a fully pushed-back level's glass gets (x its light; was 0.42)
       // Per kind: colour, brightest luminance (keeps secondary text at
       // 4.5:1), rim darkening, frost bump depth, grain, milky veil, key light.
-      // window.maxLum was 0.19, which left subtitles at 3.7-4.0:1 over the warm
-      // room and the front title at 4.6:1, too close to the levels behind it
-      // for them to read as behind (design arena, 2026-10-21).
-      window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.15, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
+      // knee: how much of the room's light gradient survives the legibility
+      // scrim (0 clamps it flat); sat: colour kept from the room (1 all);
+      // rimClear 1: the rim is a light polished edge, with the key light
+      // spread over it (rimLine at the silhouette, shoulder on the bevel).
+      // Matched to the path-traced stack (lookdev/catalog.py --state levels,
+      // 2026-10-21): the glass read as a flat chocolate slab before. maxLum
+      // 0.13 keeps subtitles at 4.5:1 where no level sits behind.
+      window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.13, knee: 0.3, sat: 0.6, rimClear: 1, rimLine: 0.15, shoulder: 0.08, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
       tileNeutral: [0.46, 0.46, 0.49], // grey app tiles (Settings): a grey glass, not clear
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },
@@ -137,7 +142,11 @@ export const DEFAULTS = {
     },
     // Contact shadows between floating layers: softness grows with the gap,
     // and the shadow drops below the caster (light from above).
-    contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.55, lens: 0.4 },
+    contactShadow: { minSoft: 0.002, softPerGap: 0.7, dropPerGap: 0.35, child: 0.75, lens: 0.4 }, // child was 0.55: too faint to read on dimmed glass (design arena, 2026-10-21)
+    // A level behind, seen through the glass in front of it: how much darker
+    // the front glass gets where it sits, and how soft its edge is (m, at
+    // the gap between them).
+    behind: { amount: 0.25, minSoft: 0.003, softPerGap: 0.25 },
     // Icon badge: a glass bead this high (fraction of its diameter).
     beadHeight: 0.22,
     dockBeadHeight: 0.2, // Dock icons: a low dome (fuller domes read as candy marbles)
