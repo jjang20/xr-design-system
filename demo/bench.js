@@ -49,7 +49,7 @@ if (part === 'dock') {
   const R = 0.5, up = 0.28, back = 0.48;
   dock = new Dock(T, {
     distance: Math.hypot(up, back), eccentricity: -Math.atan2(up, back),
-    // ?icons=: the objects' style (object, clay, glass, disc; see ICON_STYLES).
+    // ?icons=: the objects' style (object, clay, glass, disc, jelly; see ICON_STYLES).
     apps: [
       { label: 'Planner', icon: 'house', color: 0x2f7cf6, running: true },
       { label: 'Measure', icon: 'ruler', color: 0xe08a1e },

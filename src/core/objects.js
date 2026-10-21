@@ -55,7 +55,10 @@ export const hasAppObject = kind => kind in BUILDERS;
 //           relief in front of it, a clear glass dome over both (visionOS
 //           app icons: a background layer, one or two layers on top, and a
 //           glass layer the system adds)
-export const ICON_STYLES = ['object', 'clay', 'glass', 'disc'];
+//   jelly   one green hero colour in frosted jelly, the rest white satin,
+//           chrome and black (Buck's Cash App 3D system; Jihoon: "copy
+//           the style of cash app")
+export const ICON_STYLES = ['object', 'clay', 'glass', 'disc', 'jelly'];
 
 /**
  * @param {string} kind  the app's icon name (see BUILDERS)
@@ -66,10 +69,12 @@ export function makeAppObject(kind, { color = 0x8a8f98, style = 'object' } = {})
   const build = BUILDERS[kind];
   if (!build) throw new Error(`Contour: no app object "${kind}" (add one to src/core/objects.js)`);
   if (!ICON_STYLES.includes(style)) throw new Error(`Contour: no icon style "${style}" (one of ${ICON_STYLES.join(', ')})`);
-  const c = new THREE.Color(color);
+  // Jelly has one colour for every app: the hero (Notes' paper turns neon
+  // lime with it, like the reference's cards).
+  const c = new THREE.Color(style === 'jelly' ? JELLY.edge : color);
   let inner = build(c);
   inner.rotation.y = style === 'disc' ? 0 : TURN[kind];
-  if (style === 'clay' || style === 'glass') restyle(inner, style);
+  if (style === 'clay' || style === 'glass' || style === 'jelly') restyle(inner, style);
   if (style === 'disc') inner = badge(inner, c);
   // Stand it on y = 0, centred, its larger side 1 (a badge is the same size
   // for every app: the disc carries the visual weight).
@@ -98,14 +103,19 @@ function role(m) {
   return hsl.s > 0.35 && lum < 0.85 ? 'colour' : 'plain';
 }
 
-// Clay or glass, part by part. Printing (a map) stays: a label prints on
-// clay and on glass alike. Shared materials are swapped once.
+// Clay, glass or jelly, part by part. Printing (a map) stays: a label
+// prints on clay and on glass alike. Shared materials are swapped once.
+// In jelly every object carries the hero colour: one with no coloured part
+// (the gear, the lens) takes it on its dark parts instead.
 function restyle(group, style) {
-  const done = new Map();
+  const done = new Map(), roles = new Set();
+  group.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => roles.add(role(m))); });
+  const promote = style === 'jelly' && !roles.has('colour');
   group.traverse(o => {
     if (!o.isMesh) return;
     const swap = m => {
-      if (!done.has(m)) done.set(m, (style === 'clay' ? clayOf : glassOf)(m, role(m)));
+      const r = promote && role(m) === 'dark' ? 'colour' : role(m);
+      if (!done.has(m)) done.set(m, ({ clay: clayOf, glass: glassOf, jelly: jellyOf })[style](m, r));
       return done.get(m);
     };
     o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
@@ -161,17 +171,64 @@ function glassOf(m, r) {
     clearcoat: 1, clearcoatRoughness: 0.04, specularIntensity: 1,
     transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side,
   });
-  // A thick glass edge glows where it turns away from you (light carried
-  // through the glass to its rim), most along the top edges, which face
-  // the light. Squared by multiplying: pow() of a negative is NaN on some
-  // GPUs.
-  g.onBeforeCompile = shader => {
+  return edgeGlow(g, rim);
+}
+
+// A thick glass edge glows where it turns away from you (light carried
+// through the glass to its rim), most along the top edges, which face the
+// light. Squared by multiplying: pow() of a negative is NaN on some GPUs.
+function edgeGlow(material, rim, top = 0.7) {
+  material.onBeforeCompile = shader => {
     shader.uniforms.rim = { value: rim };
     shader.fragmentShader = 'uniform vec3 rim;\n' + shader.fragmentShader.replace('#include <emissivemap_fragment>',
-      '#include <emissivemap_fragment>\n  float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));\n  totalEmissiveRadiance += rim * edge * edge * (0.3 + 0.7 * saturate(normal.y));');
+      `#include <emissivemap_fragment>\n  float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));\n  totalEmissiveRadiance += rim * edge * edge * (${(1 - top).toFixed(2)} + ${top.toFixed(2)} * saturate(normal.y));`);
   };
-  g.customProgramCacheKey = () => 'glass-rim';
-  return g;
+  material.customProgramCacheKey = () => `edge-glow-${top}`;
+  return material;
+}
+
+// Jelly (Buck's Cash App "Evergreen" illustration system, 2024): one hero
+// colour, used sparingly, against neutrals. Every coloured part becomes
+// the hero: a frosted, see-through green jelly, deep green where it is
+// thick and lime at its thin edges, lit from inside, with fine flecks
+// suspended in it (their coin, lock and shield). Plain parts become white
+// satin plastic; metal becomes satin silver (their headphones); dark
+// parts become black satin. Printing stays as it is.
+// ⚠️ The hero is Cash App's own green, copied from the reference. Contour
+// would swap in its own accent before this ships.
+export const JELLY = { hero: 0x00d632, edge: 0xc8ff3c };
+let flecks = null;
+function fleckTexture() {
+  // Grey with a scatter of bright points: the inner glow times this map
+  // leaves a soft body with sparks in it.
+  flecks ??= paintTexture(512, 512, (x, w, h) => {
+    x.fillStyle = '#5a5a5a'; x.fillRect(0, 0, w, h);
+    let seed = 7;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 900; i++) {
+      const r = 0.6 + rand() * rand() * 2.2;
+      x.fillStyle = rand() < 0.7 ? '#ffffff' : '#fff6b0';
+      x.beginPath(); x.arc(rand() * w, rand() * h, r, 0, Math.PI * 2); x.fill();
+    }
+  }, { repeat: [3, 3] });
+  return flecks;
+}
+function jellyOf(m, r) {
+  if (r === 'glass' || (m.map && r !== 'colour')) return m;
+  if (r === 'colour') return edgeGlow(new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(JELLY.edge).lerp(new THREE.Color(1, 1, 1), 0.25),
+    transmission: 0.72, thickness: 1.6, ior: 1.42,
+    attenuationColor: new THREE.Color(JELLY.hero), attenuationDistance: 0.18,
+    roughness: 0.4, clearcoat: 0.45, clearcoatRoughness: 0.2, specularIntensity: 1,
+    emissive: new THREE.Color(JELLY.hero).lerp(new THREE.Color(JELLY.edge), 0.3), emissiveIntensity: 0.42, emissiveMap: fleckTexture(),
+    side: m.side,
+  }), new THREE.Color(JELLY.edge).multiplyScalar(1.1), 0.55);
+  if (r === 'metal') return new THREE.MeshPhysicalMaterial({ color: 0xe6eeff, metalness: 1, roughness: 0.24, side: m.side });
+  if (r === 'dark') return new THREE.MeshPhysicalMaterial({ color: 0x1c1e22, roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.3, side: m.side });
+  return new THREE.MeshPhysicalMaterial({
+    color: 0xf2f3f1, roughness: 0.5, sheen: 0.35, sheenRoughness: 0.6, sheenColor: 0xffffff,
+    side: m.side, transparent: m.transparent, opacity: m.opacity,
+  });
 }
 
 // visionOS's layered icon, built in depth: the background layer is a thick
