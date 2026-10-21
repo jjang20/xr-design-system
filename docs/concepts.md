@@ -67,7 +67,7 @@ Every XR OS ships a home screen, and home screens force horizontal scrolling. Co
 
 - **Anchor**: body-lock. Head-lock is a sticker on your glasses (always visible, annoying, causes sickness). World-lock is a picture on the wall (natural, but lost when you turn). Body-lock is a bag strapped to your waist: it stays put when you turn your head, and follows when your body turns.
 - **Lazy follow**: the dock starts following 350 ms after the body turns, with critical damping (no wobble). The real cost of the dock is tuning this follow, not the magnify maths: wrong values are the top cause of motion sickness, and they can only be tuned on a headset.
-- **Hand magnify**: icons grow as the hand approaches (250 dmm radius, up to 1.6×, cosine falloff). In 2D, macOS dock magnify is decoration. In XR it becomes a Fitts's-law aid: targets grow before you reach them.
+- **Hand magnify**: icons grow as the hand approaches (100 dmm radius, up to 1.2×, cosine falloff; the lookdev's single-icon focus. 250 dmm and 1.6× grew the whole row, which read as a zoom). In 2D, macOS dock magnify is decoration. In XR it becomes a Fitts's-law aid: targets grow before you reach them.
 
 The dock is the only component that proves axis (b).
 

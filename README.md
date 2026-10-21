@@ -13,6 +13,18 @@ Current version: tokens v0.1. Everything is measured at real-world scale (1 unit
 | [`docs/tokens.md`](docs/tokens.md) | How to read `tokens.json`: units, evidence tags, provisional values, renamed tokens. |
 | [`docs/decisions.md`](docs/decisions.md) | Why each choice was made: decision, why, alternatives, trade-offs. |
 | [`scripts/check-tokens.mjs`](scripts/check-tokens.mjs) | Validates `tokens.json`. Run `node scripts/check-tokens.mjs`. |
+| [`src/`](src) | Core components for three.js + WebXR: Button, Z-Slider, Packaging panel, Dock. They read every value from `tokens.json`. |
+| [`docs/components.md`](docs/components.md) | What each component does, which tokens drive it, how to run the demo, and the values the tokens don't cover yet. |
+| [`demo/`](demo) | A scene with all four components, usable with a mouse or in a headset. |
+
+## Run the demo
+
+```sh
+npm install
+npm run dev            # desktop browser
+npm run dev:headset    # https on your network, for a headset browser
+npm test               # token check + interaction logic tests
+```
 
 ## Token categories
 
