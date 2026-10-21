@@ -114,7 +114,7 @@ function parts() {
     slider.joints?.forEach(j => add('joint', j));
     add('plate', slider.plate);
     add('glyph', slider.knob.children.find(c => c.material?.map));
-    slider.bubble.children.filter(c => typeof c.sync === 'function').forEach(t => add('label', t));
+    slider.bubble.children.filter(c => typeof c.sync === 'function' && c.visible).forEach(t => add('label', t)); // not the hidden widest-value measure
     add('bubble', slider.bubble);
     add('labelglass', slider.labelGlass);
   }

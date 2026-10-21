@@ -151,35 +151,54 @@ export class ZSlider extends Interactable {
 
     // Value label beside the plate, in the plate's plane (as in the lookdev
     // render), clear of the hand on the knob. It sits on a capsule of the
-    // plate's own glass, smoked (refract.label), as text in Contour always
-    // sits on glass: legible over a bright room, and one material with the
-    // plate (judge round 2: a soft shade read as dirt; round 3: window glass
-    // over the warm room read as brown plastic; round 4: a thick, greyed
-    // capsule read as grey plastic, so it is now thin and keeps the room's
-    // colour). The
-    // value leads: larger and bolder than the name, and right-aligned so the
-    // digits stay put as the value changes.
+    // plate's own glass, smoked neutral grey (refract.label), as text in
+    // Contour always sits on glass: legible over a bright room, and one
+    // material with the plate (Jihoon, 2026-10-21: dark smoked glass, neutral
+    // grey, as small as the text allows; judges in rounds 4 to 7 read the
+    // room-coloured capsule as a taupe tag). The value leads: larger and
+    // bolder than the name, and right-aligned so the digits stay put as the
+    // value changes.
     const L = DEFAULTS.look.valueLabel;
-    const lw = dmm(L.width), lh = dmm(L.height), pad = dmm(L.pad);
+    const lh = dmm(L.height), pad = dmm(L.pad);
     this.bubble = new THREE.Group();
     // Half the plate's thickness: a thin pane, not a pill (judge round 4
     // read its side wall as a plastic capsule).
     const labelT = plateT * L.thickness;
-    this.labelGlass = refractiveMesh(glassSlabGeometry(lw, lh, labelT, lh / 2), refractiveGlass('label', { thick: labelT, flatBack: true }));
-    this.labelGlass.position.set(lw / 2, 0, -labelT);
-    this.labelGlass.renderOrder = 1;
-    this.bubble.add(this.labelGlass);
+    const labelMaterial = refractiveGlass('label', { thick: labelT, flatBack: true });
     const bz = 0.0004;
-    if (o.label) {
+    const name = o.label ? makeText(o.label, { size: dmm(L.name.size), weight: L.name.weight, anchorX: 'left' }) : null;
+    this.valueLabel = makeText('0%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
+    // The widest value, measured once (hidden), so the capsule never has to
+    // grow as the value changes.
+    const widest = makeText('100%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
+    widest.visible = false;
+    // The capsule fits its text: padding, the name, a word space, room for
+    // the widest value, padding. A fixed width ran the name into the value
+    // when it shrank ("Lamp40%"). Text lays out off the main thread, so the
+    // capsule is rebuilt once the words are measured.
+    const span = t => { const b = t.textRenderInfo?.blockBounds; return b ? b[2] - b[0] : 0; };
+    const fit = () => {
+      const words = (name ? span(name) + dmm(L.space) : 0) + span(widest);
+      const lw = 2 * pad + Math.max(words, lh);
+      if (this.labelGlass && Math.abs(this.labelGlass.userData.width - lw) < 1e-6) return;
+      if (this.labelGlass) { this.bubble.remove(this.labelGlass); this.labelGlass.geometry.dispose(); }
+      this.labelGlass = refractiveMesh(glassSlabGeometry(lw, lh, labelT, lh / 2), labelMaterial);
+      this.labelGlass.userData.width = lw;
+      this.labelGlass.position.set(lw / 2, 0, -labelT);
+      this.labelGlass.renderOrder = 1;
+      this.bubble.add(this.labelGlass);
+      this.valueLabel.position.set(lw - pad, 0, bz);
+    };
+    fit();
+    if (name) {
       // Full white like the value (hierarchy comes from size and weight): at
       // secondary emphasis it fell to 4.1:1 on the smoked glass.
-      const name = makeText(o.label, { size: dmm(L.name.size), weight: L.name.weight, anchorX: 'left' });
       name.position.set(pad, 0, bz);
       this.bubble.add(name);
+      name.addEventListener('synccomplete', fit);
     }
-    this.valueLabel = makeText('0%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
-    this.valueLabel.position.set(lw - pad, 0, bz);
-    this.bubble.add(this.valueLabel);
+    widest.addEventListener('synccomplete', fit);
+    this.bubble.add(this.valueLabel, widest);
     this.bubble.position.x = plateD / 2 + dmm(L.gap);
     this.add(this.bubble);
 

@@ -97,7 +97,7 @@ export const DEFAULTS = {
       amber: { behind: 0.002, distort: 1.8, emissiveRim: 1, edgeDark: 0, color: [1, 0.72, 0.4], attColor: [1, 0.5, 0.16], attDist: 0.025, rough: 0.1, coat: 1, coatRough: 0.1, caustic: 0.8, scatter: 0.02 }, // rough 0.1: the stem seen through the knob stays soft (judge round 6 read its sharp crescent as clipping)
       rod: { reflect: 2, coatRough: 0.3, edgeDark: 0.3, color: [1, 0.6, 0.28], attColor: [1, 0.42, 0.1], attDist: 0.012, rough: 0.15, coat: 1, scatter: 0.03 }, // the Z-Slider's stem: the same amber, seen edge to edge; light passes through it and a crisp highlight runs along its top (judge round 5: opaque, glossy plastic; round 6 wanted the streak dimmer, but round 7's blind pair chose the crisp one over the dimmed one as glass)
       plate: { reflect: 1.6, edgeDark: 0.15, color: [1, 1, 1], attColor: [0.92, 0.91, 0.9], attDist: 0.012, rough: 0.03, coat: 1, coatRough: 0.02 }, // clear glass, as in the lookdev: the room shows through in its own colour and the rim catches the light (judge round 4: the greyed, frosted plate read as stone)
-      label: { reflect: 2, edgeDark: 0, saturation: 0.7, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked so white text reads on it (visionOS vibrancy); it keeps most of the room's colour and has no dark rim, so it reads as smoked glass, not a grey plastic pill (judge round 4)
+      label: { reflect: 2, edgeDark: 0, saturation: 0.15, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked neutral grey so white text reads on it (visionOS vibrancy); Jihoon chose neutral grey on 2026-10-21 (judges in rounds 4 to 7 read the room-coloured one as a taupe tag); no dark rim
       tile: { rough: 0.12, roomDistort: 1, roomBlur: 0.22, roomLift: 0.5, specSharp: 0.01, rimSpec: 0, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; the room is seen bent as a real ball bends it (roomDistort 1) and blurred (roomBlur), its shade lifted halfway toward its average light (roomLift), sharp enough that the window reads upside down in it (judge round 6: "nothing visible through them"), so it reads as soft light and shade, not a dark band (judge round 5 read one as dirt), while the glyph keeps the stronger magnification (distort); specSharp: a hot point inside the soft key highlight, as on a polished marble (judge round 6); rimSpec 0: the rim light lights the globe's edge but adds no second hotspot (judge round 4: two or three highlight blobs per globe); neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
       shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
     },
@@ -153,11 +153,12 @@ export const DEFAULTS = {
     lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.45, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, spill: { size: 1.8, opacity: 0.55 }, ring: 0.8, ringWidth: 1.2, ringUnlit: 0.4 },
     // The Z-Slider's value label: a capsule of the plate's glass, smoked
     // (refract.label), beside the plate (dmm), gap from its rim, thickness x
-    // the plate's; the value larger and bolder than the name. Kept as low
-    // as the text allows (at 0.4 thickness its lit lower rim was lost): it is the darkest mass beside the control
-    // (judge rounds 4 to 6: it outweighs the knob); narrower ran the name
-    // into the value.
-    valueLabel: { width: 100, height: 28, pad: 11, gap: 12, thickness: 0.5, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
+    // the plate's; the value larger and bolder than the name. Its length fits
+    // the text (pad, name, space, the widest value, pad), so it is as small
+    // as the words allow: it is the darkest mass beside the control (judge
+    // rounds 4 to 7: it outweighs the knob). At 0.4 thickness its lit lower
+    // rim was lost.
+    valueLabel: { height: 26, pad: 9, space: 6, gap: 12, thickness: 0.5, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
     // lift: float height (dmm); depth: x icon side; thickness: glass mm;

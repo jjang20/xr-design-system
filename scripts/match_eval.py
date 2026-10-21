@@ -567,9 +567,9 @@ if have('slider-rest-beauty'):
           k_end >= 1.3, '>= 1.3x the stem', 'Judge round 3: "where the stem meets the knob there is a hard bright vertical seam and no curve"')
     # Judge round 4: the greyed plate read as stone and the greyed label as
     # grey plastic. Lookdev plate: clear glass, the wall seen through it in
-    # its own hue. The label: smoked glass, which darkens the room behind it
-    # but keeps some of its hue (round 3's warm, thick bar read as brown
-    # plastic; round 4's 0.12x as grey plastic).
+    # its own hue. The label: smoked glass in neutral grey (Jihoon,
+    # 2026-10-21, after judges in rounds 4 to 7 read the room-coloured one as
+    # a taupe tag; this replaces the 0.35-0.9x band set after round 4).
     if have('slider-rest-labelglass'):
         Sb = rgb('slider-rest-beauty')
         Sg = rgb('slider-rest-noglow')   # the plate's own glass, before the lamp's light falls on it (S15)
@@ -578,11 +578,11 @@ if have('slider-rest-beauty'):
         lab_face = erode(mask('slider-rest-labelglass'), 8) & ~dilate(dl > 0.05, 4)
         cw, cp, cl = chroma(Sb[wall]), chroma(Sg[face]), chroma(Sb[lab_face]) if lab_face.any() else 1
         lw_, lp = float(np.median(lum(Sb[wall]))), float(np.median(lum(Sg[face])))
-        check('S11', 'Z-Slider', 'Plate is clear glass in the room\'s colour; the label is smoked glass, not grey or brown plastic',
+        check('S11', 'Z-Slider', 'Plate is clear glass in the room\'s colour; the label is neutral smoked glass, not a taupe tag',
               f'plate {cp / cw:.2f}x the wall\'s colour, {lp / max(lw_, 1e-3):.2f}x its light; label {cl / cw:.2f}x the wall\'s colour',
-              0.8 * cw <= cp <= 1.25 * cw and lp >= 0.8 * lw_ and 0.35 * cw <= cl <= 0.9 * cw,
-              'plate 0.8-1.25x the wall\'s colour and >= 0.8x its light; label 0.35-0.9x the wall\'s colour (its darkness is set by S6)',
-              'Judge round 4: "the plate is opaque matte grey ... reads as ceramic"; "grey plastic capsule"; round 3: "chocolate-brown plastic bar"')
+              0.8 * cw <= cp <= 1.25 * cw and lp >= 0.8 * lw_ and cl <= 0.35 * cw,
+              'plate 0.8-1.25x the wall\'s colour and >= 0.8x its light; label <= 0.35x the wall\'s colour (its darkness is set by S6)',
+              'Judge round 4: "the plate is opaque matte grey ... reads as ceramic"; Jihoon 2026-10-21: label dark smoked, neutral grey (rounds 4-7: "opaque taupe tag")')
         # The plate's rim catches the light round much of its edge, as the
         # lookdev's does (round 4: "only a faint rim on the right").
         ys, xs = np.nonzero(plate)
