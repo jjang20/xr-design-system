@@ -1,0 +1,1070 @@
+{
+  "$description": "Generated from tokens.json (Contour 0.2.0) by scripts/build-tokens.mjs. Do not edit by hand.",
+  "thickness": {
+    "100": {
+      "$type": "number",
+      "$value": 4,
+      "$description": "Unit: mm. 4 mm. Step = multiple of the 4 mm base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "200": {
+      "$type": "number",
+      "$value": 8,
+      "$description": "Unit: mm. 8 mm. Step = multiple of the 4 mm base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "400": {
+      "$type": "number",
+      "$value": 1.6,
+      "$description": "Unit: cm. 16 mm. Step = multiple of the 4 mm base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    }
+  },
+  "size": {
+    "1600": {
+      "$type": "number",
+      "$value": 64,
+      "$description": "Unit: vpt. 64 vpt. Step = multiple of the 4 vpt base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "WIDTH_HEIGHT",
+            "GAP",
+            "CORNER_RADIUS",
+            "STROKE_FLOAT"
+          ]
+        }
+      }
+    },
+    "2000": {
+      "$type": "number",
+      "$value": 80,
+      "$description": "Unit: vpt. 80 vpt. Step = multiple of the 4 vpt base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "WIDTH_HEIGHT",
+            "GAP",
+            "CORNER_RADIUS",
+            "STROKE_FLOAT"
+          ]
+        }
+      }
+    },
+    "interactive": {
+      "minimum": {
+        "$type": "number",
+        "$value": 64,
+        "$description": "Unit: vpt. Points at {size.1600}. Smallest interactive target: 64 vpt = 48 dmm (raised from 32 to 48 dmm on 2026-10-19). In the hand zone it never goes below input.touch.size.minimum. [M]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      },
+      "default": {
+        "$type": "number",
+        "$value": 80,
+        "$description": "Unit: vpt. Points at {size.2000}. Default button face, square (80 x 80 vpt = 60 x 60 dmm). [M]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "spacing": {
+    "600": {
+      "$type": "number",
+      "$value": 24,
+      "$description": "Unit: vpt. 24 vpt. Step = multiple of the 4 vpt base x 100. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "WIDTH_HEIGHT",
+            "GAP",
+            "CORNER_RADIUS",
+            "STROKE_FLOAT"
+          ]
+        }
+      }
+    },
+    "gap": {
+      "minimum": {
+        "$type": "number",
+        "$value": 24,
+        "$description": "Unit: vpt. Points at {spacing.600}. Minimum gap between targets to avoid mis-presses. 24 vpt (18 dmm); was 16 dmm, rounded up to the 4 vpt grid. [M]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "duration": {
+    "120": {
+      "$type": "number",
+      "$value": 120,
+      "$description": "Unit: ms. 120 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "140": {
+      "$type": "number",
+      "$value": 140,
+      "$description": "Unit: ms. 140 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "220": {
+      "$type": "number",
+      "$value": 220,
+      "$description": "Unit: ms. 220 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "240": {
+      "$type": "number",
+      "$value": 240,
+      "$description": "Unit: ms. 240 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "030": {
+      "$type": "number",
+      "$value": 30,
+      "$description": "Unit: ms. 30 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "080": {
+      "$type": "number",
+      "$value": 80,
+      "$description": "Unit: ms. 80 ms. Step = the literal value. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    }
+  },
+  "easing": {
+    "easeOut": {
+      "$type": "string",
+      "$value": "cubic-bezier(0, 0, 0.58, 1)",
+      "$description": "Ease-out (CSS built-in curve). [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "easeInOut": {
+      "$type": "string",
+      "$value": "cubic-bezier(0.42, 0, 0.58, 1)",
+      "$description": "Ease-in-out (CSS built-in curve). [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    }
+  },
+  "distance": {
+    "100": {
+      "$type": "number",
+      "$value": 10,
+      "$description": "Unit: cm. 100 mm. Step = the literal value in mm. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "140": {
+      "$type": "number",
+      "$value": 14,
+      "$description": "Unit: cm. 140 mm. Step = the literal value in mm. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "350": {
+      "$type": "number",
+      "$value": 35,
+      "$description": "Unit: cm. 350 mm. Step = the literal value in mm. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "400": {
+      "$type": "number",
+      "$value": 40,
+      "$description": "Unit: cm. 400 mm. Step = the literal value in mm. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "003": {
+      "$type": "number",
+      "$value": 3,
+      "$description": "Unit: mm. 3 mm. Step = the literal value in mm. [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    }
+  },
+  "material": {
+    "thickness": {
+      "thin": {
+        "$type": "number",
+        "$value": 4,
+        "$description": "Unit: mm. Points at {thickness.100}. Thickness for cards and list items. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "regular": {
+        "$type": "number",
+        "$value": 8,
+        "$description": "Unit: mm. Points at {thickness.200}. Default thickness for buttons and controls. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "thick": {
+        "$type": "number",
+        "$value": 1.6,
+        "$description": "Unit: cm. Points at {thickness.400}. Thickness for panels and the dock. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "firmness": {
+      "soft": {
+        "pressDepth": {
+          "$type": "number",
+          "$value": 0.6,
+          "$description": "Presses deep, recovers slowly. Press depth as a fraction of material.thickness (press depth = ratio x t). [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      },
+      "firm": {
+        "pressDepth": {
+          "$type": "number",
+          "$value": 0.4,
+          "$description": "Default density. Press depth as a fraction of material.thickness (press depth = ratio x t). [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      },
+      "rigid": {
+        "pressDepth": {
+          "$type": "number",
+          "$value": 0.15,
+          "$description": "Barely presses. Disabled and structural elements. Press depth as a fraction of material.thickness (press depth = ratio x t). [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "opacity": {
+      "default": {
+        "$type": "number",
+        "$value": 0.92,
+        "$description": "Not glass. Objects are opaque by default. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "outline": {
+      "width": {
+        "$type": "number",
+        "$value": 1,
+        "$description": "Unit: vpt. High-contrast outline that keeps edges readable on bright walls and busy backgrounds. Was 1 dmm; now 1 vpt (0.75 dmm), a hairline. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      }
+    },
+    "glow": {
+      "width": {
+        "$type": "number",
+        "$value": 2,
+        "$description": "Unit: vpt. Edge glow width on hover (2 vpt = 1.5 dmm, unchanged). [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "motion": {
+    "enter": {
+      "duration": {
+        "$type": "number",
+        "$value": 120,
+        "$description": "Unit: ms. Points at {duration.120}. Something appearing or lighting up, such as hover feedback. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "easing": {
+        "$type": "string",
+        "$value": "cubic-bezier(0, 0, 0.58, 1)",
+        "$description": "Points at {easing.easeOut}. Easing for motion.enter. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "expand": {
+      "duration": {
+        "$type": "number",
+        "$value": 240,
+        "$description": "Unit: ms. Points at {duration.240}. Dropdown inline expand and one-level packaging transitions. [T]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "easing": {
+        "$type": "string",
+        "$value": "cubic-bezier(0.42, 0, 0.58, 1)",
+        "$description": "Points at {easing.easeInOut}. Easing for motion.expand. [T]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "recovery": {
+      "soft": {
+        "duration": {
+          "$type": "number",
+          "$value": 220,
+          "$description": "Unit: ms. Points at {duration.220}. Time for a soft surface to spring back to full thickness after release. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      },
+      "firm": {
+        "duration": {
+          "$type": "number",
+          "$value": 140,
+          "$description": "Unit: ms. Points at {duration.140}. Time for a firm surface to spring back to full thickness after release. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      },
+      "rigid": {
+        "duration": {
+          "$type": "number",
+          "$value": 80,
+          "$description": "Unit: ms. Points at {duration.080}. Time for a rigid surface to spring back to full thickness after release. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "press": {
+      "behavior": {
+        "$type": "string",
+        "$value": "followInput",
+        "$description": "Not an animation. The surface tracks the finger in real time. [N]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "color": {
+    "contrast": {
+      "ratio": {
+        "minimum": {
+          "$type": "number",
+          "$value": 3,
+          "$description": "Minimum contrast ratio against the background (3:1). Below it, the scrim turns on. [M]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "scrim": {
+      "opacity": {
+        "minimum": {
+          "$type": "number",
+          "$value": 0,
+          "$description": "Lower end of the automatic backing scrim opacity. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "maximum": {
+          "$type": "number",
+          "$value": 0.35,
+          "$description": "Upper end of the automatic backing scrim opacity, for busy backgrounds. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "shadow": {
+    "contact": {
+      "behavior": {
+        "$type": "string",
+        "$value": "proportionalToPush",
+        "$description": "Contact shadow grows with Z-Slider push depth to aid depth perception. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "scaleGain": {
+        "$type": "number",
+        "$value": 0.9,
+        "$description": "Extra shadow scale at full push (scale = 1 + push x 0.9). [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "opacity": {
+        "minimum": {
+          "$type": "number",
+          "$value": 0.15,
+          "$description": "Shadow opacity at zero push. [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "maximum": {
+          "$type": "number",
+          "$value": 0.6,
+          "$description": "Shadow opacity at full push. [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "sound": {
+    "detent": {
+      "gain": {
+        "$type": "number",
+        "$value": -18,
+        "$description": "Detent tick loudness in dB. First substitute for missing haptics. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "duration": {
+        "$type": "number",
+        "$value": 30,
+        "$description": "Unit: ms. Points at {duration.030}. Length of the detent tick. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "input": {
+    "hover": {
+      "distance": {
+        "enter": {
+          "$type": "number",
+          "$value": 10,
+          "$description": "Unit: cm. Points at {distance.100}. Hover starts when the fingertip comes closer than this. Physical: was 100 dmm, now 100 mm. [G]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "exit": {
+          "$type": "number",
+          "$value": 14,
+          "$description": "Unit: cm. Points at {distance.140}. Hover ends only when the fingertip moves further than this (hysteresis band 100-140 mm). [G]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "poke": {
+      "pressTrigger": {
+        "$type": "string",
+        "$value": "surfaceContact",
+        "$description": "A press starts when the fingertip touches the surface; depth then follows material.firmness.*.pressDepth. [N]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "distance": {
+        "release": {
+          "$type": "number",
+          "$value": 3,
+          "$description": "Unit: mm. Points at {distance.003}. Release only after the finger retreats this far back from the press point (release hysteresis, stops jitter). [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "direct": {
+      "distance": {
+        "enter": {
+          "$type": "number",
+          "$value": 35,
+          "$description": "Unit: cm. Points at {distance.350}. Hand-to-panel distance where the ray turns off and direct touch takes over. [G]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "exit": {
+          "$type": "number",
+          "$value": 40,
+          "$description": "Unit: cm. Points at {distance.400}. Direct touch ends only when the hand moves further than this, so it does not flicker (was threshold 350 + hysteresis 50 mm). [G]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "touch": {
+      "size": {
+        "minimum": {
+          "$type": "number",
+          "$value": 2.2,
+          "$description": "Unit: cm. Physical floor for any target touched by a fingertip, whatever vpt works out to: hit size = max(vpt size at d, this). About one fingertip wide. [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "zone": {
+    "room": {
+      "growth": {
+        "start": {
+          "$type": "number",
+          "$value": 175,
+          "$description": "Unit: cm. Placement distance after which panels stop growing in step with distance (Android XR keeps apparent size constant up to 1.75 m). Used by f(d). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "rate": {
+          "$type": "number",
+          "$value": 0.5,
+          "$description": "Past zone.room.growth.start, each extra metre counts as this many metres in f(d) (Android XR grows 0.5 m per m). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "anchor": {
+    "mode": {
+      "$type": "string",
+      "$value": "bodyLock",
+      "$description": "The dock's anchor. Decision. head-lock is banned (sticker on glasses), world-lock is banned for the dock (gets lost when you turn). [D]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    },
+    "follow": {
+      "delay": {
+        "$type": "number",
+        "$value": 350,
+        "$description": "Unit: ms. Lazy follow: how long after the body turns the dock starts to follow. [T]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "damping": {
+        "$type": "string",
+        "$value": "critical",
+        "$description": "No overshoot or wobble. The number one motion-sickness tuning item. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "frequency": {
+        "$type": "number",
+        "$value": 6,
+        "$description": "Natural frequency (rad/s) of the critically damped follow spring used in the lab. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "eccentricity": {
+      "vertical": {
+        "$type": "number",
+        "$value": -25,
+        "$description": "Unit: deg. Dock sits 25 degrees below the centre of view. [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "dock": {
+    "magnify": {
+      "radius": {
+        "$type": "number",
+        "$value": 332,
+        "$description": "Unit: vpt. Hand distance at which dock icons start to grow. 332 vpt (was 250 dmm). [T]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "WIDTH_HEIGHT",
+              "GAP",
+              "CORNER_RADIUS",
+              "STROKE_FLOAT"
+            ]
+          }
+        }
+      },
+      "scale": {
+        "max": {
+          "$type": "number",
+          "$value": 1.6,
+          "$description": "Largest icon scale when the hand is right on it. [T]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      },
+      "falloff": {
+        "$type": "string",
+        "$value": "cosine",
+        "$description": "Curve that fades magnification for neighbouring icons: scale = 1 + (max - 1) * cos(d / radius * pi/2). [G]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "menu": {
+    "extent": {
+      "vertical": {
+        "max": {
+          "$type": "number",
+          "$value": 35,
+          "$description": "Unit: deg. How far below eye level a dropdown may extend. Opening upward is not allowed. [G]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "zslider": {
+    "travel": {
+      "$type": "number",
+      "$value": 7,
+      "$description": "Unit: cm. Knob travel along Z from fully pulled to fully pushed. [G, provisional]",
+      "$extensions": {
+        "com.figma": {
+          "scopes": [
+            "ALL_SCOPES"
+          ]
+        }
+      }
+    }
+  },
+  "feedback": {
+    "detent": {
+      "interval": {
+        "$type": "number",
+        "$value": 0.1,
+        "$description": "Z-Slider detent step as a fraction of the range (10 steps). [T]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "packaging": {
+    "depth": {
+      "max": {
+        "$type": "number",
+        "$value": 3,
+        "$description": "Deepest nesting level shown in the lab (levels 0-3). Real limit is the depth budget. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      }
+    },
+    "parent": {
+      "mode": {
+        "$type": "string",
+        "$value": "compress",
+        "$description": "What the parent does when a child opens: compress | replace | protrude. Lab default; the real default is still open. [G, provisional]",
+        "$extensions": {
+          "com.figma": {
+            "scopes": [
+              "ALL_SCOPES"
+            ]
+          }
+        }
+      },
+      "recede": {
+        "z": {
+          "$type": "number",
+          "$value": 5,
+          "$description": "Unit: cm. How far each level of parent moves back (compress mode). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "y": {
+          "$type": "number",
+          "$value": 3.5,
+          "$description": "Unit: cm. How far each level of parent moves up (compress mode), so its silhouette stays visible. [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "scale": {
+          "$type": "number",
+          "$value": 0.08,
+          "$description": "Scale lost per level of depth (compress mode). [G, provisional]",
+          "$extensions": {
+            "com.figma": {
+              "scopes": [
+                "ALL_SCOPES"
+              ]
+            }
+          }
+        },
+        "opacity": {
+          "start": {
+            "$type": "number",
+            "$value": 0.6,
+            "$description": "Opacity of the first parent behind the active panel. This is the wayfinding breadcrumb. [G, provisional]",
+            "$extensions": {
+              "com.figma": {
+                "scopes": [
+                  "ALL_SCOPES"
+                ]
+              }
+            }
+          },
+          "step": {
+            "$type": "number",
+            "$value": 0.14,
+            "$description": "Opacity lost per further level. [G, provisional]",
+            "$extensions": {
+              "com.figma": {
+                "scopes": [
+                  "ALL_SCOPES"
+                ]
+              }
+            }
+          },
+          "min": {
+            "$type": "number",
+            "$value": 0.3,
+            "$description": "Parents never fade below this, so the path back is always visible. [G, provisional]",
+            "$extensions": {
+              "com.figma": {
+                "scopes": [
+                  "ALL_SCOPES"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

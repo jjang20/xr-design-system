@@ -1,0 +1,81 @@
+/* Generated from tokens.json (Contour 0.2.0) by scripts/build-tokens.mjs. Do not edit by hand.
+ * vpt values are plain numbers: multiply by 0.75mm and the viewing distance
+ * in metres, e.g. calc(var(--contour-size-interactive-default) * 0.75mm * 0.75). */
+:root {
+  --contour-thickness-100: 4mm; /* D */
+  --contour-thickness-200: 8mm; /* D */
+  --contour-thickness-400: 16mm; /* D */
+  --contour-size-1600: 64; /* D vpt */
+  --contour-size-2000: 80; /* D vpt */
+  --contour-size-interactive-minimum: 64; /* M vpt */
+  --contour-size-interactive-default: 80; /* M vpt */
+  --contour-spacing-600: 24; /* D vpt */
+  --contour-spacing-gap-minimum: 24; /* M vpt */
+  --contour-duration-120: 120ms; /* D */
+  --contour-duration-140: 140ms; /* D */
+  --contour-duration-220: 220ms; /* D */
+  --contour-duration-240: 240ms; /* D */
+  --contour-duration-030: 30ms; /* D */
+  --contour-duration-080: 80ms; /* D */
+  --contour-easing-easeOut: cubic-bezier(0, 0, 0.58, 1); /* D */
+  --contour-easing-easeInOut: cubic-bezier(0.42, 0, 0.58, 1); /* D */
+  --contour-distance-100: 100mm; /* D */
+  --contour-distance-140: 140mm; /* D */
+  --contour-distance-350: 350mm; /* D */
+  --contour-distance-400: 400mm; /* D */
+  --contour-distance-003: 3mm; /* D */
+  --contour-material-thickness-thin: 4mm; /* G */
+  --contour-material-thickness-regular: 8mm; /* G */
+  --contour-material-thickness-thick: 16mm; /* G */
+  --contour-material-firmness-soft-pressDepth: 0.6; /* T */
+  --contour-material-firmness-firm-pressDepth: 0.4; /* T */
+  --contour-material-firmness-rigid-pressDepth: 0.15; /* T */
+  --contour-material-opacity-default: 0.92; /* G */
+  --contour-material-outline-width: 1; /* G vpt */
+  --contour-material-glow-width: 2; /* G vpt */
+  --contour-motion-enter-duration: 120ms; /* G */
+  --contour-motion-enter-easing: cubic-bezier(0, 0, 0.58, 1); /* G */
+  --contour-motion-expand-duration: 240ms; /* T */
+  --contour-motion-expand-easing: cubic-bezier(0.42, 0, 0.58, 1); /* T */
+  --contour-motion-recovery-soft-duration: 220ms; /* T */
+  --contour-motion-recovery-firm-duration: 140ms; /* T */
+  --contour-motion-recovery-rigid-duration: 80ms; /* T */
+  --contour-motion-press-behavior: "followInput"; /* N */
+  --contour-color-contrast-ratio-minimum: 3; /* M */
+  --contour-color-scrim-opacity-minimum: 0; /* T */
+  --contour-color-scrim-opacity-maximum: 0.35; /* T */
+  --contour-shadow-contact-behavior: "proportionalToPush"; /* G */
+  --contour-shadow-contact-scaleGain: 0.9; /* G provisional */
+  --contour-shadow-contact-opacity-minimum: 0.15; /* G provisional */
+  --contour-shadow-contact-opacity-maximum: 0.6; /* G provisional */
+  --contour-sound-detent-gain: -18; /* G */
+  --contour-sound-detent-duration: 30ms; /* G provisional */
+  --contour-input-hover-distance-enter: 100mm; /* G */
+  --contour-input-hover-distance-exit: 140mm; /* G */
+  --contour-input-poke-pressTrigger: "surfaceContact"; /* N */
+  --contour-input-poke-distance-release: 3mm; /* T */
+  --contour-input-direct-distance-enter: 350mm; /* G */
+  --contour-input-direct-distance-exit: 400mm; /* G */
+  --contour-input-touch-size-minimum: 22mm; /* G provisional */
+  --contour-zone-room-growth-start: 1750mm; /* G provisional */
+  --contour-zone-room-growth-rate: 0.5; /* G provisional */
+  --contour-anchor-mode: "bodyLock"; /* D */
+  --contour-anchor-follow-delay: 350ms; /* T */
+  --contour-anchor-follow-damping: "critical"; /* G */
+  --contour-anchor-follow-frequency: 6; /* G provisional */
+  --contour-anchor-eccentricity-vertical: -25deg; /* G */
+  --contour-dock-magnify-radius: 332; /* T vpt */
+  --contour-dock-magnify-scale-max: 1.6; /* T */
+  --contour-dock-magnify-falloff: "cosine"; /* G */
+  --contour-menu-extent-vertical-max: 35deg; /* G */
+  --contour-zslider-travel: 70mm; /* G provisional */
+  --contour-feedback-detent-interval: 0.1; /* T */
+  --contour-packaging-depth-max: 3; /* G provisional */
+  --contour-packaging-parent-mode: "compress"; /* G provisional */
+  --contour-packaging-parent-recede-z: 50mm; /* G provisional */
+  --contour-packaging-parent-recede-y: 35mm; /* G provisional */
+  --contour-packaging-parent-recede-scale: 0.08; /* G provisional */
+  --contour-packaging-parent-recede-opacity-start: 0.6; /* G provisional */
+  --contour-packaging-parent-recede-opacity-step: 0.14; /* G provisional */
+  --contour-packaging-parent-recede-opacity-min: 0.3; /* G provisional */
+}

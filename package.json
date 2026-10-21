@@ -1,0 +1,18 @@
+{
+  "name": "contour-tokens",
+  "version": "0.2.0",
+  "description": "Contour XR design system tokens. 1 unit = 1 m.",
+  "private": true,
+  "type": "module",
+  "main": "dist/tokens.js",
+  "exports": {
+    ".": "./dist/tokens.js",
+    "./tokens.css": "./dist/tokens.css",
+    "./figma-variables.json": "./dist/figma-variables.json",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": {
+    "check": "node scripts/check-tokens.mjs && node scripts/build-tokens.mjs --check",
+    "build": "node scripts/check-tokens.mjs && node scripts/build-tokens.mjs"
+  }
+}

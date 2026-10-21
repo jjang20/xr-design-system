@@ -29,9 +29,9 @@ Rendering uses Playwright with Chromium. If you have no Playwright browser insta
 
 | Step | File | What it does | What you do |
 |---|---|---|---|
-| Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.t.regular": 12`. | Write the question and pick the values to compare. |
+| Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.thickness.regular": 0.012` (metres). | Write the question and pick the values to compare. |
 | Render | `render.mjs`, `scene/button.html` | Draws each variant at 1:1 scale from the wearer's eye, in rest, hover and press, at the headset's pixel density (25 px per degree, about Quest 3). | Nothing. |
-| Check | `check.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
+| Check | `check.mjs`, `lib/checks.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
 | Bar | `judge-human.mjs`, `judge-ai.mjs`, `lib/bar.mjs` | Each variant alone, next to your reference images: does it reach visionOS level? Scored by eye on seven rows (material, light, shape, type, states, depth, cohesion; the material, type, states and depth rows spell out Apple's own standards); the AI needs 4 of 5 on every row. An eighth row, motion, is checked by code (see below). Variants that fail stop here. | Ship it / Not yet, and tick what falls short. |
 | Pairwise | `judge-human.mjs`, `judge-ai.mjs` | Only bar passers, two at a time, names hidden, sides shuffled. The AI judges every pair twice with the sides swapped; if it flips, that pair counts as a tie. | Vote. Your votes decide. |
 | Score | `score.mjs` | Win/tie/loss and a Bradley-Terry strength per variant, plus how often the AI agreed with you. | Read `report.md`. |
@@ -43,7 +43,7 @@ If nothing reaches the bar, the experiment ends with no winner and nothing chang
 
 ## Motion rules
 
-A still render can't show motion, so `check.mjs` checks the motion tokens against Emil Kowalski's design-engineering rules (`lib/motion.mjs`): entering motion uses a strong custom ease-out (never ease-in or a built-in CSS curve), UI motion stays under 300 ms, press tracks the finger, release takes 200 ms or less, and hover feedback stays at 100 to 160 ms. Apple's fluid-interface rules add three more: anything the user touches settles with an interruptible spring rather than a fixed duration, motion that wasn't thrown by the user never overshoots (so `anchor.follow` must be critically damped), and every motion has a reduced-motion fallback. A finding on a token the experiment varies counts against that variant. Findings on other tokens are reported as "the system vs the motion bar" without blocking the experiment.
+A still render can't show motion, so `check.mjs` checks the motion tokens against Emil Kowalski's design-engineering rules (`lib/motion.mjs`): entering motion uses a strong custom ease-out (never ease-in or a built-in CSS curve), UI motion stays under 300 ms, press tracks the finger, release takes 200 ms or less, and hover feedback stays at 100 to 160 ms. Apple's fluid-interface rules add three more: anything the user touches settles with an interruptible spring rather than a fixed duration, motion that wasn't thrown by the user never overshoots (so `anchor.follow` must be critically damped), and every motion has a reduced-motion fallback. A finding on a token the experiment varies counts against that variant, and so does a finding on an alias that points at a varied primitive (varying `duration.120` also varies `motion.enter.duration`). `npm test` covers this. Findings on other tokens are reported as "the system vs the motion bar" without blocking the experiment.
 
 ## Reference images
 
@@ -51,7 +51,7 @@ Put captures of the level you want to reach in `arena/references/` (your own vis
 
 ## Adding an experiment
 
-Copy `experiments/button-thickness.json`, change the question, criteria and variants. Any token the button scene reads can be varied today: `material.t.*`, `material.density.firm.press`, `size.button.default`, `size.gap.min`, `feedback.glow.edge`, `feedback.shadow.press.*`, `surface.opacity.base`, `anchor.eccentricity.vertical`. Other components (Z-Slider, packaging, dock) need their own scene file under `scene/`.
+Copy `experiments/button-thickness.json`, change the question, criteria and variants. Any token the button scene reads can be varied today: `material.thickness.*`, `material.firmness.firm.pressDepth`, `size.interactive.default`, `spacing.gap.minimum`, `material.glow.width`, `shadow.contact.*`, `material.opacity.default`, `anchor.eccentricity.vertical`. Other components (Z-Slider, packaging, dock) need their own scene file under `scene/`.
 
 ## What gets rendered
 

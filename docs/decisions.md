@@ -30,11 +30,11 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Alternatives:** Leave them in the lab code until decided (two sources of truth again), or promote them straight to v0.1 (claims decisions that weren't made).
 - **Trade-offs:** A reader has to notice the flag. `scripts/check-tokens.mjs` marks them with `~` in its output to help.
 
-### 5. A check script, no build pipeline yet
-- **Decision:** Add `scripts/check-tokens.mjs` (no dependencies) that validates the file. Don't add Style Dictionary or a package build yet.
-- **Why:** The first risk is a typo or missing unit, not a missing export format. A build pipeline is worth adding once a second consumer (Figma Variables or Unity) actually reads the file.
-- **Alternatives:** Style Dictionary now: generates CSS/JS/JSON outputs, but adds dependencies and custom-unit transforms before anyone needs them.
-- **Trade-offs:** The website must read `tokens.json` directly for now and convert dmm itself (one line, shown in [tokens.md](tokens.md#using-dmm-in-a-scene)).
+### 5. A check script first, a build step once a second reader appears
+- **Decision:** Start with `scripts/check-tokens.mjs` (no dependencies) to validate the file. Add a build step only when a second consumer reads the tokens. That moment came with the WebXR components and Figma Variables; see [16](#16-a-small-build-script-instead-of-style-dictionary).
+- **Why:** The first risk was a typo or missing unit, not a missing export format.
+- **Alternatives:** A full build pipeline from day one: generates outputs before anyone needs them.
+- **Trade-offs:** Until the build step existed, the website had to read `tokens.json` directly and convert dmm itself.
 
 ---
 
@@ -53,7 +53,7 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Trade-offs:** Only three feels exist until a new density is added.
 
 ### 8. Hysteresis on every threshold
-- **Decision:** Separate enter and exit distances (hover 100 / 140 dmm, poke release 3 mm back, near/far ±50 mm).
+- **Decision:** Separate enter and exit distances (hover 100 / 140 mm, poke release 3 mm back, direct touch 350 / 400 mm). Since v0.2 both edges are named: `distance.enter` / `distance.exit`..
 - **Why:** XR has no click, only distance. One threshold makes the state flicker when a hand rests near it, which is the thing users find most irritating.
 - **Alternatives:** One threshold plus a time delay (debounce). Also stops flicker, but makes every response feel late.
 - **Trade-offs:** Two numbers to tune instead of one, and the gap must stay smaller than the space between nearby targets.
@@ -61,9 +61,10 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 
 ### 9. dmm as the main size unit ⚠️
 - **Decision:** Sizes users look at are in dmm (scales with distance); sizes the hand touches are in mm; extents of view are in deg.
-- **Why:** Fixed mm makes far UI unreadable and near UI huge. dmm keeps the apparent size constant, the way rem keeps type proportional. Minimum target rules (32 dmm) only make sense in a unit relative to distance.
+- **Why:** Fixed mm makes far UI unreadable and near UI huge. dmm keeps the apparent size constant, the way rem keeps type proportional. Minimum target rules (48 dmm) only make sense in a unit relative to distance.
 - **Alternatives:** Degrees for everything (common in research). Precise, but unfamiliar to designers and hard to lay out with.
 - **Trade-offs:** Every consumer must know the placement distance to convert to metres. ⚠️ Changing the base unit later would rewrite every size token.
+- **Superseded** by §21 (vpt) on 2026-10-21.
 
 ### 10. Dock anchor: body-lock with lazy follow (350 ms, critical damping)
 - **Decision:** `anchor.mode = body-lock`; head-lock and world-lock are banned for the dock.
@@ -100,3 +101,86 @@ Each entry follows the same shape: **Decision**, **Why**, **Alternatives** (and 
 - **Why:** "Why is this number this number?" is the first question a reviewer asks. Separating borrowed, estimated and to-be-tested values is what makes this research instead of a copy.
 - **Alternatives:** Comments in the docs only. Easy to drift from the values.
 - **Trade-offs:** Tags must be updated when a value is tested, or they become stale.
+
+---
+
+## Part 3. The token pipeline
+
+A pipeline is the step that turns one source file into the files each tool reads. In Figma terms: `tokens.json` is the main component, and the files in `dist/` are instances that update when the main one changes.
+
+### 16. A small build script instead of Style Dictionary
+- **Decision:** `scripts/build-tokens.mjs`, plain Node with no dependencies, writes three files into `dist/`: `tokens.js` (WebXR code), `tokens.css` (website), `figma-variables.json` (Figma).
+- **Why:** Style Dictionary is the standard tool because it handles many platforms (iOS, Android, CSS) with ready-made transforms. Contour needs none of those transforms: every size is in dmm, mm or deg, which Style Dictionary doesn't know, so each output would need a custom transform anyway. With 55 tokens, the whole converter is about 150 readable lines, and `npm install` is never needed.
+- **Alternatives:** Style Dictionary with custom unit transforms. Better if Contour later targets Unity, iOS or Android, since its plugin ecosystem covers those. Today it would add a dependency and a config layer around the same custom code.
+- **Trade-offs:** No plugin ecosystem; every new output is written by hand. Switching to Style Dictionary later is cheap, because the source (`tokens.json`) and output names don't change, only the script does.
+
+### 17. Code gets scene units; Figma and CSS keep the token's own unit ⚠️
+- **Decision:** In `dist/tokens.js` every number is converted to metres, radians or seconds (`material.thickness.regular` = 0.008). vpt tokens become "metres at 1 m away" and are scaled with `viewSize(value, distanceM)`, which applies f(d) (§21). CSS writes physical metres as `mm`, keeps `deg` and `ms`, and writes vpt as a plain number. Figma gets vpt as the plain number (1 px = 1 vpt) and metres shown in cm or mm, with the unit at the start of the description. Aliases are resolved to values in every output.
+- **Why:** three.js works in metres, radians and seconds. Converting once in the pipeline means component code never does unit maths, which is where XR sizing bugs come from (a 60 mm button where 80 vpt at 0.75 m = 45 mm was meant). Figma and the website are read by people, who think in the token's own unit.
+- **Alternatives:** Keep original units in JS and convert in each component: one source of numbers, but every component repeats the conversion and can get it wrong. Bake vpt into metres at a fixed distance: simpler, but wrong for anything not placed at that distance.
+- **Trade-offs:** The same token reads `60` in Figma and `0.06` in code, so cross-checking needs the `units` table. ⚠️ Component code will rely on "every number is SI"; changing that later means touching every component.
+
+### 18. Built files are committed, and `npm run check` catches drift
+- **Decision:** `dist/` is in git. `npm run check` fails when `dist/` doesn't match `tokens.json`.
+- **Why:** The website, demos and Figma can grab the files straight from GitHub without running a build. The check stops the classic problem of generated files going stale.
+- **Alternatives:** Build on install or in CI and keep `dist/` out of git. Cleaner history, but every consumer needs a build step.
+- **Trade-offs:** Each token change produces a bigger diff (source plus three outputs). The drift check runs only when someone runs it; a CI job would make it automatic.
+
+### 19. Figma Variables as an import file, not a live sync
+- **Decision:** Produce `dist/figma-variables.json` in the DTCG shape Figma's "Import variables" reads, one collection, groups from the token path. vpt sizes are scoped to width/height, gap, corner radius and stroke; everything else is unscoped.
+- **Why:** The Figma connector can't connect from this project right now, so writing to Figma directly isn't possible. An import file also keeps `tokens.json` the source: Figma receives values, it doesn't own them.
+- **Alternatives:** A sync through the Figma API or a plugin like Tokens Studio. Two-way and automatic, but needs access we don't have and invites edits in Figma that never reach `tokens.json`.
+- **Trade-offs:** Re-importing is a manual step after each change. Figma Variables only hold numbers, strings, booleans and colours, so easings become text (`cubic-bezier(...)`) and units live in descriptions. The import has not been tried in Figma yet.
+
+---
+
+## Part 4. Distance and anchors
+
+### 20. Sizing follows the anchor, not distance alone ⚠️ (provisional)
+
+> **Superseded on 2026-10-21** by §21–§23: one sizing rule for every zone (vpt × f(d), with d measured at placement), plus the 22 mm fingertip floor (`input.touch.size.minimum`). The `anchor.*.scale` tokens were removed. Kept here as the record of why.
+
+- **Decision:** Every object declares what it is anchored to, and that decides how its size reacts to distance:
+
+  | Anchor | Token | Rule |
+  |---|---|---|
+  | Hand | `anchor.hand.scale = physical` | Real mm, never rescales. Targets ≥ `size.target.floor` (22 mm). |
+  | Surface | `anchor.surface.scale = freeze-on-place` | dmm × distance once, when placed on a table or wall, then frozen like a post-it. |
+  | Body | `anchor.body.scale = track-distance` | dmm × current distance, recalculated when the window moves, never when only the head moves. |
+  | World | `anchor.world.scale = freeze-on-place` | Sized at placement like a poster, then frozen. Past `anchor.world.growth.knee` (1.75 m) each extra metre counts as `anchor.world.growth.rate` (0.5 m). |
+
+  `anchor.mode = body-lock` (§10) stays: it is the dock's choice among these.
+- **Why:** Contour is used much closer to the body than other platforms plan for: windows lie on a desk like a phone, and small controls sit on the hand. A rule driven only by distance can't tell a post-it on the desk (should stay put at its printed size when you lean back) from a panel following you (should keep its apparent size). The anchor already knows that. The platforms back the parts: Snap's kit has type ramps per distance, Meta switches minimum targets by input mode (direct 48 vs indirect 56 dp), and all kits size touch targets in physical mm.
+- **Alternatives:** Three distance zones (desk / reach / room). Easier to explain, but sizes jump when an object crosses a zone border, and the zone says nothing about whether the object should follow you. Pure dmm everywhere (Android XR, visionOS): proven for far windows, but makes on-hand UI shrink to unusable and makes desk objects change size as you move.
+- **Trade-offs:** Each component needs an anchor before it can be sized, one more decision per component. Frozen objects get angularly smaller as you walk away, which is right for a poster but means text on a world window read from across the room may need a larger type step. ⚠️ Once components read `anchor.*.scale`, changing the set of anchors touches every component. The values (22 mm, 1.75 m, 0.5) are borrowed (G) and still provisional; the 22 mm floor sits well above WCAG's 44 px target (about 7–9 mm on a phone), but tremor on hand-anchored UI is untested.
+
+---
+
+## Part 5. Units and names, v0.2 (2026-10-21)
+
+Research behind this part: the [anatomy review](https://claude.ai/artifact/SyKK3DD136kwmJ9PnT6iQd) of visionOS, Meta, Android XR, Snap, PICO and MRTK naming, the base-unit recommendation from the XR research thread (project file `xr-research/base-unit-recommendation.md`), and the [v6 anatomy page](https://claude.ai/artifact/PcjDLnrDVqXwhH51DaJrdu) with a source link per naming choice.
+
+### 21. vpt (view point) is the unit for everything the eye judges ⚠️
+- **Decision:** 1 vpt = 0.75 dmm: 0.75 mm of real size per metre of viewing distance, about 0.043°. Real size (m) = vpt × 0.00075 × f(d). `d` is the eye-to-panel distance, measured once when the panel is placed (not every frame). f(d) = d up to `zone.room.growth.start` (1.75 m), then 1.75 + `zone.room.growth.rate` (0.5) × (d − 1.75). The size is linear on the flat panel, not a true angle per element.
+- **Why:** Mobile numbers work again (16 body, 40 button, 64 target, an 8 grid) and still land on platform sizes: 16 vpt = 12 dmm ≈ Android XR's 14 dp type (12.15 dmm), 64 vpt = 48 dmm ≈ its 56 dp target (48.6 dmm), using Android's 0.868 dp-to-dmm ([spatial UI](https://developer.android.com/design/ui/xr/guides/spatial-ui)). A visionOS point is about 0.73 dmm (Apple: 60 pt ≈ 2.5°, [spatial layout](https://developer.apple.com/design/human-interface-guidelines/spatial-layout)), so Apple's numbers carry over almost 1:1. Linear-on-the-panel is how engines render a flat window and how Google defined dmm. Measuring d once keeps a panel still while the head moves. The 1.75 m bend is Android XR's, so far panels don't become billboards.
+- **Alternatives:** Plain dmm (simplest maths, but body 12, button 30, a 6 grid). Apple's 0.73 exactly (Apple doesn't publish it as a constant). A true angle per element (edges of a wide flat window would get different sizes). Names `cu`, `cpt`, `pt`, `dp`: rejected for clashing with Apple's and Google's units or not reading as a unit.
+- **Trade-offs:** Every metre conversion carries the 0.75. Degrees are only approximate across a wide window (about 4% at 40°), so degrees are quoted only for small things. Legibility still needs a per-headset check (pixels per degree), which is not a token yet. ⚠️ The 0.75, the 1.75 m and the 0.5 are the values to lock before the first public release; every size token depends on them.
+
+### 22. Pick the unit by what a value measures, not by zone
+- **Decision:** vpt for anything the eye judges (size, spacing, type, outline and glow width). Metres for anything the hand or body reaches (hover and poke distances, press travel, thickness, the fingertip floor, zone distances). This holds in every zone, the hand zone included. The hand zone adds one floor: hit size = max(vpt size at d, `input.touch.size.minimum` = 22 mm).
+- **Why:** A label on a wrist menu is still something you look at; only the finger's reach is physical. PICO splits units the same way ("the spatial panel uses units of dmm, while the Volumetric window and 3D model use meters", [PICO units](https://developer.picoxr.com/document/spatial-design/unit/)). Meta's 22 × 22 mm poke target sets the floor ([touch](https://developers.meta.com/horizon/design/touch_bp/)). Hover moved from 100 dmm to 100 mm: a finger's distance must not grow with how far away the window is.
+- **Alternatives:** One unit per zone (mm in the hand zone, dmm elsewhere). Simpler to state, but the same button would be written two ways.
+- **Trade-offs:** Two units to document. The per-zone sizing modes from §20 are gone; if desk and room ever need different type sizes, that comes back as Figma modes, not new units.
+
+### 23. Store physical values in metres ⚠️
+- **Decision:** `tokens.json` stores physical lengths in metres (`0.003`). Docs and Figma show cm, or mm below 1 cm.
+- **Why:** RealityKit, Unity, WebXR, Android XR and Meta all take metres, so code never converts. Snap is the only cm system found.
+- **Alternatives:** Store mm or cm. Nicer in raw JSON, but every engine needs a conversion and mm/cm mix-ups creep in.
+- **Trade-offs:** Small values look awkward in the raw file; the build formats them for people. ⚠️ Changing storage later rewrites every physical token and every reader.
+
+### 24. Two layers and one name order ⚠️
+- **Decision:** Primitives are `family.step` (`thickness.200`, `size.1600`, `spacing.600`, `duration.120`, `easing.easeOut`, `distance.100`). Aliases are `family.role.variant.state.property.bound` and point at primitives with `{...}` (`material.thickness.regular` → `{thickness.200}`). Steps are a multiple of the base × 100 for thickness, size and spacing, and the literal value for duration and distance. Full words, camelCase. `anchor` was split into `input` (hand distances) and `zone` (distance from the eyes); `density` became `firmness`; the press shadow became `shadow.contact`; `surface` and `feedback` were dissolved. Component tokens (anchor/dock, menu, Z-Slider, packaging, detent interval) are a backlog and keep their names. Every old name is mapped in `scripts/renames.json`, exported as `renamed` from `dist/tokens.js`.
+- **Why:** Two layers follow Material 3 (`md.ref` → `md.sys`) and Polaris v12; numbered steps follow Atlassian and Polaris so a step can be added without renaming; enter/exit edges follow Meta, Snap and MRTK. Sources per choice are on the v6 page.
+- **Alternatives:** Keep the v0.1 feature buckets (`proximity`, `feedback`, `surface`): no migration, but families overlapped and names mixed abbreviations (`t`, `min`, `mr`).
+- **Trade-offs:** Every reader of tokens had to change in one go (the arena was updated in the same commit). Three values moved while re-basing to vpt: `spacing.gap.minimum` 16 dmm → 24 vpt (18 dmm, rounded up to the 4 vpt grid), `material.outline.width` 1 dmm → 1 vpt (0.75 dmm), `dock.magnify.radius` 250 dmm → 332 vpt (249 dmm). ⚠️ Names are the API: renaming again later breaks every consumer.
+

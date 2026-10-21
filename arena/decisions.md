@@ -18,7 +18,7 @@ Same shape as [docs/decisions.md](../docs/decisions.md): **Decision**, **Why**, 
 - **Decision:** The material, type, states and depth rows now spell out Apple's own standards (material weight encodes hierarchy, no light glass on light glass, size-specific tracking, vibrancy for text on glass, dim or push back to focus). The motion check adds three of Apple's fluid-interface rules: springs for anything touched, no overshoot without momentum, and a reduced-motion fallback.
 - **Why:** "visionOS level" was a feeling; judges (you and the AI) score more consistently against named criteria. Apple's rules are the closest written description of that level. They complement Emil's: Emil covers timing and curves, Apple covers springs, interruption, materials and type.
 - **Alternatives:** Keep the rows short and rely on reference images. Easier to read, but two judges can mean different things by "material".
-- **Trade-offs:** The rows are longer, so a human judgment takes a little more reading. The new spring and reduced-motion findings are warnings on the system, not on this experiment, because fixing them means new tokens (a spring per density, `motion.reduced.*`), which is the tokens work, not the arena's.
+- **Trade-offs:** The rows are longer, so a human judgment takes a little more reading. The new spring and reduced-motion findings are warnings on the system, not on this experiment, because fixing them means new tokens (a spring per firmness, `motion.reduced.*`), which is the tokens work, not the arena's.
 
 ### 1. Pairwise, not scoring
 - **Decision:** Judges compare two variants at a time ("which is better?") instead of rating each one 1 to 10.
