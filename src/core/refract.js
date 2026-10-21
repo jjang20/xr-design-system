@@ -109,6 +109,8 @@ const FRAG = /* glsl */`
   uniform float uFadeLen;
   uniform vec3 uEmissive;
   uniform float uEmissiveRim;
+  uniform vec4 uTouch;   // where a hand holds the glass (world xyz) and the glow's radius
+  uniform vec3 uTouchGlow;
   uniform mat3 uEnvRot;
   #ifdef GLYPH
     // A glyph hanging in a globe, on the plane through its centre: sampled
@@ -379,6 +381,10 @@ const FRAG = /* glsl */`
     #ifdef GLYPH
       add += uGlyphColor * (glyph * uGlyphGlow + bloom * uGlyphBloom);
     #endif
+    // Touch: light gathered where a hand holds the glass (the Dock's plate
+    // when grabbed), brightest toward the rim there, as the press glow is.
+    vec3 td = vWorld - uTouch.xyz;
+    add += uTouchGlow * exp(-dot(td, td) / max(uTouch.w * uTouch.w, 1e-10)) * (0.35 + 1.4 * pow(1.0 - nv, 2.0));
     // Hover: a soft light under the pointer.
     add += vec3(uHover * 0.02);
     // Hover sheen (the Dock's globes): the glass brightens, most at its rim,
@@ -432,6 +438,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false, globe = 
       uDistort: { value: P.distort ?? R.distort }, uReflect: { value: P.reflect ?? R.reflect }, uSat: { value: P.saturation ?? 1 }, uRimBlur: { value: P.rimBlur ?? 0 }, uBall: { value: new THREE.Vector3() },
       uRoomDistort: { value: P.roomDistort ?? P.distort ?? R.distort }, uRoomBlur: { value: P.roomBlur ?? P.rough }, uRoomLift: { value: P.roomLift ?? 0 }, uRimSpec: { value: P.rimSpec ?? 1 }, uSpecSharp: { value: P.specSharp ?? 0 },
       uEmissive: { value: new THREE.Color(0, 0, 0) }, uEmissiveRim: { value: P.emissiveRim ?? 0 },
+      uTouch: { value: new THREE.Vector4() }, uTouchGlow: { value: new THREE.Color(0, 0, 0) },
       uSpot: { value: new THREE.Vector2() },   // (Button sets it; unused)
       uCaustic: { value: P.caustic ?? 0 },
       uOpacity: { value: 1 }, uFadePlane: { value: new THREE.Vector4() }, uFadeLen: { value: 0 },

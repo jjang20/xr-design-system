@@ -1,21 +1,27 @@
-// Contour app objects: the Dock's icons as real things standing on its
-// glass shelf (Jihoon, 2026-10-21: "3d icons should look like real 3d
-// objects"; his reference is the Mac OS X dock, where Safari is a metal
-// compass and Address Book a leather book). Each app is a small physical
-// object, made of the materials such a thing is made of and lit by the room:
+// Contour app objects: the Dock's icons as things standing on its glass
+// plate (Jihoon, 2026-10-21: "3d icons should look like real 3d objects",
+// then "more icon style ... rather than 3d assets in marketplace"; his
+// reference is the Mac OS X dock, where Safari is a metal compass and
+// Address Book a leather book). Each app is one object drawn the way a
+// Mac OS X icon is (Apple HIG 2008, "Icon Design"): seen straight on, lit
+// from directly above and slightly in front, one simple idealised form
+// with no ground or props, clean glossy materials, and one visual weight
+// across the family (optical sizes, see SIZE):
 //
-//   house     Planner   a model house on a birch base, its roof the app's blue
+//   house     Planner   a house seen straight on, its roof the app's blue
 //   ruler     Measure   a tape measure, an orange shell, its blade drawn out
 //   scan      Scan      a camera lens lying on its barrel, a green ring
 //   image     Photos    a photo in a lacquered frame, leaning on its stand
-//   settings  Settings  two meshing gears of brushed metal
+//   settings  Settings  a brushed gear with a dark ring and a polished hub
+//   notes     Notes     a cube of sticky notes, its top sheet written on
+//   clock     Clock     a twin-bell alarm clock reading ten past ten
 //
 // Contour's own objects, not Apple's icons. Built in code (no model files),
-// so an app's colour carries into its object. Realism comes from what real
-// objects have and flat icons don't: every edge rounded so it catches a
-// line of light, several materials per object (painted, rubber, metal,
-// glass, paper), small printed and machined details, and a slight turn so
-// each shows its side as well as its face.
+// so an app's colour carries into its object. What keeps them from reading
+// as flat icons: every edge rounded so it catches a line of light, a few
+// materials per object (lacquer, rubber, metal, glass, paper), and printed
+// details. What keeps them from reading as stock 3D assets: they face you,
+// simplified, without wear, bolts or extra parts.
 //
 // Unit space: an object stands on y = 0, centred on x and z, faces +z, and
 // its larger side is 1 (times its optical size, see SIZE). The Dock scales it.
@@ -26,13 +32,13 @@ import { roundedRectShape } from './look.js';
 import interSemibold from '@fontsource/inter/files/inter-latin-600-normal.woff?url';
 import interBold from '@fontsource/inter/files/inter-latin-700-normal.woff?url';
 
-const BUILDERS = { house, ruler: tapeMeasure, scan: lens, image: pictureFrame, settings: gears };
+const BUILDERS = { house, ruler: tapeMeasure, scan: lens, image: pictureFrame, settings: gears, notes: notePad, clock: alarmClock };
 // Optical size: a round object looks smaller than a square one of the same
 // width (as icon grids size circles up), and a wide one larger.
-const SIZE = { house: 1.06, ruler: 1, scan: 0.98, image: 0.98, settings: 1.06 };
+const SIZE = { house: 1.02, ruler: 1.04, scan: 0.9, image: 0.9, settings: 0.96, notes: 0.8, clock: 0.98 };
 // Each turns a little, so it shows its side as well as its face (the
 // reference's calendar and book stand at an angle). Radians, + turns left.
-const TURN = { house: -0.42, ruler: -0.38, scan: -0.5, image: -0.4, settings: -0.22 };
+const TURN = { house: -0.2, ruler: -0.12, scan: 0, image: 0, settings: 0, notes: -0.12, clock: 0 };
 
 export const hasAppObject = kind => kind in BUILDERS;
 
@@ -74,11 +80,12 @@ const envCache = new Map();
  * @param {object[]} boxes  soft boxes: { at: [x, y, z] direction, size: [w, h], power }
  * @returns {THREE.Texture} a prefiltered environment for the objects' materials
  */
-export function objectEnvironment(renderer, room, rotation, boxes) {
+export function objectEnvironment(renderer, room, rotation, boxes, roomLight = 1) {
   const key = room?.uuid ?? 'none';
   if (envCache.has(key)) return envCache.get(key);
   const s = new THREE.Scene();
   s.background = room ?? new THREE.Color(0.18, 0.18, 0.2);
+  s.backgroundIntensity = roomLight;
   if (rotation) s.backgroundRotation.copy(rotation);
   for (const b of boxes) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(...b.size), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(b.power), side: THREE.DoubleSide }));
@@ -238,76 +245,57 @@ function tapeMeasure(color) {
 }
 
 // ---------------------------------------------------------------------------
-// Planner: a model house on a birch base. White walls, a standing-seam roof
-// in the app's colour, warm light in the windows (someone is home).
+// Planner: a house, as an icon draws one: the gable seen straight on, a
+// thick glossy roof in the app's colour overhanging it, a door and two lit
+// windows. One simple shape, no ground or props (HIG: "start with a basic
+// shape"), deep enough to stand.
 
 function house(color) {
   const g = new THREE.Group();
-  const W = 0.66, wall = 0.4, apex = 0.7, D = 0.54, baseH = 0.05;
-  const white = paint(0xf3efe7, { roughness: 0.55, clearcoat: 0.3, clearcoatRoughness: 0.4 });
-  // Base: a birch board with a fine grain.
-  const grain = paintTexture(512, 512, (c, w, h) => {
-    c.fillStyle = '#e8d6b4'; c.fillRect(0, 0, w, h);
-    for (let i = 0; i < 90; i++) {
-      c.strokeStyle = `rgba(150,110,60,${0.04 + Math.random() * 0.08})`; c.lineWidth = 1 + Math.random() * 2;
-      const y = Math.random() * h; c.beginPath(); c.moveTo(0, y);
-      for (let x = 0; x <= w; x += 32) c.lineTo(x, y + Math.sin(x / 70 + i) * 4);
-      c.stroke();
-    }
-  });
-  g.add(at(box(0.98, baseH, 0.84, 0.018, paint(0xffffff, { map: grain, roughness: 0.62 })), 0, baseH / 2, 0.02));
-  // Body: the gable wall's outline pushed back the house's depth.
-  const s = new THREE.Shape();
-  s.moveTo(-W / 2, 0); s.lineTo(W / 2, 0); s.lineTo(W / 2, wall); s.lineTo(0, apex); s.lineTo(-W / 2, wall); s.lineTo(-W / 2, 0);
-  const body = new THREE.Mesh(extrude(s, D, 0.008, 0.006, 2), white);
-  g.add(at(body, 0, baseH, 0));
-  // Roof: two slabs meeting at the ridge, overhanging the walls, with seams
-  // running down the slope.
-  const seams = paintTexture(256, 256, (c, w, h) => {
-    c.fillStyle = '#808080'; c.fillRect(0, 0, w, h);
-    for (let i = 0; i < 9; i++) { const y = (i + 0.5) * h / 9; const gr = c.createLinearGradient(0, y - 6, 0, y + 6); gr.addColorStop(0, '#808080'); gr.addColorStop(0.5, '#ffffff'); gr.addColorStop(1, '#808080'); c.fillStyle = gr; c.fillRect(0, y - 6, w, 12); }
-  }, { data: true });
-  const roofMat = plastic(color, { roughness: 0.3, clearcoatRoughness: 0.12, bumpMap: seams, bumpScale: 1.2 });
-  const T = 0.05, over = 0.07, ovD = 0.06;
-  const ridge = new THREE.Vector2(0, baseH + apex);
-  for (const side of [-1, 1]) {
-    const eave = new THREE.Vector2(side * W / 2, baseH + wall);
-    const d = eave.clone().sub(ridge), len = d.length() + over;
-    d.normalize();
-    const n = new THREE.Vector2(-side * d.y, side * d.x);   // outward: up and away from the ridge
-    const slab = box(len, T, D + 2 * ovD, 0.016, roofMat, 3);
-    slab.rotation.z = Math.atan2(d.y, d.x);
-    const c = ridge.clone().addScaledVector(d, len / 2).addScaledVector(n, T / 2 + 0.004);
-    g.add(at(slab, c.x, c.y, 0));
-  }
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, D + 2 * ovD + 0.01, 24), roofMat);
-  cap.rotation.x = Math.PI / 2;
-  g.add(at(cap, 0, baseH + apex + 0.03, 0));
-  // Chimney on the right slope, toward the back.
-  g.add(at(box(0.09, 0.24, 0.09, 0.014, white), 0.17, baseH + apex - 0.02, -0.12));
-  g.add(at(box(0.11, 0.025, 0.11, 0.008, paint(0x3a3d44, { roughness: 0.6 })), 0.17, baseH + apex + 0.1, -0.12));
-  // Door and windows on the gable front, windows down the right side.
-  const front = D / 2 + 0.008;
-  const door = box(0.15, 0.25, 0.03, 0.012, paint(0x2b3954, { roughness: 0.4, clearcoat: 0.8 }));
-  g.add(at(door, 0, baseH + 0.125, front));
-  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.013, 16, 8), metal(0xd8b46a, 0.25)), 0.045, baseH + 0.12, front + 0.02));
-  const lit = new THREE.MeshPhysicalMaterial({ color: 0x16202e, roughness: 0.05, clearcoat: 1, emissive: 0xffb25e, emissiveIntensity: 0.55 });
+  const W = 0.74, wall = 0.46, apex = 0.8, D = 0.34, bev = 0.035;
+  const enamel = plastic(0xf7f3ec, { roughness: 0.28, clearcoatRoughness: 0.06 });
+  // Body: the gable's outline, its corners rounded, pushed back to depth.
+  const outline = fillet([[0, 0], [W / 2, 0], [W / 2, wall], [0, apex], [-W / 2, wall], [-W / 2, 0], [0, 0]], 0.04, 5);
+  const body = new THREE.Shape();
+  outline.forEach(([x, y], i) => body[i ? 'lineTo' : 'moveTo'](x, y));
+  g.add(at(new THREE.Mesh(extrude(body, D - 2 * bev, bev, bev, 6), enamel), 0, bev, 0));
+  // Roof: a chevron the thickness T over the gable, running a little past
+  // the walls at the eaves, front and back.
+  const T = 0.1, over = 0.09, ridgeY = apex + bev;
+  const eave = new THREE.Vector2(W / 2 + bev, wall + bev), ridge = new THREE.Vector2(0, ridgeY);
+  const d = eave.clone().sub(ridge).normalize(), n = new THREE.Vector2(d.y, -d.x).multiplyScalar(-1);   // outward
+  const foot = eave.clone().addScaledVector(d, over);
+  const peak = T / Math.abs(n.y);
+  const chevron = [[0, ridgeY], [foot.x, foot.y], [foot.x + n.x * T, foot.y + n.y * T], [0, ridgeY + peak], [-foot.x - n.x * T, foot.y + n.y * T], [-foot.x, foot.y], [0, ridgeY]];
+  const roofLine = fillet(chevron, 0.03, 5);
+  const roofShape = new THREE.Shape();
+  roofLine.forEach(([x, y], i) => roofShape[i ? 'lineTo' : 'moveTo'](x, y));
+  const roof = new THREE.Mesh(extrude(roofShape, D + 0.06, 0.03, 0.03, 6), plastic(color, { roughness: 0.22, clearcoatRoughness: 0.05 }));
+  g.add(at(roof, 0, 0.004, 0));
+  // Chimney on the right slope, behind the ridge line.
+  g.add(at(box(0.1, 0.2, 0.1, 0.02, enamel), 0.2, apex - 0.02, -0.05));
+  // Door: inset, deep blue lacquer, a round brass knob.
+  const front = D / 2 + 0.002;
+  const doorShape = roundedRectShape(0.16, 0.27, 0.035);
+  g.add(at(new THREE.Mesh(extrude(doorShape, 0.03, 0.012, 0.01, 4), plastic(0x23345a, { roughness: 0.25 })), 0, bev + 0.135, front - 0.01));
+  g.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.016, 20, 10), metal(0xe0bd72, 0.2)), 0.045, bev + 0.13, front + 0.02));
+  // Windows: warm light inside, white frames with a cross bar.
+  const lit = new THREE.MeshPhysicalMaterial({ color: 0x2a2416, roughness: 0.08, clearcoat: 1, emissive: 0xffbe6a, emissiveIntensity: 0.9 });
   const win = (w, h) => {
     const wg = new THREE.Group();
-    wg.add(box(w + 0.03, h + 0.03, 0.02, 0.006, white));
-    wg.add(at(new THREE.Mesh(new THREE.PlaneGeometry(w, h), lit), 0, 0, 0.0105));
-    wg.add(at(box(0.012, h, 0.012, 0.004, white), 0, 0, 0.012));
-    wg.add(at(box(w, 0.012, 0.012, 0.004, white), 0, 0, 0.012));
+    const frame = roundedRectShape(w + 0.04, h + 0.04, 0.018);
+    frame.holes.push(roundedRectShape(w, h, 0.008));
+    wg.add(new THREE.Mesh(extrude(frame, 0.02, 0.008, 0.006, 3), enamel));
+    wg.add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), lit));
+    wg.add(at(box(0.016, h, 0.014, 0.005, enamel), 0, 0, 0.004));
+    wg.add(at(box(w, 0.016, 0.014, 0.005, enamel), 0, 0, 0.004));
     return wg;
   };
-  for (const x of [-0.2, 0.2]) g.add(at(win(0.1, 0.12), x, baseH + 0.24, front));
+  for (const x of [-0.215, 0.215]) g.add(at(win(0.12, 0.12), x, bev + 0.27, front));
   const round = new THREE.Group();
-  round.add(new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 12, 48), white));
-  round.add(at(new THREE.Mesh(new THREE.CircleGeometry(0.056, 48), lit), 0, 0, -0.002));
-  g.add(at(round, 0, baseH + 0.52, front));
-  for (const z of [-0.13, 0.11]) { const sw = win(0.11, 0.12); sw.rotation.y = Math.PI / 2; g.add(at(sw, W / 2 + 0.008, baseH + 0.24, z)); }
-  // A step at the door.
-  g.add(at(box(0.22, 0.025, 0.07, 0.008, paint(0xd9d4ca, { roughness: 0.8 })), 0, baseH + 0.0125, front + 0.035));
+  round.add(new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.014, 12, 48), enamel));
+  round.add(new THREE.Mesh(new THREE.CircleGeometry(0.052, 48), lit));
+  g.add(at(round, 0, bev + 0.56, front));
   return g;
 }
 
@@ -344,28 +332,45 @@ function lens(color) {
   }, { text: true });
   const face = new THREE.Mesh(new THREE.RingGeometry(0.318, 0.398, 96, 1), new THREE.MeshPhysicalMaterial({ map: marks, roughness: 0.4, metalness: 0.3 }));
   body.add(at(face, 0, 0, 0.3005));
-  // Inside: a matte black tube, baffles and the iris, seen through the glass.
-  const black = new THREE.MeshStandardMaterial({ color: 0x07070a, roughness: 0.9, side: THREE.DoubleSide });
-  const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.5, 64, 1, true), black);
-  tube.rotation.x = Math.PI / 2;
-  body.add(at(tube, 0, 0, 0.02));
-  for (const [z, r] of [[0.2, 0.25], [0.12, 0.22]]) body.add(at(new THREE.Mesh(new THREE.RingGeometry(r, 0.31, 64), black), 0, 0, z));
-  const iris = new THREE.Shape(); iris.absarc(0, 0, 0.31, 0, Math.PI * 2);
-  const hole = new THREE.Path();
-  for (let i = 0; i <= 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3; hole[i ? 'lineTo' : 'moveTo'](Math.cos(a) * 0.12, Math.sin(a) * 0.12); }
-  iris.holes.push(hole);
-  body.add(at(new THREE.Mesh(new THREE.ShapeGeometry(iris, 48), metal(0x2a2b30, 0.45)), 0, 0, 0.04));
-  const rear = new THREE.Mesh(new THREE.SphereGeometry(0.2, 48, 16, 0, Math.PI * 2, 0, 0.6).rotateX(Math.PI / 2), new THREE.MeshPhysicalMaterial({ color: 0x0a1418, roughness: 0.03, clearcoat: 1, iridescence: 1, iridescenceIOR: 1.6, iridescenceThicknessRange: [250, 500] }));
-  body.add(at(rear, 0, 0, -0.22));
-  // Front glass: a convex element set just inside the bezel, with a
-  // multi-coating that throws green and violet reflections, as real coated
-  // optics do.
-  const Rc = 1.2, th = Math.asin(0.312 / Rc);
+  // The glass, as an icon paints it: a deep, glossy dome over coated
+  // elements. The depth inside is painted (the elements' rings, the iris,
+  // the coatings' violet and green), and the dome's polish reflects the
+  // studio light above as a crisp white sweep. Real glass would show a dark
+  // hole here; the icon idealises it (HIG: "convey the item's weight and
+  // feel, as well as its appearance").
+  const inside = paintTexture(1024, 1024, (c, w, h) => {
+    const cx = w / 2, cy = h / 2, R = w / 2;
+    const gr = c.createRadialGradient(cx, cy * 1.08, 0, cx, cy, R);
+    gr.addColorStop(0, '#1b2a52'); gr.addColorStop(0.45, '#0d1530'); gr.addColorStop(0.85, '#05070f'); gr.addColorStop(1, '#020306');
+    c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    // The iris: a dim hexagon deep inside.
+    c.save(); c.translate(cx, cy); c.rotate(0.3);
+    c.beginPath(); for (let i = 0; i <= 6; i++) { const a = i / 6 * Math.PI * 2; c[i ? 'lineTo' : 'moveTo'](Math.cos(a) * R * 0.3, Math.sin(a) * R * 0.3); }
+    c.fillStyle = 'rgba(2,3,8,0.85)'; c.fill(); c.strokeStyle = 'rgba(120,140,190,0.25)'; c.lineWidth = 3; c.stroke(); c.restore();
+    // Inner elements: thin rings of reflected light, smaller toward the back.
+    for (const [r, a] of [[0.9, 0.18], [0.68, 0.14], [0.47, 0.12]]) { c.beginPath(); c.arc(cx, cy, R * r, 0, Math.PI * 2); c.strokeStyle = `rgba(170,190,255,${a})`; c.lineWidth = 4; c.stroke(); }
+    // Coatings: a violet crescent low on the left, a green one on the right.
+    const arcGlow = (a0, a1, r, col) => { c.beginPath(); c.arc(cx, cy, R * r, a0, a1); c.strokeStyle = col; c.lineWidth = R * 0.09; c.lineCap = 'round'; c.stroke(); };
+    c.filter = 'blur(10px)';
+    arcGlow(2.2, 3.1, 0.72, 'rgba(160,90,255,0.55)');
+    arcGlow(0.15, 0.9, 0.62, 'rgba(70,230,170,0.45)');
+    arcGlow(3.6, 4.3, 0.5, 'rgba(255,170,90,0.25)');
+    c.filter = 'none';
+  });
+  const Rc = 0.62, th = Math.asin(0.312 / Rc);
   const dome = new THREE.SphereGeometry(Rc, 96, 24, 0, Math.PI * 2, 0, th).rotateX(Math.PI / 2);
   dome.translate(0, 0, 0.255 - Rc * Math.cos(th));
-  body.add(new THREE.Mesh(dome, glass({ ior: 1.7, thickness: 0.12, attenuationColor: 0xcfeee0, attenuationDistance: 0.6, iridescence: 1, iridescenceIOR: 1.45, iridescenceThicknessRange: [220, 420] })));
-  // Lying on its barrel: the bezel and focus ring touch the shelf.
+  const dp = dome.attributes.position, duv = dome.attributes.uv;
+  for (let i = 0; i < dp.count; i++) duv.setXY(i, dp.getX(i) / 0.624 + 0.5, dp.getY(i) / 0.624 + 0.5);   // the painting, seen straight on
+  body.add(new THREE.Mesh(dome, new THREE.MeshPhysicalMaterial({ map: inside, roughness: 0.04, ior: 2.2, specularIntensity: 1, clearcoat: 1, clearcoatRoughness: 0.01, iridescence: 0.25, iridescenceIOR: 1.5, iridescenceThicknessRange: [300, 620] })));
+  // A polished filter-thread ring at the very front: a bright line round
+  // the face, so the lens reads by its silhouette as icons do.
+  body.add(new THREE.Mesh(lathe(fillet([[0.392, 0.28], [0.404, 0.29], [0.404, 0.312], [0.392, 0.318]], 0.006)), metal(0xf2f3f6, 0.08)));
+  // Lying on its barrel: the bezel and focus ring touch the shelf. A short,
+  // pancake barrel: seen from above, a long one stood taller than the
+  // other apps (one visual weight across the family, HIG).
   body.position.y = 0.4;
+  body.scale.z = 0.6;
   g.add(body);
   return g;
 }
@@ -377,7 +382,7 @@ function lens(color) {
 function pictureFrame(color) {
   const g = new THREE.Group();
   const lean = new THREE.Group();
-  const W = 0.9, H = 0.68, B = 0.1, depth = 0.05, bev = 0.022;
+  const W = 0.86, H = 0.74, B = 0.1, depth = 0.06, bev = 0.024;
   const outline = roundedRectShape(W, H, 0.035);
   outline.holes.push(roundedRectShape(W - 2 * B, H - 2 * B, 0.006));
   // Lacquered wood: the grain shows faintly through the colour.
@@ -446,9 +451,8 @@ function pictureFrame(color) {
 }
 
 // ---------------------------------------------------------------------------
-// Settings: two meshing gears standing on their teeth. The large one is
-// brushed aluminium, the brushing running round it (so the light sweeps
-// round as you move); the small one dark gunmetal.
+// Settings: one gear standing on two teeth, brushed aluminium with the
+// brushing running round it (so the light sweeps round as you move).
 
 function gearShape(teeth, rTip, rRoot, holes = 0, holeR = 0, holeAt = 0) {
   const s = new THREE.Shape(), step = Math.PI * 2 / teeth;
@@ -489,39 +493,147 @@ function circularBrush() {
 
 function gears() {
   const g = new THREE.Group();
-  const big = { teeth: 14, rTip: 0.36, rRoot: 0.305 }, small = { teeth: 9, rTip: 0.23, rRoot: 0.18 };
-  const thick = 0.085, bev = 0.016;
+  // One gear, as the icon draws Settings: a few round, chunky teeth, a
+  // clean brushed face, a dark turned ring and a polished hub. No bolt
+  // holes or second gear (HIG: "strive for simplicity"; a second gear
+  // meshing up in the air read as floating on a shelf with real shadows).
+  const spec = { teeth: 10, rTip: 0.4, rRoot: 0.315 };
+  const thick = 0.12, bev = 0.024;
   const brush = circularBrush();
   // The disc's UVs are its outline coordinates: centre the brushing on it.
-  brush.repeat.set(1 / (2 * big.rTip), 1 / (2 * big.rTip)); brush.offset.set(0.5, 0.5);
-  const alu = metal(0xd3d7dd, 0.3, { anisotropy: 0.85, anisotropyMap: brush });
-  const gun = metal(0x7a7f88, 0.32, { clearcoat: 0.3, clearcoatRoughness: 0.25 });
-  const make = (spec, mat, holes, holeR, holeAt) => {
-    const part = new THREE.Group();
-    part.add(new THREE.Mesh(extrude(gearShape(spec.teeth, spec.rTip, spec.rRoot, holes, holeR, holeAt), thick, bev, bev * 0.8, 4), mat));
-    // Hub: a turned chrome boss with a hex socket.
-    const hubR = spec.rTip * 0.28;
-    part.add(new THREE.Mesh(lathe(fillet([[0, thick / 2 + bev + 0.03], [hubR * 0.9, thick / 2 + bev + 0.03], [hubR, thick / 2 + bev + 0.015], [hubR, -thick / 2 - bev - 0.015], [0, -thick / 2 - bev - 0.015]], 0.01)), metal(0xeceef2, 0.12)));
-    const hex = new THREE.Shape();
-    for (let i = 0; i <= 6; i++) { const a = i / 6 * Math.PI * 2; hex[i ? 'lineTo' : 'moveTo'](Math.cos(a) * hubR * 0.42, Math.sin(a) * hubR * 0.42); }
-    part.add(at(new THREE.Mesh(new THREE.ShapeGeometry(hex), new THREE.MeshStandardMaterial({ color: 0x0b0b0d, roughness: 0.7 })), 0, 0, thick / 2 + bev + 0.031));
-    return part;
-  };
-  const A = make(big, alu, 6, 0.06, 0.18), B = make(small, gun, 5, 0.035, 0.105);
-  // Side by side on the shelf, teeth interlocked: a gap of the big gear
-  // faces a tooth of the small one along the line between their centres.
-  const d = big.rTip + small.rRoot + 0.008;
-  const dy = big.rTip - small.rTip, dx = Math.sqrt(d * d - dy * dy);
-  A.position.set(-dx * 0.42, big.rTip, 0);
-  B.position.set(dx * 0.58, small.rTip, 0);
-  g.add(A, B);
-  // Each rests on the shelf on its own teeth: turn them to mesh, drop each
-  // until it touches, and turn again (the drop moves the line a hair).
-  for (let pass = 0; pass < 2; pass++) {
-    const line = Math.atan2(B.position.y - A.position.y, B.position.x - A.position.x);
-    A.rotation.z = line + Math.PI / big.teeth;      // a gap toward the small gear
-    B.rotation.z = line + Math.PI;                  // a tooth toward the big one
-    for (const part of [A, B]) { part.updateMatrixWorld(true); part.position.y -= new THREE.Box3().setFromObject(part).min.y; }
+  brush.repeat.set(1 / (2 * spec.rTip), 1 / (2 * spec.rTip)); brush.offset.set(0.5, 0.5);
+  const alu = metal(0xd9dde3, 0.26, { anisotropy: 0.85, anisotropyMap: brush, clearcoat: 0.6, clearcoatRoughness: 0.08 });
+  const ring = plastic(0x2a2d34, { roughness: 0.3 });   // dark anodised, so the face reads as two tones
+  const chrome = metal(0xf2f4f7, 0.06);
+  const part = new THREE.Group();
+  part.add(new THREE.Mesh(extrude(gearShape(spec.teeth, spec.rTip, spec.rRoot), thick, bev, bev * 0.9, 5), alu));
+  // On each face: a dark ring turned into it, then a polished domed boss.
+  // (Profiles run out, up, then in, so the lathe's faces point outward.)
+  const z = thick / 2 + bev, rIn = spec.rTip * 0.4, rOut = spec.rRoot * 0.8;
+  for (const k of [1, -1]) {
+    const band = new THREE.Mesh(lathe(fillet([[rOut, z - 0.004], [rOut, z + 0.012], [rIn, z + 0.012], [rIn, z - 0.004]], 0.008)), ring);
+    band.scale.z = k;
+    part.add(band);
   }
+  const r = rIn * 0.95;
+  part.add(new THREE.Mesh(lathe(fillet([[0, z + 0.06], [r * 0.55, z + 0.055], [r * 0.92, z + 0.036], [r, z + 0.016], [r, -z - 0.016], [0, -z - 0.016]], 0.012)), chrome));
+  // Teeth sit at every 36° from +x, so two straddle the bottom: it stands.
+  part.updateMatrixWorld(true);
+  part.position.y = -new THREE.Box3().setFromObject(part).min.y;
+  g.add(part);
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+// Notes: a cube of sticky notes standing on its edge, its top sheet facing
+// you in the app's yellow with a few lines of handwriting, its lower corner
+// lifting. The stack shows its layers in bands of colour (Contour's windows
+// can lie on a desk like a post-it).
+
+function notePad(color) {
+  const g = new THREE.Group();
+  const W = 0.84, H = 0.84, D = 0.4, r = 0.035;
+  const hex = '#' + color.getHexString();
+  const bands = [color, new THREE.Color(0xf4a3bf), new THREE.Color(0x9ed2f2), new THREE.Color(0xb6df98), color];
+  // The stack: one rounded block per band, a hair apart and a little out
+  // of line, as loose paper is.
+  const n = bands.length, t = D / n;
+  bands.forEach((c, i) => {
+    const sheaf = box(W - (i % 2) * 0.012, H - (i % 2) * 0.008, t - 0.006, r, paint(c, { roughness: 0.82, sheen: 0.5, sheenRoughness: 0.6, sheenColor: 0xffffff }), 3);
+    g.add(at(sheaf, (i % 2 ? 0.006 : 0) * (i > 2 ? -1 : 1), H / 2, D / 2 - t / 2 - i * t));
+  });
+  // The top sheet, drawn on: printed lines and three lines of blue ink.
+  const ink = paintTexture(1024, 1024, (c, w, h) => {
+    c.fillStyle = hex; c.fillRect(0, 0, w, h);
+    const sh = c.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, 'rgba(255,255,255,0.18)'); sh.addColorStop(1, 'rgba(120,80,0,0.08)');
+    c.fillStyle = sh; c.fillRect(0, 0, w, h);
+    c.strokeStyle = 'rgba(120,90,20,0.22)'; c.lineWidth = 3;
+    for (let y = 0.3; y < 0.9; y += 0.14) { c.beginPath(); c.moveTo(w * 0.1, h * y); c.lineTo(w * 0.9, h * y); c.stroke(); }
+    // Handwriting: loops along each line, ending short as a note does.
+    c.strokeStyle = '#1f3c8f'; c.lineWidth = 9; c.lineCap = c.lineJoin = 'round';
+    [[0.26, 0.74], [0.4, 0.62], [0.54, 0.7]].forEach(([y, end], k) => {
+      c.beginPath();
+      for (let x = 0.13, i = 0; x < end; x += 0.004, i++) {
+        const v = Math.sin(i * 0.55 + k) * 0.022 + Math.sin(i * 0.17 + k * 2) * 0.01;
+        c[i ? 'lineTo' : 'moveTo'](w * x, h * (y - v - (Math.sin(i * 0.05) > 0.92 ? 0.03 : 0)));
+        if (Math.sin(i * 0.045 + k) > 0.985) { c.stroke(); c.beginPath(); x += 0.02; i = 0; }
+      }
+      c.stroke();
+    });
+    // A tick in the app's red, done.
+    c.strokeStyle = '#d23b3b'; c.lineWidth = 12;
+    c.beginPath(); c.moveTo(w * 0.15, h * 0.72); c.lineTo(w * 0.2, h * 0.78); c.lineTo(w * 0.3, h * 0.64); c.stroke();
+  });
+  // A sheet bent up at its lower right corner, so it reads as paper.
+  const sheet = new THREE.PlaneGeometry(W - 0.02, H - 0.02, 48, 48);
+  const sp = sheet.attributes.position;
+  for (let i = 0; i < sp.count; i++) {
+    const x = sp.getX(i) / (W / 2), y = sp.getY(i) / (H / 2);
+    const k = Math.max(0, (x - y) - 1.25);   // distance in from the corner's fold line
+    sp.setZ(i, 0.1 * k * k);
+  }
+  sheet.computeVertexNormals();
+  const top = new THREE.Mesh(sheet, paint(0xffffff, { map: ink, roughness: 0.75, sheen: 0.4, sheenRoughness: 0.5, sheenColor: 0xffffff, side: THREE.DoubleSide }));
+  g.add(at(top, 0, H / 2, D / 2 + 0.002));
+  return g;
+}
+
+// ---------------------------------------------------------------------------
+// Clock: a twin-bell alarm clock seen straight on: a glossy case in the
+// app's colour, a chrome bezel, a white dial under a domed glass reading
+// ten past ten, two chrome bells and their hammer on top, two feet.
+
+function alarmClock(color) {
+  const g = new THREE.Group();
+  const body = new THREE.Group();
+  const R = 0.36, depth = 0.24;
+  const chrome = metal(0xf0f2f5, 0.08);
+  body.add(new THREE.Mesh(lathe(fillet([[0, -depth / 2], [R * 0.85, -depth / 2], [R, -depth / 2 + 0.05], [R, depth / 2 - 0.03], [R - 0.04, depth / 2]], 0.04)), plastic(color, { roughness: 0.25, clearcoatRoughness: 0.05 })));
+  body.add(new THREE.Mesh(lathe(fillet([[R - 0.075, depth / 2 - 0.01], [R - 0.015, depth / 2 - 0.01], [R - 0.01, depth / 2 + 0.03], [R - 0.075, depth / 2 + 0.035]], 0.012)), chrome));
+  const dial = paintTexture(1024, 1024, (c, w, h) => {
+    const cx = w / 2, cy = h / 2, Rd = w / 2;
+    const gr = c.createRadialGradient(cx, cy * 0.8, 0, cx, cy, Rd); gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.8, '#f1f2f4'); gr.addColorStop(1, '#d9dce1');
+    c.fillStyle = gr; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#26272b';
+    for (let i = 0; i < 60; i++) {
+      const a = i / 60 * Math.PI * 2, big = i % 5 === 0, L = big ? 0.13 : 0.05, T = big ? 14 : 5;
+      c.save(); c.translate(cx, cy); c.rotate(a); c.fillRect(-T / 2, -Rd * 0.9, T, Rd * L); c.restore();
+    }
+    c.font = font(600, 46); c.textAlign = 'center'; c.textBaseline = 'middle'; c.letterSpacing = '6px';
+    c.fillStyle = '#6a6d74'; c.fillText('CONTOUR', cx, cy + Rd * 0.34);
+    const hand = (a, len, width, col) => {
+      c.save(); c.translate(cx, cy); c.rotate(a); c.fillStyle = col;
+      c.beginPath(); c.roundRect(-width / 2, -Rd * len, width, Rd * len + width * 1.2, width / 2); c.fill(); c.restore();
+    };
+    hand((10 + 10 / 60) / 12 * Math.PI * 2, 0.5, 30, '#1c1d21');
+    hand(10 / 60 * Math.PI * 2, 0.74, 22, '#1c1d21');
+    hand(38 / 60 * Math.PI * 2, 0.8, 7, '#d8452f');
+    c.beginPath(); c.arc(cx, cy, 22, 0, Math.PI * 2); c.fillStyle = '#d8452f'; c.fill();
+  }, { text: true });
+  const Rc = 0.6, rFace = R - 0.07, th = Math.asin(rFace / Rc);
+  const dome = new THREE.SphereGeometry(Rc, 96, 24, 0, Math.PI * 2, 0, th).rotateX(Math.PI / 2);
+  dome.translate(0, 0, depth / 2 + 0.01 - Rc * Math.cos(th));
+  const dp = dome.attributes.position, duv = dome.attributes.uv;
+  for (let i = 0; i < dp.count; i++) duv.setXY(i, dp.getX(i) / (2 * rFace) + 0.5, dp.getY(i) / (2 * rFace) + 0.5);
+  body.add(new THREE.Mesh(dome, new THREE.MeshPhysicalMaterial({ map: dial, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.01 })));
+  // Bells, tilted out, on short posts; the hammer between them.
+  for (const side of [-1, 1]) {
+    const a = side * 0.62, rb = 0.15;
+    const bell = new THREE.Mesh(new THREE.SphereGeometry(rb, 64, 24, 0, Math.PI * 2, 0, Math.PI / 2), chrome);
+    bell.add(at(new THREE.Mesh(new THREE.TorusGeometry(rb, 0.012, 12, 64), chrome), 0, 0, 0)).children[0].rotation.x = Math.PI / 2;
+    bell.position.set(Math.sin(a) * (R + 0.07), Math.cos(a) * (R + 0.07), -0.01);
+    bell.rotation.z = -a;
+    body.add(bell);
+    const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.07, 6, 16), chrome);
+    const f = side * 2.45;
+    foot.position.set(Math.sin(f) * (R + 0.02), Math.cos(f) * (R + 0.02), -0.02);
+    foot.rotation.z = -f;
+    body.add(foot);
+  }
+  body.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.16, 12), chrome), 0, R + 0.06, -0.02));
+  body.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.035, 24, 12), chrome), 0, R + 0.14, -0.02));
+  body.updateMatrixWorld(true);
+  body.position.y = -new THREE.Box3().setFromObject(body).min.y;
+  g.add(body);
   return g;
 }

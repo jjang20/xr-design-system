@@ -250,6 +250,13 @@ def energy(a, b, region):
 
 have = lambda n: (E / f'{n}.png').exists()
 
+# Every capture the checks read must exist: a check whose capture is missing
+# would otherwise be skipped, and a crashed capture would pass (2026-10-21).
+NEEDED = ['dock-rest', 'dock-hover', 'dock-press', 'dock-stretch', 'dock-grow', 'dock-add', 'slider-rest']
+missing = [n for n in NEEDED if not have(f'{n}-beauty')]
+check('E0', 'Eval', 'Every capture the checks need exists', ', '.join(missing) + ' missing' if missing else f'all {len(NEEDED)}', not missing,
+      'all captured (node scripts/match.mjs --eval)', 'Self-review 2026-10-21: a crashed Dock capture left only the slider checks, and they passed')
+
 if have('dock-rest-beauty'):
     shelf = mask('dock-rest-shelf')
     sag, width = bottom_sagitta(shelf)
@@ -375,6 +382,103 @@ if have('dock-rest-beauty'):
         keep_p = (np.percentile(Lp[po], 95) - np.percentile(Lp[po], 5)) / max(np.percentile(Lpn[po], 95) - np.percentile(Lpn[po], 5), 1e-3)
         check('D31', 'Dock', 'Pressing does not fog the object', f'{keep_p:.2f} of its tonal range', keep_p >= 0.75,
               '>= 0.75', 'Self-review 2026-10-21: the first press read as a whitish veil over the object')
+
+    # The icon restyle (Jihoon 2026-10-21: "Make the 3d object more icon
+    # style ... rather than 3d assets in marketplace"). Apple's Mac OS X icon
+    # rules (HIG 2008, "Icon Design"): one light from above and slightly in
+    # front, and a family of icons of one visual weight.
+    if have('dock-rest-clay') and have('dock-rest-normals'):
+        # In plain grey, how brightness follows the way a surface faces:
+        # lit from above, the faces turned up are the bright ones. (A first
+        # version compared each object's top third with its bottom third;
+        # that measured its shape, failing a flat picture frame whose light
+        # was right.)
+        Lc = lum(rgb('dock-rest-clay'))
+        ny = rgb('dock-rest-normals')[..., 1] * 2 - 1
+        lit = []
+        for o in objs:
+            r = erode(o, 1)
+            lit.append(float(np.corrcoef(Lc[r], ny[r])[0, 1]) if r.sum() > 50 else 0.0)
+        check('D33', 'Dock', 'Icon light: every object is lit from above (in plain grey, the faces turned up are the bright ones)',
+              'weakest ' + f'{min(lit):.2f} (' + ', '.join(f'{v:.2f}' for v in lit) + ')', min(lit) >= 0.3,
+              'correlation of brightness with facing up >= 0.3 for every object', 'Jihoon 2026-10-21: "more icon style"; Apple HIG 2008 (icons): light source directly above, slightly in front')
+    areas = [int(o.sum()) for o in objs]
+    heights = [int(np.ptp(np.nonzero(o)[0])) + 1 for o in objs]
+    if areas:
+        aw, hw = max(areas) / max(min(areas), 1), max(heights) / max(min(heights), 1)
+        check('D34', 'Dock', 'Icon family: one visual weight (no object much bigger or smaller on screen than another)',
+              f'area {aw:.2f}x, height {hw:.2f}x largest to smallest', aw <= 1.6 and hw <= 1.3,
+              'area <= 1.6x, height <= 1.3x', 'Apple HIG 2008 (icons): a family shares a consistent visual weight; optical size, not equal boxes')
+    # The plate as a solid bubble you can stretch (Jihoon 2026-10-21: "Dock
+    # plate is also solid bubble, so you can grab and stretch its length";
+    # then "App size first. Because dock length gets automatically longer
+    # when you add apps to the dock"): stretching sets the apps' size, and
+    # the length otherwise follows the apps.
+    wid = lambda m: int(np.ptp(np.nonzero(m)[1])) + 1
+    geo_r = json.loads((E / 'dock-rest.json').read_text()) if (E / 'dock-rest.json').exists() else {}
+    SIZE_SRC = 'Jihoon 2026-10-21: "App size first. Because dock length gets automatically longer when you add apps to the dock"'
+    if have('dock-stretch-beauty'):
+        st = json.loads((E / 'dock-stretch.json').read_text())
+        held = mask('dock-stretch-shelf')
+        sobjs = split_columns(rgb('dock-stretch-icons').mean(axis=2) > 0.1)
+        grow = wid(held) / wid(shelf)
+        want = st['length'] / geo_r['length'] if geo_r.get('length') else 0
+        ratios = [wid(g) / wid(r) for g, r in zip(sobjs, objs)] if len(sobjs) == len(objs) else [0]
+        med = float(np.median(ratios))
+        check('D35', 'Dock', 'Pulling an end makes every app bigger, as much as the plate grew; no app is added',
+              f'{len(sobjs)} objects (rest {len(objs)}), {med:.2f}x as wide (size {st["size"]:.2f}x); plate {grow:.2f}x as wide on screen (its length {want:.2f}x)',
+              len(sobjs) == len(objs) and st['size'] > 1.1 and abs(med / st['size'] - 1) <= 0.12 and abs(grow / max(want, 1e-3) - 1) <= 0.12,
+              'same objects; their growth and the plate\'s within 12% of the size and length', SIZE_SRC)
+        if 'track' in st:
+            check('D36', 'Dock', 'The held end follows the hand one to one along the arc', f'{st["track"] * 1000:.2f} mm off', st['track'] <= 0.001,
+                  '<= 1 mm', 'apple-design: direct manipulation, content moves with the hand')
+            o, u = st['over'], st['under']
+            moved = (o['held'] - o['max']) / max(o['want'] - o['max'], 1e-3)
+            check('D37', 'Dock', 'Past the largest or smallest size the plate resists (rubber-bands) and thins or fattens like a held bubble; the apps stop at the limit',
+                  f'out: {moved:.2f} of the pull past the largest, {o["neck"]:.3f}x as thick, apps {o["size"]:.2f}x; in: {u["neck"]:.3f}x as thick, apps {u["size"]:.2f}x',
+                  0 < moved <= 0.35 and o['neck'] <= 0.97 and abs(o['size'] - o['max']) < 1e-6 and u['neck'] >= 1.03 and abs(u['size'] - u['min']) < 1e-6,
+                  'moves <= 0.35 of the pull; thins / fattens >= 3%; apps held at the limit', 'apple-design: rubber-banding at boundaries; Jihoon: the plate is a solid bubble')
+            se, mi, sh = st['settled'], st['mid'], st['shrunk']
+            whole = lambda g: g['count'] == st['count'] and all(p == 1 for p in g['presence'][:int(st['count'])])
+            ok = abs(se['size'] - o['max']) < 1e-3 and abs(mi['left'] - mi['held']) < 0.01 and 1.1 < mi['held'] < o['max'] - 0.1 and abs(sh['size'] - u['min']) < 1e-3 and whole(se) and whole(sh)
+            check('D38', 'Dock', 'Let go, the size stays: the largest after over-pulling, any size in between, the smallest after pushing in; the apps in the Dock never change',
+                  f'over-pulled: {se["size"]:.3f}x; left at {mi["left"]:.3f}x of {mi["held"]:.3f}x held; pushed in: {sh["size"]:.3f}x; apps {se["count"]:g} and {sh["count"]:g}',
+                  ok, f'{o["max"]:.2f}x; the held size kept; {u["min"]:.2f}x; {st["count"]:g} whole apps each time', SIZE_SRC)
+            fl = st['fling']
+            check('D39', 'Dock', 'A quick pull is carried on to where it was heading (momentum), not stopped where the hand let go',
+                  f'let go at {fl["at"]:.3f}x, landed at {fl["landed"]:.3f}x', fl['landed'] > fl['at'] + 0.01 and fl['landed'] <= fl['max'] + 1e-6,
+                  'lands further on, within the sizes', 'apple-design: momentum projection (WWDC 2018, Designing Fluid Interfaces)')
+        if have('dock-stretch-noglow'):
+            end = held & (np.arange(held.shape[1])[None, :] >= np.nonzero(held)[1].max() - 0.12 * wid(held))
+            gl = float((lum(rgb('dock-stretch-beauty')) - lum(rgb('dock-stretch-noglow')))[end].mean())
+            check('D40', 'Dock', 'The held end lights where the hand holds it (the press glow\'s light)', f'{gl:+.3f} brighter in the held end', gl >= 0.02,
+                  '>= +0.02 mean luminance over the end\'s 12%', 'Bubble language (2026-10-20): a press changes light, not only shape')
+    if have('dock-grow-beauty'):
+        gr = json.loads((E / 'dock-grow.json').read_text())
+        gobjs = split_columns(rgb('dock-grow-icons').mean(axis=2) > 0.1)
+        ratios = [wid(g) / wid(r) for g, r in zip(gobjs, objs)] if len(gobjs) == len(objs) else [0]
+        med = float(np.median(ratios))
+        check('D41', 'Dock', 'Let go after a pull, every app stays bigger (as much as the plate grew)',
+              f'{len(gobjs)} objects, {med:.2f}x as wide as at rest (size {gr["size"]:.2f}x)', len(gobjs) == len(objs) and gr['size'] > 1.2 and abs(med / gr['size'] - 1) <= 0.12,
+              'same objects; on-screen growth within 12% of the size', SIZE_SRC)
+    if have('dock-add-beauty'):
+        ad = json.loads((E / 'dock-add.json').read_text())
+        aobjs = split_columns(rgb('dock-add-icons').mean(axis=2) > 0.1)
+        tr = ad['trace']
+        over = (max(tr) - tr[-1]) * 1000
+        k95 = next((i for i, v in enumerate(tr) if v - tr[0] >= 0.95 * (tr[-1] - tr[0])), len(tr)) / 60
+        fits = abs(ad['length'] - ad['rest']) * 1000
+        a_areas = [int(o.sum()) for o in aobjs]
+        a_heights = [int(np.ptp(np.nonzero(o)[0])) + 1 for o in aobjs]
+        if a_areas:
+            aw, hw = max(a_areas) / max(min(a_areas), 1), max(a_heights) / max(min(a_heights), 1)
+            check('D43', 'Dock', 'Icon family, all seven apps: one visual weight',
+                  f'area {aw:.2f}x, height {hw:.2f}x largest to smallest', len(aobjs) == 7 and aw <= 1.6 and hw <= 1.3,
+                  '7 objects; area <= 1.6x, height <= 1.3x', 'Apple HIG 2008 (icons): a family shares a consistent visual weight; self-review 2026-10-21: Notes read heavier than the rest')
+        check('D42', 'Dock', 'Adding apps lengthens the plate by itself to fit them (no hand), smoothly and without overshoot',
+              f'{len(aobjs)} objects; {fits:.2f} mm from seven apps\' length; 95% there in {k95:.2f} s; overshoot {over:.2f} mm',
+              len(aobjs) == len(objs) + 2 and fits <= 0.5 and over <= 0.2 and k95 <= 0.6,
+              'two more objects; within 0.5 mm; <= 0.6 s; <= 0.2 mm overshoot (critically damped)', SIZE_SRC + '; apple-design: damping 1 when no gesture threw it')
 
 if have('slider-rest-beauty'):
     geo = json.loads((E / 'slider-rest.json').read_text())

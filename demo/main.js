@@ -77,6 +77,8 @@ const dock = new Dock(T, {
     { label: 'Scan', icon: 'scan', color: 0x23a26d },
     { label: 'Photos', icon: 'image', color: 0xd9455f },
     { label: 'Settings', icon: 'settings', color: 0x6b6f78 },
+    { label: 'Notes', icon: 'notes', color: 0xf7d046 },
+    { label: 'Clock', icon: 'clock', color: 0x3f8fd8 },
   ],
 });
 dock.addEventListener('select', e => say(`Opened ${e.app.label}`));

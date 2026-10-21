@@ -55,7 +55,12 @@ if (part === 'dock') {
       { label: 'Scan', icon: 'scan', color: 0x23a26d },
       { label: 'Photos', icon: 'image', color: 0xd9455f },
       { label: 'Settings', icon: 'settings', color: 0x6b6f78 },
+      // Not in the Dock at first: contour.showApps(6) adds Notes, and the
+      // plate lengthens to fit it.
+      { label: 'Notes', icon: 'notes', color: 0xf7d046 },
+      { label: 'Clock', icon: 'clock', color: 0x3f8fd8 },
     ],
+    visible: Number(q.get('visible') ?? 5),
   });
   scene.add(dock);
   camera.fov = 24;
@@ -63,12 +68,12 @@ if (part === 'dock') {
 } else if (part === 'objects') {
   // The Dock's app objects on their own, large, under the Dock's light
   // (lookdev for src/core/objects.js).
-  const kinds = [['house', 0x2f7cf6], ['ruler', 0xe08a1e], ['scan', 0x23a26d], ['image', 0xd9455f], ['settings', 0x6b6f78]];
+  const kinds = [['house', 0x2f7cf6], ['ruler', 0xe08a1e], ['scan', 0x23a26d], ['image', 0xd9455f], ['settings', 0x6b6f78], ['notes', 0xf7d046], ['clock', 0x3f8fd8]];
   const s = 0.07, y = EYE - 0.1;
   kinds.forEach(([k, c], i) => {
     const o = makeAppObject(k, { color: c });
     o.scale.setScalar(s);
-    o.position.set((i - 2) * s * 1.25, y, -0.5);
+    o.position.set((i - (kinds.length - 1) / 2) * s * 1.25, y, -0.5);
     scene.add(o);
   });
   if (q.has('studio')) {
@@ -136,10 +141,33 @@ const fingerPoint = () => {
 const fingertip = q.has('hand') ? new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.09, 8, 24),
   new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(0.86, 0.62, 0.5, THREE.SRGBColorSpace), roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(1, 0.75, 0.7), sheenRoughness: 0.5 })) : null;
 if (fingertip) { fingertip.visible = false; scene.add(fingertip); }
+// A hand pinching an end of the Dock's plate (window.contour.pull): fed to
+// the plate as a poke each frame, ds metres out along the arc from where it
+// took hold (negative: pushed in). The fingertip stand-in shows the pinch.
+let pull = null;
+const pullPoint = () => {
+  pull.s0 ??= dock.length / 2 - dock.pad / 2;
+  const [x, z] = dock.arc(pull.side * (pull.s0 + pull.ds), 0);
+  return new THREE.Vector3(x, 0.004, z);
+};
 const step = dt => {
   scene.updateMatrixWorld();
   camera.updateMatrixWorld();
   input.update();
+  // The fingertip shows only while a finger touches or pinches: a hand
+  // that let go has left the picture.
+  if (fingertip) fingertip.visible = false;
+  if (pull && dock) {
+    const local = pullPoint(), p = dock.shelf.localToWorld(local.clone());
+    dock.shelf.feed({ kind: 'poke', id: 'pull', point: local, pinch: pull.pinch });
+    hands.length = 0; hands.push(p);
+    if (fingertip) {
+      const along = camera.position.clone().add(new THREE.Vector3(0.12 * pull.side, 0.02, 0)).sub(p).normalize();
+      fingertip.visible = true;
+      fingertip.position.copy(p).addScaledVector(along, 0.008 + 0.045);
+      fingertip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), along);
+    }
+  }
   if (finger && dock) {
     const p = fingerPoint();
     hands.length = 0; hands.push(p);
@@ -216,7 +244,22 @@ function pass(name) {
   } else if (name === 'nolabel') eachMesh(P.label, m => set(m, 'visible', false));
   else if (name === 'nomirror') eachMesh(P.mirror, m => set(m, 'visible', false));
   else if (name === 'noglyph') { eachMesh(P.glyph, m => set(m, 'visible', false)); eachUniform('uGlyphOn', 0); }
-  else if (name === 'noglow') { eachUniform('uEmissive', new THREE.Color(0)); eachMesh(P.glow, m => set(m, 'visible', false)); }
+  else if (name === 'noglow') { eachUniform('uEmissive', new THREE.Color(0)); eachUniform('uTouchGlow', new THREE.Color(0)); eachMesh(P.glow, m => set(m, 'visible', false)); }
+  // The Dock's objects' surface directions in the room (world normals as
+  // colour, 0.5 + n / 2), to tell which way each pixel faces.
+  else if (name === 'normals') {
+    const mat = new THREE.ShaderMaterial({ toneMapped: false,
+      vertexShader: 'varying vec3 vN; void main() { vN = normalize(mat3(modelMatrix) * normal); gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }',
+      fragmentShader: 'varying vec3 vN; void main() { gl_FragColor = vec4(normalize(vN) * 0.5 + 0.5, 1.0); }' });
+    set(scene, 'background', new THREE.Color(0));
+    scene.traverse(m => { if (drawn(m)) set(m, 'visible', false); });
+    for (const k of Object.keys(P).filter(k => k.startsWith('icon'))) eachMesh(P[k], m => { set(m, 'visible', true); set(m, 'material', mat); });
+  }
+  // The Dock's objects in one plain grey (clay), under the same light: what
+  // is left of their light and shade is the lighting alone.
+  else if (name === 'clay') for (const k of Object.keys(P).filter(k => k.startsWith('icon'))) eachMesh(P[k], m => {
+    set(m, 'material', new THREE.MeshStandardMaterial({ color: 0xb4b4b4, roughness: 0.55, envMap: m.material.envMap, envMapIntensity: m.material.envMapIntensity, envMapRotation: m.material.envMapRotation }));
+  });
   else if (name.startsWith('hide:')) for (const k of name.slice(5).split(',')) eachMesh(P[k], m => set(m, 'visible', false));
   // The room swapped for flat grey: what changes inside a piece of glass is
   // the room seen through it.
@@ -256,6 +299,11 @@ window.contour = {
   // Hold a fingertip at Dock app i: depth metres into its bubble's skin
   // (negative: in front of it). null lets go.
   touch(i, depth = -0.01) { finger = i == null ? null : { i, depth }; if (!finger) hands.length = 0; },
+  // Pinch the plate's end (side 1 right, -1 left) and pull it ds metres out
+  // along the arc; pinch false hovers there; null lets go.
+  pull(side, ds = 0, pinch = true) { pull = side == null ? null : { ...pull, side, ds, pinch }; if (!pull) hands.length = 0; },
+  // Add or take out apps: the Dock holds the first k (the plate fits them).
+  showApps(k) { dock.showApps(k); },
   tick(frames = 1, dt = 1 / 60) { for (let i = 0; i < frames; i++) step(dt); renderer.render(scene, camera); },
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);

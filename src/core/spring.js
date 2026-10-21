@@ -15,3 +15,16 @@ export function springStep(state, target, omega, dt) {
 
 // Wrap an angle difference into -PI..PI.
 export const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
+
+// A spring by Apple's two numbers (WWDC 2018, Designing Fluid Interfaces):
+// response, about how long it takes in seconds, and damping ratio (1 = no
+// overshoot, lower = bouncier). Keeps the state's velocity, so a gesture's
+// speed carries into it. Substepped for stability.
+export function springTo(state, target, response, damping, dt) {
+  const w = 2 * Math.PI / response;
+  for (let i = 0, n = 4, h = dt / n; i < n; i++) {
+    state.v += (-w * w * (state.x - target) - 2 * damping * w * state.v) * h;
+    state.x += state.v * h;
+  }
+  return state.x;
+}

@@ -18,15 +18,23 @@ const EVAL = process.argv.includes('--eval');
 // --set <json> overrides DEFAULTS (see demo/bench.js); --out <name> writes
 // the beauty frame to shots/match/var-<part>-<state>-<name>.png instead.
 const arg = k => { const i = process.argv.indexOf(k); return i < 0 ? null : process.argv[i + 1]; };
-const SET = arg('--set'), OUT = arg('--out');
+const SET = arg('--set'), OUT = arg('--out'), STATE = arg('--state');   // --state: capture one state only
 // Supersampling: frames are drawn at --ss x the size (default 2) and
 // averaged down, as the path tracer averages many samples per pixel.
 const SS = Number(arg('--ss') ?? 2);
 const ICONS = 'mask:icon0,icon1,icon2,icon3,icon4';
+const ICONS7 = 'mask:icon0,icon1,icon2,icon3,icon4,icon5,icon6';
 // [file key, pass] per shot. See window.contour.pass in demo/bench.js.
 const PASSES = {
   'dock-rest': [['shelf', 'mask:shelf'], ['icons', ICONS], ['mirror', 'mask:mirror'], ['contact', 'mask:contact'], ['dot', 'mask:dot'],
-    ['nomirror', 'nomirror'], ['nocontact', 'hide:contact'], ['noicons', 'hide:icon0,icon1,icon2,icon3,icon4,mirror,contact'], ['noglow', 'noglow']],
+    ['nomirror', 'nomirror'], ['nocontact', 'hide:contact'], ['noicons', 'hide:icon0,icon1,icon2,icon3,icon4,mirror,contact'], ['noglow', 'noglow'], ['clay', 'clay'], ['normals', 'normals']],
+  // The plate pinched at its right end and pulled out by half an app each
+  // side, held: every app bigger.
+  'dock-stretch': [['shelf', 'mask:shelf'], ['icons', ICONS], ['noglow', 'noglow']],
+  // Pulled out by an app each side and let go: the apps stay that size.
+  'dock-grow': [['shelf', 'mask:shelf'], ['icons', ICONS]],
+  // Notes and Clock added, no hand: the plate lengthens by itself to fit them.
+  'dock-add': [['shelf', 'mask:shelf'], ['icons', ICONS7]],
   'dock-hover': [['shelf', 'mask:shelf'], ['icons', ICONS], ['bubble', 'mask:bubble'], ['nobubble', 'hide:bubble'], ['nolabel', 'nolabel']],
   'dock-press': [['bubble', 'mask:bubble'], ['icons', ICONS], ['nobubble', 'hide:bubble']],
   'slider-rest': [['knob', 'mask:knob'], ['stem', 'mask:stem,joint'], ['plate', 'mask:plate'], ['noglow', 'noglow'], ['noglyph', 'noglyph'], ['nolabel', 'nolabel'],
@@ -35,8 +43,8 @@ const PASSES = {
 };
 const shots = [];
 try {
-  const only = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--set', '--out', '--ss'].includes(all[i - 1]));  // optional: dock | slider
-  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['dock', 'press'], ['slider', 'rest']].filter(([p]) => !only || p === only)) {
+  const only = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--set', '--out', '--ss', '--state'].includes(all[i - 1]));  // optional: dock | slider
+  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['dock', 'press'], ['dock', 'stretch'], ['dock', 'grow'], ['dock', 'add'], ['slider', 'rest']].filter(([p, st]) => (!only || p === only) && (!STATE || st === STATE))) {
     // A fresh page per shot: SwiftShader can drop a long-lived context.
     let page = await open(part, state);
     // Each frame is read back from the canvas right after it draws. A blank
@@ -58,8 +66,37 @@ try {
       for (const [key, pass] of [...PASSES[`${part}-${state}`], ['beauty', 'beauty']]) await shoot(pass, `shots/match/eval/${part}-${state}-${key}.png`);
       // Where things are on screen, for profiles along the stem.
       const geo = await page.evaluate(() => {
-        const s = window.contour.slider;
-        return s ? { axis: window.contour.screenPoints(s, [[0, 0, 0], [0, 0, s.knobZ]]) } : {};
+        const c = window.contour, s = c.slider, d = c.dock;
+        if (s) return { axis: c.screenPoints(s, [[0, 0, 0], [0, 0, s.knobZ]]) };
+        if (!d) return {};
+        const out = { pitch: d.pitch, length: d.length, count: d.count.x, size: d.size, rest: d.plateLength(d.count.target), trace: window.addTrace };
+        if (d.grip.held) {
+          // Stretch: the held end follows the hand one to one and the apps
+          // grow; past the largest size it resists and thins; let go, it
+          // stays at that size, or any size between; pushed in past the
+          // smallest it resists and no app goes; a quick pull is carried to
+          // where it was heading.
+          const h = d.grip.held, p = d.pitch, [lo, hi] = d.sizeRange;
+          const length = z => d.plateLength(d.count.x, z);
+          out.track = Math.abs((d.length / 2 - h.half) - p * 0.5);
+          c.pull(1, p * 6); c.tick(60);
+          out.over = { want: (2 * (h.half + p * 6) - 2 * d.pad) / d.rowWidth(d.count.x), held: d.sizing.x, max: hi, neck: d.neck, size: d.size };
+          c.pull(null); c.tick(120);
+          out.settled = { size: d.sizing.x, count: d.count.x, presence: d.presence };
+          c.pull(1, 0); c.tick(10); c.pull(1, -(length(d.sizing.x) - length(1.25)) / 2); c.tick(60);
+          out.mid = { held: d.sizing.x };
+          c.pull(null); c.tick(120); out.mid.left = d.sizing.x;
+          c.pull(1, 0); c.tick(10); c.pull(1, -(length(d.sizing.x) - length(lo)) / 2 - p * 2); c.tick(60);
+          out.under = { held: d.sizing.x, min: lo, neck: d.neck, size: d.size };
+          c.pull(null); c.tick(120);
+          out.shrunk = { size: d.sizing.x, count: d.count.x, presence: d.presence };
+          c.pull(1, 0); c.tick(10); c.pull(1, p * 0.1); c.tick(1); c.pull(1, p * 0.2); c.tick(1);
+          out.fling = { at: d.sizing.x };
+          c.pull(null); c.tick(150);
+          out.fling.landed = d.sizing.x;
+          out.fling.max = hi;
+        }
+        return out;
       });
       writeFileSync(`shots/match/eval/${part}-${state}.json`, JSON.stringify(geo));
     }
@@ -87,6 +124,10 @@ async function open(part, state) {
   // into it (the full dent), held still.
   if (state === 'hover') await page.evaluate(() => window.contour.touch(2, -0.01));
   if (state === 'press') await page.evaluate(async () => { const c = window.contour; c.touch(2, -0.01); c.tick(60); c.touch(2, 0.007); });
+  if (state === 'stretch') await page.evaluate(() => { const c = window.contour; c.pull(1, 0); c.tick(10); c.pull(1, c.dock.pitch * 0.5); });
+  if (state === 'grow') await page.evaluate(() => { const c = window.contour; c.pull(1, 0); c.tick(10); c.pull(1, c.dock.pitch); c.tick(60); c.pull(null); });
+  // Two apps added: the plate's length, frame by frame, as it fits them.
+  if (state === 'add') await page.evaluate(() => { const c = window.contour; c.showApps(7); window.addTrace = []; for (let i = 0; i < 90; i++) { c.tick(1); window.addTrace.push(c.dock.length); } });
   await page.evaluate(() => window.contour.tick(90));
   return page;
 }

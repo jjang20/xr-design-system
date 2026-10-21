@@ -13,22 +13,39 @@
 // judge round 3 caught a row that spread apart).
 //
 // Look (Jihoon, 2026-10-21, his "Classic Mac Dock with Subtle Bubble"):
-// each app is a real object (core/objects.js) standing on a thin, clear
-// glass shelf that curves toward the user, mirrored faintly in it. A finger
+// each app is an icon-like object (core/objects.js) standing on a plate of
+// clear glass that curves toward the user, mirrored faintly in it. A finger
 // near an app grows a clear bubble round it (DockIcon), which can be pressed
-// like the bubble list. The shelf is refractive glass (core/refract.js);
+// like the bubble list. The plate is refractive glass (core/refract.js);
 // the objects are lit by the room plus soft boxes and a key light that turn
-// with the Dock (DEFAULTS.look.dockObjects). The shelf's arc is about the
+// with the Dock (DEFAULTS.look.dockObjects). The plate's arc is about the
 // forearm's sweep round the elbow, so every app is the same reach away.
+//
+// Plate (Jihoon, 2026-10-21: "Dock plate is also solid bubble, so you can
+// grab and stretch its length"): a solid bubble, Contour's glass swollen
+// into a cushion, round at every edge and domed under the apps. Its ends
+// are handles. Pinch one (or point and press) and pull: the plate grows
+// from its middle, the end in your hand following it exactly, and every app
+// grows with it (Jihoon: "App size first. Because dock length gets
+// automatically longer when you add apps to the dock"), as dragging the
+// macOS Dock's divider sets its icon size. Push in and they shrink back.
+// Past the smallest or the largest size it resists (rubber-banding) and
+// fattens or thins like a held bubble. Let go and it settles where your
+// pull was heading (momentum projection), with the speed of your hand, at
+// that size. The length otherwise follows the apps: add one (showApps) and
+// the plate lengthens by itself while the app forms at its end
+// (DEFAULTS.look.dockPlate).
 import * as THREE from 'three';
-import { markComponent } from '../core/Interactable.js';
+import { Interactable, markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { glassSlabGeometry, softTexture } from '../core/look.js';
+import { softTexture } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
-import { springStep } from '../core/spring.js';
+import { springStep, springTo } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { objectEnvironment } from '../core/objects.js';
 import { DockIcon } from './DockIcon.js';
+import { Hysteresis } from '../core/Hysteresis.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export { magnifyScale, LazyFollow };
 
@@ -37,6 +54,7 @@ export class Dock extends THREE.Group {
    * @param {object} T tokens
    * @param {object} o
    * @param {{label: string, icon?: string, color?: number, running?: boolean}[]} o.apps
+   * @param {number} [o.visible] how many of the apps are in the Dock (default all; see showApps)
    * @param {number} [o.distance] body-lock distance in m
    * @param {number} [o.eccentricity] angle below the eye, radians (default anchor.eccentricity.vertical)
    */
@@ -80,9 +98,27 @@ export class Dock extends THREE.Group {
       return icon;
     });
     this.side = this.icons[0].side;
-    this.pad = dmm(16);
-    this.shelfT = S.thickness / 1000 * dist / 0.6;
+    const P = DEFAULTS.look.dockPlate;
+    // Past the last app the plate is the handle: its end runs on this far,
+    // at least a target's size (size.target.min) clear of the app.
+    this.pad = Math.max(dmm(P.pad), T.dmm('size.target.min', dist));
     this.arcR = S.arc * dist;
+    // How many apps the Dock holds: a whole number, in between only while
+    // one is being added or taken out (showApps), when the plate lengthens
+    // or shortens by itself to fit them.
+    const k = clamp(Math.round(o.visible ?? this.icons.length), 1, this.icons.length);
+    this.count = { x: k, v: 0, target: k };
+    // The apps' size, set by stretching the plate: 1 at rest, between
+    // minSize and maxSize. The hand holds it raw (rubber-banded past the
+    // limits, where the plate stretches but the apps don't); the apps
+    // take it clamped (this.size).
+    this.sizeRange = [P.minSize, P.maxSize];
+    this.sizing = { x: 1, v: 0, target: 1 };
+    this.size = 1;
+    this.grip = { hover: { x: 0, v: 0 }, side: 1, at: new THREE.Vector3(), held: null, history: [] };
+    this.gripBand = new Hysteresis(T.dmm('proximity.hover.enter', dist), T.dmm('proximity.hover.exit', dist));
+    this.thick = (P.edge + P.crown + P.under) / 1000 * dist / DEFAULTS.distance;
+    this.neck = 1;
     // Spacing: at least the gap token, and enough that a fully magnified
     // app's bubble clears its magnified neighbours' objects (the bubble is
     // wider than the object it holds). It is the objects' own width that
@@ -91,17 +127,21 @@ export class Dock extends THREE.Group {
     const nb = magnifyScale(this.side + this.gap, this.radius, this.maxScale);
     const halfWidth = Math.max(...this.icons.map(i => i.footprint.x)) / 2;
     this.pitch = Math.max(this.side + this.gap, this.icons[0].rb * this.maxScale + halfWidth * nb + dmm(S.bubbleClear));
-    // The shelf: its top is the floor the objects stand on.
+    // The plate: its crown is the floor the objects stand on. It takes
+    // hands itself (its ends are handles), so it is an Interactable.
     this.top = -this.side / 2;
-    this.shelf = new THREE.Group();
+    this.shelf = new Interactable();
+    this.shelf.rayPoint = (ray, out) => ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), out);
     this.shelf.position.y = this.top;
     this.level.add(this.shelf);
-    this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * this.pitch);
-    this.shelfShape = new ShelfGeometry(this.rowWidth() + this.pad * 2, this.side * S.depth, this.shelfT);
+    this.restX = this.icons.map(() => 0);
+    const mm = v => v / 1000 * dist / DEFAULTS.distance;
+    this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
     // Refractive glass, so the mirrored objects below show through it.
-    this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.shelfT }));
+    this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.thick }));
     this.base.renderOrder = 1;
     this.shelf.add(this.base);
+    this.shelf.hitMeshes.push(this.base);
     // Its depth, drawn first: the mirror images only show where the shelf
     // is in front of them (they lie below its top, as a reflection does).
     // Nudged back a hair so the shelf's own glass never fights it.
@@ -123,7 +163,7 @@ export class Dock extends THREE.Group {
     this.key = new THREE.DirectionalLight(new THREE.Color(...O.key.color), O.key.intensity);
     this.key.position.set(...O.key.dir).normalize().multiplyScalar(0.5);
     this.key.castShadow = true;
-    const reach = this.rowWidth() / 2 + this.side;
+    const reach = this.plateLength(this.icons.length, P.maxSize) / 2 + this.side * P.maxSize;
     Object.assign(this.key.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.05, far: 1.2 });
     this.key.shadow.mapSize.set(O.shadow.size, O.shadow.size);
     this.key.shadow.bias = O.shadow.bias;
@@ -164,6 +204,19 @@ export class Dock extends THREE.Group {
       this.level.add(g);
       return g;
     });
+    // Each mirror's materials, to fade with its app (see present()).
+    this.mirrors.forEach(g => g.traverse(m => { if (m.isMesh) m.material.userData.opacity = m.material.opacity; }));
+    // An app fading in or out is see-through, but only its front should
+    // show, not its insides (the parts behind its face): a depth-only copy,
+    // drawn first while it fades, hides them.
+    const depthOnly = new THREE.MeshBasicMaterial({ colorWrite: false });
+    this.icons.forEach(icon => {
+      const c = icon.object.clone();
+      c.traverse(m => { if (m.isMesh) { m.material = depthOnly; m.castShadow = m.receiveShadow = false; m.raycast = () => {}; } });
+      c.visible = false;
+      icon.object.parent.add(c);
+      icon.userData.depth = c;
+    });
     // Contact shadow: the shade each object casts on the glass right under
     // it, the shape of its footprint, so it reads as standing on the shelf.
     this.contacts = this.icons.map(icon => {
@@ -201,7 +254,7 @@ export class Dock extends THREE.Group {
     const O = DEFAULTS.look.dockObjects;
     if (this.envRoom !== scene.environment) {
       this.envRoom = scene.environment;
-      const env = objectEnvironment(renderer, scene.environment, scene.environmentRotation, O.boxes);
+      const env = objectEnvironment(renderer, scene.environment, scene.environmentRotation, O.boxes, O.roomLight);
       for (const m of this.objectMaterials) { m.envMap = env; m.envMapIntensity = O.envIntensity; m.needsUpdate = true; }
     }
     const yaw = this.envYaw ?? 0;
@@ -215,17 +268,55 @@ export class Dock extends THREE.Group {
     return [R * Math.sin(a), A - R * Math.cos(a), -a];
   }
 
-  rowWidth() {
-    return this.pitch * (this.icons.length - 1) + this.side;
+  // A point's place on the arc: s along it, t toward the user (arc's inverse).
+  arcCoords(p) {
+    const A = this.arcR;
+    return [A * Math.atan2(p.x, A - p.z), A - Math.hypot(p.x, A - p.z)];
+  }
+
+  // Row and plate length for c apps (c is fractional while one is added or
+  // taken out) at size z. The handles (pad) keep their length at any size.
+  rowWidth(c = this.icons.length) {
+    return this.pitch * (c - 1) + this.side;
+  }
+
+  plateLength(c, z = 1) {
+    return this.rowWidth(c) * z + this.pad * 2;
+  }
+
+  // Apps in the Dock: the first k of o.apps (until apps can be pinned at
+  // run time). The plate lengthens or shortens by itself to fit them, and
+  // the app forms in the room that opens at the right end.
+  showApps(k) {
+    this.count.target = clamp(Math.round(k), 1, this.icons.length);
   }
 
   layout() {
-    const S = DEFAULTS.look.dockShelf;
-    const top = this.top;
+    const S = DEFAULTS.look.dockShelf, P = DEFAULTS.look.dockPlate, B = DEFAULTS.look.dockBubble;
+    const top = this.top, n = this.icons.length;
+    // c apps' worth of plate: the first k whole, the next forming in the
+    // room (f of a slot) that opens at the right end. The row stays centred
+    // on the plate, so the opening is shared: the apps already there move
+    // left by half of it as the right end moves out.
+    // At size z every app (and the gaps, and the plate's depth) is z times
+    // its size; held past the limits, only the plate goes on (raw).
+    const c = clamp(this.count.x, 1, n), raw = this.sizing.x;
+    const k = Math.floor(c + 1e-6), f = c - k;
+    const z = this.size = clamp(raw, ...this.sizeRange);
+    this.length = this.plateLength(c, raw);
+    const tip = this.length / 2;
+    this.presence = this.icons.map((_, i) => i < k ? 1 : i === k ? smoothstep(P.appear[0], P.appear[1], f) : 0);
+    this.restX = this.icons.map((_, i) => (i - (c - 1) / 2) * this.pitch * z);
+    // The forming app rides the right end, as far in from it as a whole
+    // app stands, until its own place catches up with it.
+    if (k < n) this.restX[k] = Math.min(this.restX[k], tip - this.pad - this.side * z / 2);
     this.icons.forEach((icon, i) => {
-      const s = this.scales[i];
+      const e = this.presence[i];
+      this.present(i, e);
+      if (!e) return;
+      const s = this.scales[i] * z * (B.from + (1 - B.from) * e);
       const sx = this.restX[i];   // in place: a magnified app grows into the gaps
-      // Standing on the shelf's middle line, turned to face the user.
+      // Standing on the plate's middle line, turned to face the user.
       const [px, pz, yaw] = this.arc(sx, 0);
       icon.scale.setScalar(s);
       icon.position.set(px, top, pz);
@@ -237,14 +328,115 @@ export class Dock extends THREE.Group {
       this.contacts[i].rotation.z = yaw;
       this.contacts[i].scale.setScalar(s);
       // Lighter as the object rises into its bubble.
-      this.contacts[i].material.opacity = S.contact.opacity * (1 - 0.8 * Math.min(1, icon.hover));
+      this.contacts[i].material.opacity = S.contact.opacity * e * (1 - 0.8 * Math.min(1, icon.hover));
       if (this.dots[i]) {
-        const [dx, dz] = this.arc(sx, this.side * S.depth * 0.4);
-        this.dots[i].position.set(dx, top + 0.0006, dz);
+        const t = this.side * S.depth * 0.4 * z;
+        const [dx, dz] = this.arc(sx, t);
+        this.dots[i].position.set(dx, top + this.shelfShape.heightAt(t / z) * this.neck * z + 0.0006, dz);
         this.dots[i].glow.position.copy(this.dots[i].position);
+        this.dots[i].material.opacity = e;
+        this.dots[i].glow.material.opacity = S.runGlow.opacity * e;
       }
     });
-    this.shelfShape.fit(this.rowWidth() + this.pad * 2, this.arcR);
+    // Held past the smallest or largest size, the plate thins as it
+    // lengthens and fattens as it shortens, as a bubble keeps its volume.
+    this.neck = (this.plateLength(c, z) / this.length) ** P.neck;
+    const swell = P.swell * Math.max(0, this.grip.hover.x);
+    this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0] });
+  }
+
+  // App i at presence e (0 hidden, 1 whole): it forms as the plate opens
+  // room for it, fading in from a little smaller (never from nothing), and
+  // takes no hands until it is whole.
+  present(i, e) {
+    const icon = this.icons[i], was = icon.userData.presence ?? 1;
+    icon.visible = this.mirrors[i].visible = this.contacts[i].visible = e > 0;
+    if (this.dots[i]) this.dots[i].visible = this.dots[i].glow.visible = e > 0;
+    icon.enabled = e >= 1;
+    icon.userData.depth.visible = e > 0 && e < 1;
+    if (e === was) return;
+    icon.userData.presence = e;
+    const fade = (m, base) => {
+      const clear = e < 1;
+      if (m.transparent !== clear) { m.transparent = clear; m.needsUpdate = true; }
+      m.opacity = base * e;
+    };
+    icon.object.traverse(m => {
+      if (!m.isMesh) return;
+      m.material.userData.opacity ??= m.material.opacity;
+      fade(m.material, m.material.userData.opacity);
+      m.castShadow = e > 0.5;
+    });
+    this.mirrors[i].traverse(m => { if (m.isMesh) m.material.opacity = m.material.userData.opacity * e; });
+  }
+
+  // The plate's ends are handles (see the header). Hands near an end take
+  // it from the apps; a pinch or a press there grabs it.
+  grabPlate(dt) {
+    const P = DEFAULTS.look.dockPlate;
+    const probes = this.shelf.consumeProbes();
+    const tip = this.length / 2, zone = this.pad, d = this.shelfShape.depth / 2 * this.neck * this.size;
+    const grip = this.grip;
+    let near = null, nearD = Infinity;
+    for (const p of probes) {
+      const [s, t] = this.arcCoords(p.point);
+      // Distance to the end: the stretch of plate past the last app.
+      const along = Math.max(0, tip - zone - Math.abs(s), Math.abs(s) - tip);
+      const dist = p.kind === 'ray' ? (along > 0 ? Infinity : 0) : Math.hypot(along, Math.max(0, Math.abs(t) - d), Math.max(0, p.point.y, -p.point.y - this.thick));
+      if (dist < nearD) { nearD = dist; near = { p, s }; }
+      if (grip.held?.id === p.id) grip.held.probe = { p, s };
+    }
+    // Holding: the end follows the hand along the arc.
+    if (grip.held) {
+      const h = grip.held, still = h.probe && (h.probe.p.pinch || h.probe.p.captured);
+      if (still) {
+        // The length the hand asks for, rubber-banded past the smallest and
+        // largest size (Apple's constant 0.55 over one app's length), and
+        // the size that gives the apps there are.
+        const c = this.count.x, [lo, hi] = this.sizeRange.map(z => this.plateLength(c, z));
+        let L = (h.half + grip.side * (h.probe.s - h.s0)) * 2;
+        if (L > hi) L = hi + rubberband(L - hi, this.pitch, P.rubber);
+        if (L < lo) L = lo - rubberband(lo - L, this.pitch, P.rubber);
+        const z = (L - this.pad * 2) / this.rowWidth(c);
+        grip.history.push([this.time, z]);
+        while (grip.history.length > 2 && grip.history[grip.history.length - 1][0] - grip.history[0][0] > 0.1) grip.history.shift();
+        this.sizing.x = z;
+        const [t0, z0] = grip.history[0], [t1, z1] = grip.history[grip.history.length - 1];
+        this.sizing.v = t1 > t0 ? (z1 - z0) / (t1 - t0) : 0;
+        grip.at.copy(h.probe.p.point);
+        h.probe = null;
+      } else {
+        grip.held = null;
+        grip.history.length = 0;
+        // Settle where the pull was heading: where its speed would have
+        // carried it (Apple's projection, deceleration 0.99 per ms), kept
+        // within the sizes. No snapping: any size in between is a size.
+        const ahead = this.sizing.x + this.sizing.v * 0.001 * P.decelerate / (1 - P.decelerate);
+        this.sizing.target = clamp(ahead, ...this.sizeRange);
+      }
+    }
+    // Not holding: settle with the hand's speed (velocity handoff).
+    if (!grip.held) {
+      const calm = REDUCED_MOTION();
+      springTo(this.sizing, this.sizing.target, P.settle.response, calm ? 1 : P.settle.damping, dt);
+      if (Math.abs(this.sizing.x - this.sizing.target) < 1e-4 && Math.abs(this.sizing.v) < 1e-3) { this.sizing.x = this.sizing.target; this.sizing.v = 0; }
+    }
+    // Hover: a hand near an end, or a ray on it.
+    const hovered = grip.held ? true : this.gripBand.update(nearD);
+    if (!grip.held && near && hovered) {
+      grip.side = Math.sign(near.s) || 1;
+      grip.at.copy(near.p.point);
+      const grab = near.p.kind === 'poke' ? near.p.pinch && nearD <= this.gripBand.enter * P.reach : near.p.captured && nearD === 0;
+      if (grab) grip.held = { id: near.p.id, s0: near.s, half: tip, probe: null };
+    }
+    springTo(grip.hover, grip.held ? 1 : hovered ? P.glow.hover / P.glow.grab : 0, 0.15, 1, dt);
+    this.gripping = hovered;
+    // The glass lights where it is held, in the press glow's colour.
+    const u = this.base.material.uniforms;
+    this.shelf.updateMatrixWorld();
+    const w = this.shelf.localToWorld(grip.at.clone());
+    u.uTouch.value.set(w.x, w.y, w.z, this.pad * P.glow.radius);
+    u.uTouchGlow.value.setRGB(...DEFAULTS.look.emboss.glow.color).multiplyScalar(P.glow.grab * Math.max(0, grip.hover.x));
   }
 
   /**
@@ -273,13 +465,23 @@ export class Dock extends THREE.Group {
     this.rotation.set(ecc, yaw, 0);
     this.updateMatrixWorld();
 
+    // The plate's handles first: a hand on one is not reaching for an app.
+    this.time = (this.time ?? 0) + dt;
+    this.grabPlate(dt);
+    // An app added or taken out: the plate fits it by itself, critically
+    // damped (no gesture threw it, so nothing to overshoot with).
+    const fit = DEFAULTS.look.dockPlate.fit;
+    springTo(this.count, this.count.target, fit.response, fit.damping, dt);
+    if (Math.abs(this.count.x - this.count.target) < 1e-4 && Math.abs(this.count.v) < 1e-3) { this.count.x = this.count.target; this.count.v = 0; }
+    this.layout();
     // Magnify from the nearest hand, measured to each icon's rest position.
     const inv = new THREE.Matrix4().copy(this.level.matrixWorld).invert();
-    const local = hands.map(h => h.clone().applyMatrix4(inv));
+    const local = this.gripping ? [] : hands.map(h => h.clone().applyMatrix4(inv));
     // Once a finger is close enough to form an app's bubble, the app holds
     // its size: a finger nearer than that, or pressing in, counts as at that
     // distance (the press makes the app give way, never swell).
     for (const p of local) this.icons.forEach((icon, i) => {
+      if (this.presence[i] < 1) return;
       const s = this.scales?.[i] ?? 1;
       const c = icon.position.clone().add(new THREE.Vector3(0, icon.rb * s, 0));
       const r = (icon.rb + icon.hoverBand.enter) * s;
@@ -297,8 +499,9 @@ export class Dock extends THREE.Group {
     this.scales = want.map((s, i) => Math.max(1, springStep(this.scaleState[i], s, this.magnifyOmega, dt)));
     // One bubble at a time: only the app nearest the finger may show one,
     // so a finger between two never lights both.
-    const near = this.icons.map(icon => icon.sense());
-    const nearest = near.indexOf(Math.min(...near));
+    // (Apps not yet whole on the plate take no hands.)
+    const near = this.icons.map((icon, i) => this.presence[i] >= 1 ? icon.sense() : (icon.consumeProbes(), icon.best = null, Infinity));
+    const nearest = this.gripping ? -1 : near.indexOf(Math.min(...near));
     this.icons.forEach((icon, i) => { icon.exclusive = i === nearest; icon.update(dt); });
     this.layout();
     this.lightPress();
@@ -331,43 +534,104 @@ export class Dock extends THREE.Group {
   }
 }
 
-// The shelf: a thin glass slab (w along the arc, d deep), laid flat and bent
-// round an arc of radius R centred on the user. It is built flat once and
-// finely split, so its long edges bend into a curve (a slab with only end
-// vertices bends at the ends and stays straight between them). fit()
-// stretches the straight middle to the row's width and bends it: one pass
-// over the vertices, once (the row keeps its width as icons magnify).
-class ShelfGeometry {
-  constructor(w, d, t) {
-    const g = glassSlabGeometry(w, d, t, d / 2 * 0.98, { tessellate: d / 12 });
-    g.rotateX(-Math.PI / 2);  // lie flat: slab y (depth) -> -z, thickness -> +y
-    g.translate(0, -t, 0);    // top face at y = 0
+// The plate: a solid bubble w long (along the arc) and d deep. Its outline
+// is a stadium (round ends); across its depth it is a cushion: the edge
+// rolls round in a full curve, the top domes gently to a crown under the
+// apps (y = 0), and the underside swells a little less. Built flat once,
+// at its longest, as rings stepping in from the edge (finer at the edge,
+// where it turns fastest) with fine steps along it, so it bends smoothly
+// round the arc. fit() then sets its length (stretching the straight
+// middle, carrying the round ends), its neck and its ends' swell, and bends
+// it: one pass over the vertices.
+class PlateGeometry {
+  constructor(w, d, { edge, crown, under }) {
+    const half = d / 2, a = w / 2 - half;
+    const rings = 28, arcSteps = 28, straight = Math.max(8, Math.ceil(2 * a / (d / 16)));
+    this.depth = d;
+    this.edge = edge; this.crown = crown; this.under = under;
+    const roll = Math.min(edge + under, half * 0.6);   // the edge's curve, in from the rim
+    // Height of the top and the underside at δ in from the rim.
+    const curve = δ => δ >= roll ? 1 : Math.sqrt(1 - (1 - δ / roll) ** 2);
+    const dome = δ => 1 - (1 - Math.min(δ, half) / half) ** 2;
+    this.top = δ => edge * curve(δ) + crown * dome(δ) - (edge + crown);
+    const bottom = δ => -(under * curve(δ) + under * 0.6 * dome(δ)) - (edge + crown);
+    // One ring: the stadium ρ in from the rim, as a loop of points.
+    const loop = ρ => {
+      const r = half - ρ, pts = [];
+      for (let i = 0; i < straight; i++) pts.push([a - 2 * a * i / straight, r]);          // the far side, right to left
+      for (let i = 0; i < arcSteps; i++) { const q = Math.PI / 2 + Math.PI * i / arcSteps; pts.push([-a + Math.cos(q) * r, Math.sin(q) * r]); }
+      for (let i = 0; i < straight; i++) pts.push([-a + 2 * a * i / straight, -r]);        // the near side
+      for (let i = 0; i < arcSteps; i++) { const q = -Math.PI / 2 + Math.PI * i / arcSteps; pts.push([a + Math.cos(q) * r, Math.sin(q) * r]); }
+      return pts;
+    };
+    const K = 2 * straight + 2 * arcSteps;
+    const pos = [], index = [];
+    // Rows: the top from rim to spine, then the underside from spine back
+    // to the rim (the rim row is shared, so the edge closes).
+    const steps = [];
+    for (let j = 0; j <= rings; j++) steps.push(half * (j / rings) ** 1.6);
+    const rows = [...steps.map(δ => [δ, this.top(δ)]), ...[...steps].reverse().slice(0, -1).map(δ => [δ, bottom(δ)])];
+    rows.push([0, this.top(0)]);   // back to the rim, closing the loop of rows
+    for (const [δ, y] of rows) for (const [x, z] of loop(δ)) pos.push(x, y, -z);
+    const R = rows.length;
+    for (let j = 0; j < R - 1; j++) for (let i = 0; i < K; i++) {
+      const p = j * K + i, q = j * K + (i + 1) % K, r = (j + 1) * K + i, t = (j + 1) * K + (i + 1) % K;
+      index.push(p, q, r, q, t, r);   // wound so the outside faces out
+    }
+    let g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(index);
+    g = mergeVertices(g, 1e-7);
+    g.computeVertexNormals();
     this.flatP = g.attributes.position.array.slice();
     this.flatN = g.attributes.normal.array.slice();
-    this.w = w; this.end = d / 2;
+    this.w = w; this.end = half;
     this.geometry = g;
   }
 
-  fit(w, R) {
-    if (this.fitW === w && this.fitR === R) return;
-    this.fitW = w; this.fitR = R;
+  // The top's height t toward the user from the middle line (for things
+  // set on it, like the run lights).
+  heightAt(t) {
+    return this.top(Math.max(0, this.depth / 2 - Math.abs(t)));
+  }
+
+  fit(w, R, { neck = 1, size = 1, swell = [0, 0] } = {}) {
+    const key = [w, R, neck, size, swell[0], swell[1]].join();
+    if (this.fitKey === key) return;
+    this.fitKey = key;
     const g = this.geometry, p = g.attributes.position.array, n = g.attributes.normal.array;
     const F = this.flatP, FN = this.flatN;
-    const hw0 = this.w / 2 - this.end, hw = w / 2 - this.end;
+    const end = this.end * size;   // the round ends grow with the plate's depth
+    const hw0 = this.w / 2 - this.end, hw = w / 2 - end;
+    const mid = -(this.edge + this.crown);   // the rim's plane: an end swells about it
     for (let i = 0; i < p.length; i += 3) {
       // Stretch the middle, carry the round ends out with it.
       let x = F[i];
-      x = Math.abs(x) <= hw0 ? x * hw / hw0 : x + Math.sign(x) * (hw - hw0);
+      x = Math.abs(x) <= hw0 ? x * hw / hw0 : Math.sign(x) * (hw + (Math.abs(x) - hw0) * size);
+      // Swell at an end held or hovered: most at its tip.
+      const u = Math.abs(x) - (hw - end);
+      const s = u > 0 ? (x < 0 ? swell[0] : swell[1]) * smoothstep(0, 2 * end, u) : 0;
+      const ky = neck * size * (1 + s), kz = neck * size;
+      const y = ((F[i + 1] - mid) * (1 + s) + mid) * neck * size, z = F[i + 2] * kz;
+      // Normals under the scale: divide by it, then renormalise.
+      let nx = FN[i], ny = FN[i + 1] / ky, nz = FN[i + 2] / kz;
+      const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
       // Bend: x runs along the arc, z (toward the user) toward its centre.
-      const a = x / R, c = Math.cos(a), s = Math.sin(a), r = R - F[i + 2];
-      p[i] = r * s; p[i + 1] = F[i + 1]; p[i + 2] = R - r * c;
-      n[i] = FN[i] * c - FN[i + 2] * s; n[i + 1] = FN[i + 1]; n[i + 2] = FN[i] * s + FN[i + 2] * c;
+      const a = x / R, c = Math.cos(a), sn = Math.sin(a), r = R - z;
+      p[i] = r * sn; p[i + 1] = y; p[i + 2] = R - r * c;
+      n[i] = nx * c - nz * sn; n[i + 1] = ny; n[i + 2] = nx * sn + nz * c;
     }
     g.attributes.position.needsUpdate = g.attributes.normal.needsUpdate = true;
     g.computeBoundingBox();
     g.computeBoundingSphere();
   }
 }
+
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// Apple's rubber band: past a limit, each step further moves it less.
+const rubberband = (over, dimension, k) => (over * dimension * k) / (dimension + k * Math.abs(over));
+const REDUCED_MOTION = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
 // Reflection in the horizontal plane y = h.
 function mirrorY(h) {

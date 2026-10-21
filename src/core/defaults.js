@@ -161,8 +161,8 @@ export const DEFAULTS = {
     valueLabel: { height: 26, pad: 9, space: 6, gap: 12, thickness: 0.5, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },
     // Shelf Dock (Jihoon, 2026-10-20: Snow Leopard style, curved for reach).
     // Proposed: dock.shelf.*. Lengths in dmm at the dock's distance.
-    // lift: float height (dmm); depth: x icon side; thickness: glass mm;
-    // reflection: mirrored icon strength, fading over fade x the icon side
+    // lift: float height (dmm); depth: x icon side (the plate's own shape is
+    // dockPlate's); reflection: mirrored icon strength, fading over fade x the icon side
     // below the glass (faint, as clear glass reflects; judge rounds 3 and 4
     // read a strong one as a second row of globes); mirrorBlur: how soft the mirror
     // image is (roughness, and the glyph's blur in mip levels); mirrorGlyph:
@@ -170,12 +170,13 @@ export const DEFAULTS = {
     // the room's reflection on the mirrored globes, x their own (low, so the
     // image keeps the globe's colour instead of turning milky); contact: the soft shadow under
     // each globe (opacity, size x the icon side); arc: radius of the dock's
-    // curve x its distance (0.75 at 0.56 m = 0.42 m, a little tighter than
-    // the lookdev's 0.5 m so the curve reads at a glance; every icon is the
-    // same reach away); hoverLift: how far the hovered globe rises (dmm, as
+    // curve x its distance (0.9 at 0.56 m = 0.5 m, the lookdev's; the
+    // solid plate's rolled edge and longer ends read its curve at a glance,
+    // so the tighter 0.75 now bent it twice as much as the lookdev; every
+    // icon is the same reach away); hoverLift: how far the hovered globe rises (dmm, as
     // the lookdev); hoverSheen: light on the hovered globe's glass; caustic: the coloured light each globe focuses on the
     // glass under it; runGlow: the running light's halo (size in dmm).
-    dockShelf: { bubbleClear: 4, lift: 10, depth: 1.35, thickness: 3, reflection: 0.7, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.5, size: 1.15 }, fade: 0.3, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.7, size: 12 } },
+    dockShelf: { bubbleClear: 4, lift: 10, depth: 1.35, reflection: 0.7, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.5, size: 1.15 }, fade: 0.3, arc: 0.9, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.7, size: 12 } },
     // Dock globe: glyph size before the glass magnifies it, x a flat icon's.
     globeGlyph: 0.5, // 0.56 left no clear glass between the glyph and the hotspot (judge round 5)
     // Dock apps as real objects (Jihoon, 2026-10-21; core/objects.js), lit
@@ -184,11 +185,30 @@ export const DEFAULTS = {
     // Dock, colour, strength). The boxes give glossy shells and chrome a
     // clean, shaped highlight; the room keeps them in it.
     dockObjects: {
-      boxes: [{ at: [-1, 1.2, 1], size: [4, 2.5], power: 5 }, { at: [1.2, 0.3, 1], size: [3, 3], power: 1.5 }, { at: [0, 1, -0.3], size: [5, 5], power: 2 }],
+      boxes: [{ at: [0, 1, 0.3], size: [6, 4], power: 4 }, { at: [0, 0.25, 1], size: [5, 2], power: 1.2 }, { at: [0, 0.5, -1], size: [7, 1.5], power: 2.5 }, { at: [-1, 0.4, 0.4], size: [1, 3], power: 1.5 }, { at: [1, 0.4, 0.4], size: [1, 3], power: 1.5 }],
+      roomLight: 0.45,
       envIntensity: 1,
-      key: { dir: [-0.6, 0.9, 0.5], color: [1, 0.95, 0.88], intensity: 2.5 },
+      key: { dir: [0, 1, 0.45], color: [1, 0.97, 0.92], intensity: 2.5 },
       shadow: { size: 2048, bias: -0.0002, normalBias: 0.01, radius: 3 }, // normalBias x the object's size
     },
+    // The Dock's plate, a solid bubble you can stretch (Jihoon, 2026-10-21).
+    // edge, crown, under: mm as seen at `distance` (0.6 m), growing with the
+    // Dock's distance: the rolled edge's rise, the dome on top under the
+    // apps, the underside's swell. pad: dmm of plate past the last app, its
+    // handle (at least size.target.min). minSize, maxSize: the apps' sizes
+    // the stretch reaches (x size.button.default); the smallest is the
+    // default, so stretching never takes a target below its resting size.
+    // appear: the share of a slot over which an added app forms. fit: the
+    // spring that fits the plate to the apps when one is added (response s,
+    // damping ratio 1: Apple's reposition, nothing threw it). rubber:
+    // Apple's rubber-band constant, over one app's length. neck: how a plate
+    // held past its limits thins (0.5 keeps its volume). decelerate: Apple's
+    // momentum projection, per ms. settle: the release spring (response s,
+    // damping ratio; Apple's drawer after a drag; reduced motion: 1). swell:
+    // a held end swells by this share. glow: the hold's light (x the press
+    // glow), a hover's, its radius (x pad). reach: a pinch grabs within this
+    // share of the hover distance (proximity.hover.enter).
+    dockPlate: { edge: 5, crown: 3, under: 3, pad: 44, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.5 }, reach: 0.4 },
     // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
     // size: its diameter x the object's larger side (Jihoon's reference:
     // about 1.5; 1.42 holds the corners of a square). from: it grows from

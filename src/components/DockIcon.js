@@ -24,6 +24,7 @@ import { Interactable } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { DEFAULTS } from '../core/defaults.js';
+import { springTo } from '../core/spring.js';
 import { makeAppObject } from '../core/objects.js';
 import { makeBubble } from '../core/bubble.js';
 import { makeText, glassSlabGeometry } from '../core/look.js';
@@ -145,14 +146,14 @@ export class DockIcon extends Interactable {
     // and goes without one. Reduced motion: no settle.
     const calm = REDUCED_MOTION();
     const on = this.hovered && this.enabled;
-    stepSpring(this.grow, on ? 1 : 0, E.response, on && !calm ? E.damping : 1, dt);
+    springTo(this.grow, on ? 1 : 0, E.response, on && !calm ? E.damping : 1, dt);
     const g = Math.max(0, this.grow.x);
     this.hover = Math.min(1, g);
     // The dent: placed where the press lands, dragged along by a finger,
     // springing back past flat once (emboss.dent).
     if (this.press.amount > 0.01 && !this.dent.x) this.dentAt.copy(this.spot);
     if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18)).normalize();
-    stepSpring(this.dent, on ? this.dentMax * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
+    springTo(this.dent, on ? this.dentMax * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     if (Math.abs(this.dent.x) < 1e-6 && Math.abs(this.dent.v) < 1e-5) this.dent.x = this.dent.v = 0;
 
     // Draw it. The bubble grows from a little smaller, never from nothing.
@@ -178,15 +179,6 @@ export class DockIcon extends Interactable {
     this.nameText.fillOpacity = this.hover;
     this.nameGlass.uniforms.uOpacity.value = this.hover;
     this.nameTag.scale.setScalar(B.from + (1 - B.from) * Math.min(1, this.hover));
-  }
-}
-
-// One spring step (response in s, damping ratio), substepped for stability.
-function stepSpring(s, target, response, damping, dt) {
-  const w = 2 * Math.PI / response;
-  for (let i = 0, n = 4, h = dt / n; i < n; i++) {
-    s.v += (-w * w * (s.x - target) - 2 * damping * w * s.v) * h;
-    s.x += s.v * h;
   }
 }
 
