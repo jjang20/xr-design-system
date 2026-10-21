@@ -23,7 +23,7 @@ const varied = [...new Set(Object.values(exp.variants).flatMap(o => Object.keys(
 const human = result?.tables?.human?.find(r => r.name === chosen);
 for (const path of varied) {
   if (path in exp.variants[chosen]) setValue(tokens, path, exp.variants[chosen][path]);
-  const meta = (getNode(tokens, path).$extensions ??= {})['com.contour'] ??= {};
+  const meta = (getNode(tokens, path, false).$extensions ??= {})['com.contour'] ??= {};
   meta.arena = {
     experiment: exp.id,
     chosen,

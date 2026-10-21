@@ -1,6 +1,6 @@
 {
   "name": "contour-tokens",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Contour XR design system tokens. 1 unit = 1 m.",
   "private": true,
   "type": "module",

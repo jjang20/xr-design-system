@@ -4,31 +4,32 @@
 // Run: npm run check -- button-thickness
 import { writeFileSync } from 'node:fs';
 import { loadExperiment, readJson } from './lib/experiment.mjs';
-import { num } from './lib/tokens.mjs';
+import { num, toM } from './lib/tokens.mjs';
 import { motionFindings } from './lib/motion.mjs';
 
 // Thresholds for the pixel checks. These are estimates (evidence G), the
 // same honesty rule as tokens.json: tune them once headset tests exist.
 const PRESS_VISIBLE_MIN = 0.01; // mean luminance change in the button area, 0-1
-const RELEASE_MARGIN_WARN = 0.5; // mm
+const RELEASE_MARGIN_WARN = 0.0005; // m (0.5 mm)
 
 const CHECKS = [
   {
     id: 'press-deeper-than-release',
     why: 'If the press is shallower than the release distance, the finger has to pull back past the surface before the button lets go, which feels sticky.',
     run: (t) => {
-      const depth = num(t, 'material.density.firm.press') * num(t, 'material.t.regular');
-      const release = num(t, 'proximity.poke.release');
+      const depth = num(t, 'material.firmness.firm.pressDepth') * toM(t, 'material.thickness.regular');
+      const release = toM(t, 'input.poke.distance.release');
       const margin = depth - release;
       const level = margin < 0 ? 'fail' : margin < RELEASE_MARGIN_WARN ? 'warn' : 'pass';
-      return { level, detail: `press depth ${depth.toFixed(1)} mm vs release ${release} mm (margin ${margin.toFixed(1)} mm)` };
+      const mm = v => (v * 1000).toFixed(1);
+      return { level, detail: `press depth ${mm(depth)} mm vs release ${mm(release)} mm (margin ${mm(margin)} mm)` };
     },
   },
   {
     id: 'thickness-order',
     why: 'Thickness carries hierarchy: cards (thin) < controls (regular) < panels (thick). A button as thick as its panel loses that.',
     run: (t) => {
-      const [a, b, c] = ['thin', 'regular', 'thick'].map(k => num(t, `material.t.${k}`));
+      const [a, b, c] = ['thin', 'regular', 'thick'].map(k => toM(t, `material.thickness.${k}`) * 1000);
       return { level: a < b && b < c ? 'pass' : 'fail', detail: `thin ${a} < regular ${b} < thick ${c} mm` };
     },
   },
@@ -36,8 +37,8 @@ const CHECKS = [
     id: 'target-size',
     why: 'The button face must be at least the smallest interactive target.',
     run: (t) => {
-      const face = num(t, 'size.button.default'), min = num(t, 'size.target.min');
-      return { level: face >= min ? 'pass' : 'fail', detail: `face ${face} dmm vs min ${min} dmm` };
+      const face = num(t, 'size.interactive.default'), min = num(t, 'size.interactive.minimum');
+      return { level: face >= min ? 'pass' : 'fail', detail: `face ${face} vpt vs min ${min} vpt` };
     },
   },
   {
