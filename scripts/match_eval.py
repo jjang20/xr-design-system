@@ -317,17 +317,29 @@ if have('dock-rest-beauty'):
               '>= 0.85', 'Jihoon: "light bubble layer"; first try read as a milky veil (self-review 2026-10-21)')
         d = max(3, bw(bub) // 16)
         rim = bub & ~erode(bub, d)
-        mid = erode(bub, 3 * d) & ~dilate(hov[2], 3)
+        # Its middle: inside the rim band, round the object (the object
+        # fills the very centre, so an inner disc alone would be empty).
+        mid = erode(bub, d) & ~dilate(hov[2], 3)
         r_add = float((Lh - Ln)[rim].mean())
-        m_add = float(np.abs(Lh - Ln)[mid].mean()) if mid.any() else 0
-        check('D26', 'Dock', 'The bubble shows at its rim and stays clear in the middle', f'rim {r_add:+.3f}, middle {m_add:.3f}',
-              r_add >= 0.04 and m_add <= 0.6 * abs(r_add), 'rim >= +0.04 mean luminance; middle change <= 0.6x the rim\'s',
+        m_add = float(np.abs(Lh - Ln)[mid].mean()) if mid.any() else 1
+        check('D26', 'Dock', 'The bubble shows at its rim and stays clear in the middle', f'rim {r_add:+.3f}, middle {m_add:.3f} ({m_add / max(r_add, 1e-3):.2f}x)',
+              r_add >= 0.04 and m_add <= 0.4 * abs(r_add), 'rim >= +0.04 mean luminance; middle change <= 0.4x the rim\'s',
               'Jihoon\'s reference: a faint sphere whose rim is bright; glass: Fresnel')
         ys = np.nonzero(bub)[0]
         foot = np.nonzero(objs[2])[0].max() if len(objs) == 5 else 0
         rest_on = abs(int(ys.max()) - int(foot)) / bh(bub)
         check('D27', 'Dock', 'The bubble rests on the shelf where the object stood', f'its bottom is {rest_on:.1%} of its height from the object\'s foot', rest_on <= 0.06,
               '<= 6%', 'Jihoon\'s reference: the bubble sits on the shelf')
+        # Light, not amber: the light the skin adds (its reflections and
+        # rim) is near neutral, as the reference's airy sphere, even in a
+        # warm room. Measured as warmth (red minus blue) per unit of the
+        # light it adds, over the skin round the object.
+        skin = bub & ~dilate(hov[2], 3) if len(hov) == 5 else bub
+        dH = Hb - Hn
+        warm = float((dH[..., 0] - dH[..., 2])[skin].mean() / max(float((dH @ np.array([0.2126, 0.7152, 0.0722]))[skin].mean()), 1e-3))
+        check('D32', 'Dock', 'The bubble is light and neutral: the light it adds is not amber', f'{warm:+.2f} warmth per unit of added light',
+              warm <= 0.15, '<= +0.15 (red minus blue, over the light the skin adds)',
+              'Self-review 2026-10-21: in the warm room the bubble read amber and heavy beside the reference\'s cool, light sphere')
         cx = lambda m: float(np.nonzero(m)[1].mean())
         move = max(abs(cx(a_) - cx(b_)) for i, (a_, b_) in enumerate(zip(objs, hov)) if i != 2) if len(objs) == len(hov) == 5 else 99.0
         cols = lambda m: np.where(m.any(axis=0))[0]

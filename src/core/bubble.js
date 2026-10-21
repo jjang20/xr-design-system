@@ -58,7 +58,7 @@ const VERT = /* glsl */`
   }`;
 
 const FRAG = /* glsl */`
-  uniform float uOpacity, uF0, uReflBlur, uEnvIntensity, uHasEnv, uKey, uKeySharp, uFar, uRimLight, uRimPower, uReflect;
+  uniform float uOpacity, uF0, uReflBlur, uEnvIntensity, uHasEnv, uKey, uKeySharp, uFar, uRimLight, uRimPower, uReflect, uReflColour;
   uniform float uGlow, uGlowCore, uCoreWidth, uRing, uDentShadow, uDentLight, uDentSlope, uDentWidth, uLipAt, uLipWidth, uDentGlint;
   uniform vec4 uDent;
   uniform vec3 uKeyDir, uGlowColor, uRimColor;
@@ -72,8 +72,12 @@ const FRAG = /* glsl */`
   void main() {
     vec3 V = normalize(vWorld - cameraPosition);
     vec3 N = normalize(vNormal), Nr = normalize(vRadial);
-    // The far wall is seen from inside: its normal faces away.
-    if (!gl_FrontFacing) { N = -N; Nr = -Nr; }
+    // The far wall is seen from inside: its normal faces away. Told by the
+    // normal, not gl_FrontFacing: three.js draws a BackSide mesh with its
+    // winding flipped, so its faces report front-facing, and the far wall
+    // would read every pixel at grazing angle, a full mirror.
+    bool farWall = dot(Nr, V) > 0.0;
+    if (farWall) { N = -N; Nr = -Nr; }
     float cosT = clamp(dot(-V, N), 0.0, 1.0);
     // Two surfaces of a thin skin reflect about twice what one does.
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
@@ -86,6 +90,11 @@ const FRAG = /* glsl */`
     // reflection is compressed (as the window glass's is), so the skin stays
     // clear and the window reads as a soft shape in it.
     refl = refl / (1.0 + dot(refl, vec3(0.2126, 0.7152, 0.0722)));
+    // It keeps only a little of the room's colour (uReflColour): the rest
+    // is the room's light, in the rim's cool white. A warm room otherwise
+    // tints the whole skin amber, and the bubble reads heavy, not light
+    // (Jihoon's reference: a cool, airy sphere).
+    refl = mix(vec3(dot(refl, vec3(0.2126, 0.7152, 0.0722))) * uRimColor, refl, uReflColour);
     vec3 col = refl * R * uReflect;
     // The rim catches light round its whole edge, brighter on top and a
     // little cool, as a soap film does.
@@ -128,7 +137,7 @@ const FRAG = /* glsl */`
     col += glow;
     alpha = max(alpha, clamp(dot(glow, vec3(0.333)), 0.0, 1.0));
     // The far wall reflects less (seen through the near one, at a slant).
-    float k = gl_FrontFacing ? 1.0 : uFar;
+    float k = farWall ? uFar : 1.0;
     // Premultiplied: what is behind is dimmed by what the skin reflects.
     gl_FragColor = vec4(col * k * uOpacity, clamp(alpha * k, 0.0, 1.0) * uOpacity);
     #include <tonemapping_fragment>
@@ -157,6 +166,7 @@ export function makeBubble() {
     uRimLight: { value: B.rim },
     uRimPower: { value: B.rimPower },
     uReflect: { value: B.reflect },
+    uReflColour: { value: B.reflectColour ?? 1 },
     uRimColor: { value: new THREE.Color(...B.rimColor) },
     uFar: { value: B.far },
     uDent: { value: new THREE.Vector4(0, 0, 1, 0) },

@@ -195,7 +195,7 @@ export const DEFAULTS = {
     // this fraction of its size, never from nothing (Emil Kowalski). lift:
     // how far the object rises toward the bubble's middle. The press dent
     // and glow are the list bubble's (emboss), its shadow and glow x these.
-    dockBubble: { size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.25, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
+    dockBubble: { size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity
