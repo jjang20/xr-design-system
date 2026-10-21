@@ -30,7 +30,7 @@ Rendering uses Playwright with Chromium. If you have no Playwright browser insta
 | Step | File | What it does | What you do |
 |---|---|---|---|
 | Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.t.regular": 12`. | Write the question and pick the values to compare. |
-| Render | `render.mjs`, `scene/button.html` | Draws each variant at 1:1 scale from the wearer's eye, in rest, hover and press, at the headset's pixel density (25 px per degree, about Quest 3). | Nothing. |
+| Render | `render.mjs`, `scenes/`, `scene/button.html` | Draws each variant at 1:1 scale from the wearer's eye at the headset's pixel density (25 px per degree, about Quest 3), using the real components where a scene exists (see below). | Nothing. |
 | Check | `check.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
 | Bar | `judge-human.mjs`, `judge-ai.mjs`, `lib/bar.mjs` | Each variant alone, next to your reference images: does it reach visionOS level? Scored by eye on seven rows (material, light, shape, type, states, depth, cohesion; the material, type, states and depth rows spell out Apple's own standards); the AI needs 4 of 5 on every row. An eighth row, motion, is checked by code (see below). Variants that fail stop here. | Ship it / Not yet, and tick what falls short. |
 | Pairwise | `judge-human.mjs`, `judge-ai.mjs` | Only bar passers, two at a time, names hidden, sides shuffled. The AI judges every pair twice with the sides swapped; if it flips, that pair counts as a tie. | Vote. Your votes decide. |
@@ -55,7 +55,14 @@ Copy `experiments/button-thickness.json`, change the question, criteria and vari
 
 ## What gets rendered
 
-`scene/button.html` is a placeholder scene used to build and test the loop. It does not meet the bar, and it shouldn't be judged as Contour's look. The arena should render the real components (the Core XR components work, which is being rebuilt to visionOS quality), so that what passes the bar is exactly what ships. The scene is the only part that changes; the bar, the pairwise round and promote stay the same.
+An experiment's `fixtures.scene` picks the scene:
+
+| Scene | What it draws | Used by |
+|---|---|---|
+| `catalog-stack` | The real Catalog from `src/`, through the repo's own bench page (`demo/bench.html`), three levels deep, from the front and from 35° to the side. | `catalog-parent-dim` |
+| `button` (default) | `scene/button.html`, a placeholder used to build the loop. It does not meet the bar and isn't Contour's look. | `button-thickness` |
+
+Real-component scenes start the repo's Vite server (run `npm install` in the repo root once) and answer the bench's one request for `tokens.json` with the variant's patched copy, so the components read the variant exactly as they read the shipped file. Nothing in `src/` or `demo/` knows about the arena. A new scene is a file in `scenes/` that drives the bench into the state to judge and returns its screenshots and pixel measurements.
 
 ## What this can and can't tell you
 
