@@ -154,8 +154,8 @@ export const DEFAULTS = {
     // The Z-Slider's value label: a capsule of the plate's glass, smoked
     // (refract.label), beside the plate (dmm), gap from its rim, thickness x
     // the plate's; the value larger and bolder than the name. Its length fits
-    // the text (pad, name, space, the widest value, pad), so it is as small
-    // as the words allow: it is the darkest mass beside the control (judge
+    // the text (pad, name, space, room for a two-digit value, pad), so it is
+    // as small as the words allow: it is the darkest mass beside the control (judge
     // rounds 4 to 7: it outweighs the knob). At 0.4 thickness its lit lower
     // rim was lost.
     valueLabel: { height: 26, pad: 9, space: 6, gap: 12, thickness: 0.5, name: { size: 13, weight: 600 }, value: { size: 17, weight: 700 } },

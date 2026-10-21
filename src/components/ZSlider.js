@@ -168,17 +168,18 @@ export class ZSlider extends Interactable {
     const bz = 0.0004;
     const name = o.label ? makeText(o.label, { size: dmm(L.name.size), weight: L.name.weight, anchorX: 'left' }) : null;
     this.valueLabel = makeText('0%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
-    // The widest value, measured once (hidden), so the capsule never has to
-    // grow as the value changes.
-    const widest = makeText('100%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
+    // Room for any two-digit value, measured once (hidden), so the capsule
+    // holds still while the value moves; only 100% widens it. Reserving room
+    // for "100%" left a wide hole after "Lamp" at every other value.
+    const widest = makeText('00%', { size: dmm(L.value.size), weight: L.value.weight, anchorX: 'right' });
     widest.visible = false;
     // The capsule fits its text: padding, the name, a word space, room for
-    // the widest value, padding. A fixed width ran the name into the value
-    // when it shrank ("Lamp40%"). Text lays out off the main thread, so the
-    // capsule is rebuilt once the words are measured.
+    // the value, padding. A fixed width ran the name into the value when it
+    // shrank ("Lamp40%"). Text lays out off the main thread, so the capsule
+    // is rebuilt once the words are measured.
     const span = t => { const b = t.textRenderInfo?.blockBounds; return b ? b[2] - b[0] : 0; };
     const fit = () => {
-      const words = (name ? span(name) + dmm(L.space) : 0) + span(widest);
+      const words = (name ? span(name) + dmm(L.space) : 0) + Math.max(span(widest), span(this.valueLabel));
       const lw = 2 * pad + Math.max(words, lh);
       if (this.labelGlass && Math.abs(this.labelGlass.userData.width - lw) < 1e-6) return;
       if (this.labelGlass) { this.bubble.remove(this.labelGlass); this.labelGlass.geometry.dispose(); }
@@ -198,6 +199,7 @@ export class ZSlider extends Interactable {
       name.addEventListener('synccomplete', fit);
     }
     widest.addEventListener('synccomplete', fit);
+    this.valueLabel.addEventListener('synccomplete', fit);
     this.bubble.add(this.valueLabel, widest);
     this.bubble.position.x = plateD / 2 + dmm(L.gap);
     this.add(this.bubble);
