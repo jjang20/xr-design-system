@@ -69,7 +69,10 @@ export const DEFAULTS = {
       frostScale: 0.0007, // m: size of the etched bumps on the face
       // Per kind: colour, brightest luminance (keeps secondary text at
       // 4.5:1), rim darkening, frost bump depth, grain, milky veil, key light.
-      window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.19, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
+      // window.maxLum was 0.19, which left subtitles at 3.7-4.0:1 over the warm
+      // room and the front title at 4.6:1, too close to the levels behind it
+      // for them to read as behind (design arena, 2026-10-21).
+      window: { albedo: [0.72, 0.695, 0.66], maxLum: 0.15, edge: 0.15, frost: 0.03, grain: 0.04, veil: 0, key: 0.55 },
       lens: { albedo: [0.56, 0.55, 0.54], maxLum: 0.1, edge: 0.3, frost: 0.02, grain: 0.03, veil: 0, key: 0.8 },
       tileNeutral: [0.46, 0.46, 0.49], // grey app tiles (Settings): a grey glass, not clear
       bead: { albedo: [0.9, 0.9, 0.91], maxLum: 0.2, edge: 0.6, frost: 0, grain: 0.02, veil: 0.02, key: 0.9 },

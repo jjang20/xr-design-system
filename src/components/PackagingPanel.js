@@ -165,10 +165,10 @@ export class PackagingPanel extends THREE.Group {
       level.from = {
         x: p.x * c.sx, y: c.y + p.y * c.sy, z: c.z + p.z,
         // Uniform scale, so text is never squashed while it grows out of the row.
-        sx: k, sy: k, opacity: 0, dim: 0,
+        sx: k, sy: k, opacity: 0, dim: 0, back: 0,
       };
     }
-    level.cur = { ...(level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1, dim: 0 }) };
+    level.cur = { ...(level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1, dim: 0, back: 0 }) };
     level.vel = Object.fromEntries(KEYS.map(k => [k, 0]));
     this.levels.push(level);
     this.add(level.group);
@@ -188,12 +188,15 @@ export class PackagingPanel extends THREE.Group {
     const active = this.active;
     this.levels.forEach((l, i) => {
       if (l.closing) {
-        l.to = { ...(l.from ?? l.cur), opacity: 0, dim: 0 };
+        l.to = { ...(l.from ?? l.cur), opacity: 0, dim: 0, back: 0 };
       } else {
-        // Pushed-back levels darken (dim) rather than turn see-through.
+        // Pushed-back levels darken (dim) rather than turn see-through, and
+        // show only their title (back): how far a level dims is a token, but
+        // whether its list shows is not (the design arena found a light dim
+        // left the list ghosting behind the level in front, 2026-10-21).
         const p = packagingPose(this.pose, this.mode, i, active);
         const vanish = this.mode === 'replace' && i < active;
-        l.to = { x: 0, y: p.y, z: p.z, sx: p.scale, sy: p.scale, opacity: vanish ? 0 : 1, dim: i < active ? 1 - p.opacity : 0 };
+        l.to = { x: 0, y: p.y, z: p.z, sx: p.scale, sy: p.scale, opacity: vanish ? 0 : 1, dim: i < active ? 1 - p.opacity : 0, back: i < active ? 1 : 0 };
       }
       // Only the front level's rows take input; receded panels act as "back".
       const front = i === active && !l.closing;
@@ -220,7 +223,7 @@ export class PackagingPanel extends THREE.Group {
       const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
-      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1));
+      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1));
     }
     this.updateLight();
     // Remove levels that finished closing.
@@ -273,4 +276,4 @@ export class PackagingPanel extends THREE.Group {
   }
 }
 
-const KEYS = ['x', 'y', 'z', 'sx', 'sy', 'opacity', 'dim'];
+const KEYS = ['x', 'y', 'z', 'sx', 'sy', 'opacity', 'dim', 'back'];
