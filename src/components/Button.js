@@ -13,11 +13,12 @@
 // Appearance options (not behaviour): shape, variant, icon, label, sublabel,
 // accessory, layout. See docs/components.md.
 import * as THREE from 'three';
-import { Interactable, markComponent } from '../core/Interactable.js';
+import { Interactable, markComponent, pickProbe } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
+import { springTo, prefersReducedMotion } from '../core/spring.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
@@ -267,8 +268,9 @@ export class Button extends Interactable {
     // Deflating settles without a wobble (critically damped), so leaving a
     // row stays quiet; only inflating carries the fluid settle.
     // Reduced motion: no settle and no rebound (Apple: drop overshoot).
-    const calm = REDUCED_MOTION();
-    const s = spring(this.bz ?? 0, this.bv ?? 0, target, E.response, target === 0 || calm ? 1 : E.damping, dt);
+    const calm = prefersReducedMotion();
+    const s = { x: this.bz ?? 0, v: this.bv ?? 0 };
+    springTo(s, target, E.response, target === 0 || calm ? 1 : E.damping, dt);
     this.bz = s.x; this.bv = s.v;
     // The dent is quicker and springs back past flat once on release: the
     // skin rebounds. It is placed at the press point and stays there while
@@ -278,7 +280,8 @@ export class Button extends Interactable {
     // A fingertip drags the dent along; a ray (gaze and pinch) pins it where
     // the pinch began, since eye tracking wobbles about 1° (35 mm at 2 m).
     if (this.press.amount > 0.01 && this.pressKind === 'poke') this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18));
-    const d = spring(this.dz ?? 0, this.dv ?? 0, on ? E.dent.depth * this.k / 1000 * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
+    const d = { x: this.dz ?? 0, v: this.dv ?? 0 };
+    springTo(d, on ? E.dent.depth * this.k / 1000 * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 
@@ -296,12 +299,11 @@ export class Button extends Interactable {
 
   update(dt) {
     const probes = this.consumeProbes();
-    // Pick the probe closest to the face; rays that hit count as distance 0.
-    let best = null, bestD = Infinity;
-    for (const p of probes) {
-      const d = p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point);
-      if (d < bestD) { best = p; bestD = d; }
-    }
+    // The probe closest to the face (rays that hit count as distance 0), or,
+    // while pressed, the source that pressed (see pickProbe).
+    const { probe: best, distance: bestD } = pickProbe(probes,
+      p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point),
+      this.press.pressed ? this.pressOwner : null);
 
     // Hover with hysteresis (pokes) or direct hit (rays).
     this.hovered = best?.kind === 'ray' ? bestD === 0 : this.hoverBand.update(bestD);
@@ -313,12 +315,13 @@ export class Button extends Interactable {
       inside = this.inside(best.point);
       if (best.kind === 'poke') penetration = this.t - best.point.z;
       // A ray has no depth: press goes all the way in, and letting go is a
-      // clean release (no retreat distance to cover).
-      else penetration = best.pressed ? this.press.maxDepth : -Infinity;
+      // clean release (no retreat distance to cover). Only a pinch that
+      // began on this button presses it (captured), not one dragged onto it.
+      else penetration = best.pressed && best.captured ? this.press.maxDepth : -Infinity;
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;
     const ev = this.press.update(dt, penetration, inside);
-    if (ev === 'press') this.dispatchEvent({ type: 'press' });
+    if (ev === 'press') { this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
     if (ev === 'release') {
       this.dispatchEvent({ type: 'release' });
       if (!this.disabled) this.dispatchEvent({ type: 'select' });
@@ -369,14 +372,3 @@ function equalLuminance(c, target) {
   return c.map(v => Math.min(v * k, 1.6));
 }
 
-// One spring step (response in s, damping ratio), substepped for stability.
-function spring(x, v, target, response, damping, dt) {
-  const w = 2 * Math.PI / response;
-  for (let i = 0, n = 4, h = dt / n; i < n; i++) {
-    v += (-w * w * (x - target) - 2 * damping * w * v) * h;
-    x += v * h;
-  }
-  return { x, v };
-}
-
-const REDUCED_MOTION = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;

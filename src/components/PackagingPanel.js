@@ -11,16 +11,20 @@
 // contact shadow on the one behind, and a hovered row lifts out as a glass
 // lens that shadows its window.
 //
+// Navigation is never locked: a level can be opened or left while another
+// is still moving. Reduced motion: levels don't travel or grow, they fade
+// in and out where they belong (see stepPackagingLevel).
+//
 // Tokens used: packaging.*, motion.expand.dropdown.*, material.*, size.*,
 // plus everything Button uses.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { clamp } from '../core/easing.js';
-import { springStep } from '../core/spring.js';
+import { prefersReducedMotion } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, setBulge } from '../core/look.js';
 import { driveBubbles, raised } from '../core/bubbles.js';
-import { PACKAGING_MODES, packagingPose } from '../core/packaging.js';
+import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
 
 export { PACKAGING_MODES, packagingPose };
@@ -34,6 +38,7 @@ export class PackagingPanel extends THREE.Group {
    * @param {{label: string, icon?: string, sublabel?: string, items?: object[]}[]} o.items
    * @param {'compress'|'replace'|'protrude'} [o.mode] default packaging.parent.mode
    * @param {number} [o.distance]
+   * @param {boolean} [o.reducedMotion] default: the viewer's prefers-reduced-motion
    */
   constructor(T, o) {
     super();
@@ -53,11 +58,19 @@ export class PackagingPanel extends THREE.Group {
       opacityStep: T.get('packaging.parent.recede.opacity.step'),
       opacityMin: T.get('packaging.parent.recede.opacity.min'),
     };
-    this.levels = [];
+    this.reducedMotion = o.reducedMotion ?? null;
+    this.stack = new PackagingStack();
     this.open({ label: o.title, subtitle: o.subtitle, items: o.items }, null);
   }
 
-  get active() { return this.levels.filter(l => !l.closing).length - 1; }
+  // The open levels, root first and the front last (levels on their way out
+  // are in `closing`).
+  get levels() { return this.stack.levels; }
+  get closing() { return this.stack.closing; }
+  get active() { return this.stack.active; }
+  get reduced() { return this.reducedMotion ?? prefersReducedMotion(); }
+  // Nothing is moving, closing levels included.
+  get settled() { return this.stack.all.every(l => l.settled); }
 
   setMode(mode) {
     if (!PACKAGING_MODES.includes(mode)) throw new Error(`Unknown packaging mode ${mode}`);
@@ -125,6 +138,9 @@ export class PackagingPanel extends THREE.Group {
       });
       row.position.set(0, listTop - rowH / 2 - i * rowH, panel.t);
       row.addEventListener('select', () => {
+        // Only the front level's list acts (a row of a level that has since
+        // gone back can't open anything).
+        if (this.levels.at(-1) !== level) return;
         if (canOpen && !tooDeep) this.open(child, row);
         else this.dispatchEvent({ type: 'select', item: child });
       });
@@ -146,20 +162,20 @@ export class PackagingPanel extends THREE.Group {
     });
 
     panel.addEventListener('select', () => {
-      const idx = this.levels.findIndex(l => l.panel === panel);
-      if (idx < this.active) this.back(idx);
+      const idx = this.levels.indexOf(level);
+      if (idx >= 0 && idx < this.active) this.back(idx);
     });
 
-    return { item, group, panel, rows, separators, size: { W, H } };
+    const level = { item, group, panel, rows, separators, size: { W, H } };
+    return level;
   }
 
   // Open a child level out of `sourceRow` (null for the root).
   open(item, sourceRow) {
-    const index = this.active + 1;
-    const level = this.buildLevel(item, index);
+    const level = this.buildLevel(item, this.active + 1);
     // Start the child inside the row it comes out of, and close back into it.
     if (sourceRow) {
-      const parent = this.levels[index - 1];
+      const parent = this.levels.at(-1);
       const p = sourceRow.position, c = parent.cur;
       const k = (sourceRow.w / level.size.W) * c.sx;
       level.from = {
@@ -169,57 +185,38 @@ export class PackagingPanel extends THREE.Group {
       };
     }
     level.cur = { ...(level.from ?? { x: 0, y: 0, z: 0, sx: 1, sy: 1, opacity: 1, dim: 0, back: 0 }) };
-    level.vel = Object.fromEntries(KEYS.map(k => [k, 0]));
-    this.levels.push(level);
+    level.vel = Object.fromEntries(PACKAGING_KEYS.map(k => [k, 0]));
+    const index = this.stack.push(level);
     this.add(level.group);
     this.retarget();
+    // Reduced motion: the child doesn't grow out of its row; it fades in
+    // where it belongs.
+    if (sourceRow && this.reduced) level.cur = { ...level.to, opacity: 0 };
     if (sourceRow) this.dispatchEvent({ type: 'open', level: index, item });
   }
 
   // Go back so that `toLevel` is in front again.
   back(toLevel = this.active - 1) {
-    if (toLevel < 0) return;
-    for (const l of this.levels.slice(toLevel + 1)) l.closing = true;
+    if (!this.stack.popTo(toLevel).length) return;
     this.retarget();
     this.dispatchEvent({ type: 'back', level: toLevel });
   }
 
   retarget() {
-    const active = this.active;
-    this.levels.forEach((l, i) => {
-      if (l.closing) {
-        l.to = { ...(l.from ?? l.cur), opacity: 0, dim: 0, back: 0 };
-      } else {
-        // Pushed-back levels darken (dim) rather than turn see-through, and
-        // show only their title (back): how far a level dims is a token, but
-        // whether its list shows is not (the design arena found a light dim
-        // left the list ghosting behind the level in front, 2026-10-21).
-        const p = packagingPose(this.pose, this.mode, i, active);
-        const vanish = this.mode === 'replace' && i < active;
-        l.to = { x: 0, y: p.y, z: p.z, sx: p.scale, sy: p.scale, opacity: vanish ? 0 : 1, dim: i < active ? 1 - p.opacity : 0, back: i < active ? 1 : 0 };
-      }
-      // Only the front level's rows take input; receded panels act as "back".
-      const front = i === active && !l.closing;
-      l.rows.forEach(r => { r.enabled = front; });
-      l.panel.enabled = !l.closing && i < active;
-    });
+    this.stack.retarget(this.pose, this.mode, { reduced: this.reduced });
+    // Only the front level's rows take input; receded panels act as "back".
+    for (const l of this.stack.all) {
+      l.rows.forEach(r => { r.enabled = l.rowsEnabled; });
+      l.panel.enabled = l.panelEnabled;
+    }
   }
 
   update(dt) {
-    for (const l of this.levels) {
+    const reduced = this.reduced;
+    for (const l of this.stack.all) {
       l.panel.update(dt);
       l.rows.forEach(r => r.update(dt));
-      // Every channel is a critically damped spring: it starts from where
-      // the level is now, keeps its speed if retargeted mid-way, and never
-      // overshoots (nothing was thrown).
-      let moving = false;
-      for (const k of KEYS) {
-        const st = { x: l.cur[k], v: l.vel[k] };
-        springStep(st, l.to[k], this.omega, dt);
-        l.cur[k] = st.x; l.vel[k] = st.v;
-        if (Math.abs(st.x - l.to[k]) > 1e-4 || Math.abs(st.v) > 1e-3) moving = true;
-      }
-      l.settled = !moving;
+      l.settled = stepPackagingLevel(l, this.omega, dt, reduced);
       const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
@@ -227,18 +224,20 @@ export class PackagingPanel extends THREE.Group {
     }
     this.updateLight();
     // Remove levels that finished closing.
-    const done = this.levels.filter(l => l.closing && (l.settled || l.cur.opacity < 0.01));
-    for (const l of done) this.remove(l.group);
-    if (done.length) this.levels = this.levels.filter(l => !done.includes(l));
+    for (const l of this.stack.sweep(l => l.settled || l.cur.opacity < 0.01)) this.remove(l.group);
   }
 
   // Contact shadows: each window gets one from the level in front of it and
   // one from its lifted row lens, so the layers read as objects in space.
   updateLight() {
     const S = DEFAULTS.look.contactShadow;
-    this.levels.forEach((l, i) => {
-      const m = l.panel.body.material, p = l.cur;
-      const next = this.levels[i + 1];
+    const all = this.stack.all;
+    // The level in front of depth d: the open one, or one closing back into
+    // it (the most visible).
+    const inFront = d => all.filter(u => u.depth === d + 1).sort((a, b) => b.cur.opacity - a.cur.opacity)[0];
+    all.forEach(l => {
+      const m = l.panel.body.material, p = l.cur, i = l.depth;
+      const next = inFront(i);
       if (next) {
         const c = next.cur;
         const k = c.sx / p.sx;
@@ -250,7 +249,10 @@ export class PackagingPanel extends THREE.Group {
       } else setContactShadow(m, 0);
       // The levels behind it show through it: up to two, nearest first.
       for (let s = 0; s < 2; s++) {
-        const back = this.levels[i - 1 - s];
+        // Open levels keep their depth as index; a closing parent stands in
+        // while its child closes too.
+        const d = i - 1 - s;
+        const back = this.levels[d] ?? this.closing.find(u => u.depth === d);
         if (!back) { setBehind(m, s); continue; }
         const c = back.cur, k = c.sx / p.sx;
         setBehind(m, s, {
@@ -287,4 +289,3 @@ export class PackagingPanel extends THREE.Group {
   }
 }
 
-const KEYS = ['x', 'y', 'z', 'sx', 'sy', 'opacity', 'dim', 'back'];

@@ -68,7 +68,7 @@ From Apple's kit; nothing lighter than Medium. Inter runs a little heavy, so App
 | subheadline | Callout 15 | 11 | 500 | 0 | Window subtitle |
 | footnote | Footnote 13 | 9.5 | 500 | +0.01 em | Row detail |
 
-Colours: primary text is white, secondary is white at 72 %, tertiary (chevrons) is white at 50 %. Text has a faint shadow, so it reads as sitting on the glass.
+Colours: primary text is white, secondary is white at 90 %, tertiary (chevrons) is white at 50 % (`DEFAULTS.emphasis`). Text has no shadow (`DEFAULTS.look.textShadow` is `null`): it earns its contrast from weight and the glass's tone, as visionOS vibrancy does, not from a halo. Rounds 1 to 4 used 72 % and a faint shadow; see the historical contrast table below.
 
 ### Layout (dmm)
 | Element | Value | Apple (pt) |
@@ -85,16 +85,44 @@ Colours: primary text is white, secondary is white at 72 %, tertiary (chevrons) 
 | Chevron | 11, white at 50 % | 15 |
 
 ### States
-- **Hover:** the row's glass lens fades in and lifts 5 mm toward you, carrying the row content; it casts a soft shadow on the window, and the hairlines beside it step aside. Timing is `motion.hover.in`.
-- **Press:** the lens and content move back by the density's press depth and shrink by up to 2.5 %.
-- **Disabled:** content at 40 %, no hover.
+Rows use the bubble (`hoverStyle: 'emboss'`, the default); the lens below is the older `lens` style, kept as an option.
+- **Hover:** the window glass swells into a pillow under the row and the hairlines beside it step aside. (Lens style: the row's glass lens fades in and lifts 5 mm toward you with a soft shadow.) Timing is `motion.hover.in`.
+- **Press:** a dent gives way where the press lands and lights from inside; on release it springs back past flat once. A fingertip drags the dent along; a ray or gaze-and-pinch pins it where the pinch began. (Lens style: the lens moves back by the press depth and shrinks by up to 2.5 %.)
+- **Disabled** (rows deeper than `packaging.depth.max`): content at 40 %, no hover, never selects.
+- **Behind the front level:** rows take no input; the receded window as a whole is the way back.
+- Shared rules for every component (press ownership, reduced motion, inputs): [components.md, States and input](components.md#states-and-input).
 
 ### Packaging depth
 - The parent pushes back and up (`packaging.parent.recede.*`), darkens, and keeps only its title. Its list and subtitle fade out, so nothing behind competes with the front level.
 - The level in front casts a soft contact shadow on the parent.
 - The child grows out of the row that opened it and returns into it (spatial consistency), on a critically damped spring so a fast back-and-forth never jumps.
+- Navigation is never locked while levels move: going back and opening another row at once works, and the level on its way out takes no input.
+- **Reduced motion** (the viewer's `prefers-reduced-motion`, or the `reducedMotion` option): levels don't travel or grow. Each is where it belongs at once and only fades: the child fades in, the parent darkens and drops its list, a closing level fades where it is. Hierarchy and the breadcrumb stay; only the movement goes.
 
 ## Contrast check (accessibility)
+
+### Current (2026-10-21, after the PR #3 review fixes)
+
+WCAG contrast of white text against the glass around it, measured per text element on the bench render (`bench.html?component=packaging&fov=26`, the `lebombo` room, desktop renderer, 2× pixel density): the 99.5th percentile luminance inside the text's own screen box against that box's median. Secondary text is white at 90 %, no text shadow, tokens as committed.
+
+| State | Text | Contrast |
+|---|---|---|
+| Root at rest | Title (Catalog) | 5.7 : 1 |
+| | Row labels (primary) | 5.5 to 5.9 : 1 |
+| | Subtitle and row details (secondary, 90 %) | 4.9 to 5.1 : 1 |
+| Three levels, front (Modular) | Title | 8.8 : 1 |
+| | Row labels (primary) | 6.0 to 8.2 : 1 |
+| | Row details (secondary, 90 %) | 5.1 to 6.6 : 1 |
+| Three levels, receded titles | Sofas, one level back | 3.4 : 1 |
+| | Catalog, two levels back | 2.1 : 1 |
+
+Front-level text passes 4.5 : 1 here. The receded titles do not: they are darkened on purpose (`packaging.parent.recede.opacity.*`), and at title size WCAG's large-text minimum is 3 : 1, which the level one back meets and the level two back misses. Whether a receded title must stay readable as a back control is an open design decision (PR #3 review, design proposals).
+
+Not covered by these numbers: hover and press (the dent's glow core lowers contrast under the finger, see Decisions in components.md), a window in front of a sunlit window, other rooms, a headset's optics and display, and mixed reality, where the glass can't see the room and uses `surface.opacity.base` instead.
+
+### Historical (rounds 2 to 4: secondary text at 72 %, text shadow, earlier glass)
+
+These were measured on earlier materials and backgrounds and do not validate the current Catalog; they are kept for the record.
 
 Measured on the round 3 bench renders (WCAG contrast of white text against the glass behind it).
 
@@ -105,4 +133,4 @@ Measured on the round 3 bench renders (WCAG contrast of white text against the g
 | In front of a lit wall | 0.086 to 0.10 | 7.0 to 7.7 : 1 | 4.6 to 5.0 : 1 |
 | In front of a sunlit window (round 2) | 0.12 to 0.15 | 5.2 to 6.1 : 1 | 3.6 to 4.1 : 1 |
 
-Secondary text still dips below 4.5 : 1 in front of a sunlit window, because the adaptive scrim stops at `surface.scrim.max` (0.35). About 0.6 would hold 4.5 : 1 there; that is a token decision, so it is left open. Rows are 48 dmm high, above `size.target.min`.
+At the time, secondary text dipped below 4.5 : 1 in front of a sunlit window, because the adaptive scrim stops at `surface.scrim.max` (0.35); about 0.6 would have held 4.5 : 1 there. That position hasn't been measured since secondary text moved to 90 %. Rows are 48 dmm high, above `size.target.min`.

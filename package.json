@@ -9,9 +9,10 @@
     "dev": "vite",
     "dev:headset": "vite --mode headset",
     "build": "vite build",
-    "test": "node scripts/check-tokens.mjs > /dev/null && node --test test/*.test.js",
+    "test": "node scripts/check-tokens.mjs > /dev/null && node --import ./test/support/register.mjs --disable-warning=THREE_CJS_DEPRECATED --test test/*.test.js",
     "shot": "node scripts/screenshot.mjs",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "regress": "node scripts/regress.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",

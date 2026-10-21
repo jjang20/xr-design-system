@@ -20,11 +20,11 @@
 //   material.density.soft.recover           the skin's recovery
 //   material.t.thin                         the name capsule's glass
 import * as THREE from 'three';
-import { Interactable } from '../core/Interactable.js';
+import { Interactable, pickProbe } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { springTo } from '../core/spring.js';
+import { springTo, prefersReducedMotion } from '../core/spring.js';
 import { makeAppObject } from '../core/objects.js';
 import { makeBubble } from '../core/bubble.js';
 import { makeText, glassSlabGeometry } from '../core/look.js';
@@ -110,18 +110,16 @@ export class DockIcon extends Interactable {
     return localRay.intersectSphere(new THREE.Sphere(this.centre, this.rb), out);
   }
 
-  // Read this frame's probes: distance from the nearest to the skin, and
-  // where it is. The Dock compares icons before any of them reacts.
+  // Read this frame's probes: distance from the nearest to the skin (or, while
+  // pressed, from the source that pressed; see pickProbe), and where it is.
+  // The Dock compares icons before any of them reacts.
   sense() {
-    const probes = this.consumeProbes();
-    this.best = null;
-    this.distanceToSkin = Infinity;
-    for (const p of probes) {
-      const r = p.point.distanceTo(this.centre);
-      const d = p.kind === 'ray' ? 0 : Math.max(0, r - this.rb);
-      if (d < this.distanceToSkin) { this.distanceToSkin = d; this.best = p; }
-    }
-    return this.distanceToSkin;
+    const { probe, distance } = pickProbe(this.consumeProbes(),
+      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.rb),
+      this.press.pressed ? this.pressOwner : null);
+    this.best = probe;
+    this.distanceToSkin = distance;
+    return distance;
   }
 
   update(dt) {
@@ -134,25 +132,29 @@ export class DockIcon extends Interactable {
     if (best && this.enabled) {
       const r = best.point.distanceTo(this.centre);
       inside = r < this.rb + this.hoverBand.exit;
-      penetration = best.kind === 'poke' ? this.rb - r : best.pressed ? this.press.maxDepth : -Infinity;
+      // Only a pinch that began on this app presses it (captured).
+      penetration = best.kind === 'poke' ? this.rb - r : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();
     }
+    if (best && this.press.amount < 0.01) this.pressKind = best.kind;
     const ev = this.press.update(dt, penetration, inside);
-    if (ev === 'press') this.dispatchEvent({ type: 'press' });
+    if (ev === 'press') { this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
     if (ev === 'release') { this.dispatchEvent({ type: 'release' }); this.dispatchEvent({ type: 'select' }); }
     if (ev === 'cancel') this.dispatchEvent({ type: 'cancel' });
 
     // The bubble forms with a small settle (emboss response and damping)
     // and goes without one. Reduced motion: no settle.
-    const calm = REDUCED_MOTION();
+    const calm = prefersReducedMotion();
     const on = this.hovered && this.enabled;
     springTo(this.grow, on ? 1 : 0, E.response, on && !calm ? E.damping : 1, dt);
     const g = Math.max(0, this.grow.x);
     this.hover = Math.min(1, g);
-    // The dent: placed where the press lands, dragged along by a finger,
-    // springing back past flat once (emboss.dent).
+    // The dent: placed where the press lands, springing back past flat once
+    // (emboss.dent). A fingertip drags it along; a ray (gaze and pinch) pins
+    // it where the pinch began, as on a Button: eye tracking wobbles about
+    // 1° (35 mm at 2 m), and the dent must not wander with it.
     if (this.press.amount > 0.01 && !this.dent.x) this.dentAt.copy(this.spot);
-    if (this.press.amount > 0.01) this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18)).normalize();
+    if (this.press.amount > 0.01 && this.pressKind === 'poke') this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18)).normalize();
     springTo(this.dent, on ? this.dentMax * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     if (Math.abs(this.dent.x) < 1e-6 && Math.abs(this.dent.v) < 1e-5) this.dent.x = this.dent.v = 0;
 
@@ -181,5 +183,3 @@ export class DockIcon extends Interactable {
     this.nameTag.scale.setScalar(B.from + (1 - B.from) * Math.min(1, this.hover));
   }
 }
-
-const REDUCED_MOTION = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;

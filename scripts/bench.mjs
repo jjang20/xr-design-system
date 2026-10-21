@@ -21,7 +21,7 @@ const shot = async name => { await page.screenshot({ path: `${out}/${name}.png` 
 // so wait for the panel to settle instead of a fixed time.
 const settled = active => page.waitForFunction(a => {
   const P = window.contour.panel;
-  return P.active === a && P.levels.every(l => l.settled);
+  return P.active === a && P.settled;
 }, active, { timeout: 120000, polling: 200 });
 const rowAt = i => page.evaluate(i => window.contour.screenOf(window.contour.panel.levels.at(-1).rows[i]), i);
 

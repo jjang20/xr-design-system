@@ -156,13 +156,18 @@ export const DEFAULTS = {
     // from min (at 0%) to 1 (at 100%): emissive light inside the amber glass,
     // the halo round the knob (size x the side), the warm pool it spills on
     // the plate round the stem's foot (spill, size x the side), the glow
-    // round lit rings; ringUnlit: an unlit ring's white opacity (judge round
-    // 5: at 0.22 the scale was too faint to read).
+    // round lit rings; ringLit / ringUnlit: a lit ring's opacity and an
+    // unlit ring's white one (judge round 5: at 0.22 the scale was too faint
+    // to read).
     // fillet: where the stem meets the plate and the knob (length x the
     // knob's size, flare x the stem's radius, shape: 2 a quarter ellipse,
     // lower swells sooner). The knob's is a long bell, so its curve shows
     // beside the knob instead of hiding behind it (judge round 3).
-    lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.45, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, spill: { size: 1.8, opacity: 0.55 }, ring: 0.8, ringWidth: 1.2, ringUnlit: 0.4 },
+    lampGlow: { fillet: { plate: { length: 0.25, flare: 1, shape: 2 }, knob: { length: 0.85, flare: 1.2, shape: 1.3 } }, min: 0.45, emissive: { stem: 0.45, knob: 0.25 }, halo: { size: 2.2, opacity: 0.35 }, spill: { size: 1.8, opacity: 0.55 }, ring: 0.8, ringWidth: 1.2, ringLit: 0.95, ringUnlit: 0.4 },
+    // Z-Slider knob hover: hovered but not held, it shows `idle` of the full
+    // hover; its skin's hover light at full (glow); how much it swells
+    // toward you at full, x its size (swell), like a bubble.
+    knobHover: { idle: 0.7, glow: 6, swell: 0.06 },
     // The Z-Slider's value label: a capsule of the plate's glass, smoked
     // (refract.label), beside the plate (dmm), gap from its rim, thickness x
     // the plate's; the value larger and bolder than the name. Its length fits
@@ -228,8 +233,10 @@ export const DEFAULTS = {
     // how far the object rises toward the bubble's middle. The press dent
     // and glow are the list bubble's (emboss), its shadow and glow x these.
     dockBubble: { size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
-    // Text sits on glass with a faint shadow, so it reads as on the surface.
-    textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
+    // Text shadow under text on glass: off. Text earns contrast from weight
+    // and the glass tone (visionOS vibrancy), not a CSS-style halo. Set
+    // { blur, offset, opacity } (x the text size) to try one again.
+    textShadow: null,
     separator: 0.08, // hairline between rows: white opacity
   },
 

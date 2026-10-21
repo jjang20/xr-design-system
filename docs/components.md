@@ -107,7 +107,7 @@ Rows use the bubble language (see Decisions): on hover the window glass swells i
 *Captured 2026-10-20 from the demo, 2560 × 1600.*
 
 ![Catalog row pressed: a dent where the press lands, with light gathered inside it](images/catalog-press.png)
-*Captured 2026-10-20 from the demo, 2560 × 1600.* Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
+*Captured 2026-10-20 from the demo, 2560 × 1600.* Receded parents are pressable: pressing one goes back to it. That is the wayfinding idea from the concepts doc: their headers are the breadcrumb. Try "replace" in the demo and the breadcrumb disappears. The child grows out of the row that opened it and closes back into it, and a fast open-and-back never jumps, because every channel is a spring that starts from where it is. Navigation is never locked while levels move: going back and at once opening another row works, and a level on its way out takes no input. With reduced motion, levels fade in and out where they belong instead of travelling and growing (option `reducedMotion`, default: the viewer's setting). Glass never shows another glass sheet through it, so a child always covers its parent cleanly. The panel itself is a `rigid`, `thin` glass sheet; rows are `thin`, `firm` buttons. Events: `open`, `back`, `select`.
 
 ## Toolbar
 
@@ -171,6 +171,32 @@ Path-traced Blender references and 6K stills, in [`images/lookdev/`](images/look
 | Hand or controller further away | **ray** from the hand or controller, pinch/trigger = press |
 | Desktop mouse | **ray** from the camera, click = press, wheel = push/pull |
 
+## States and input
+
+What every interactive component (Button and the rows and toolbar built from it, Dock apps, Z-Slider, Packaging windows) does, and what it doesn't.
+
+| State | What you see | What it does |
+|---|---|---|
+| Default | The resting material | Takes hover and press |
+| Hover | Bubble: the glass swells (rows, toolbar) or forms round the object (Dock); lens style: a lens lifts | Nothing fires; a fingertip enters at `proximity.hover.enter` and leaves at `.exit`, a ray hovers while it hits |
+| Press | A dent where the press lands, lit from inside; a ray press goes to full depth at once | `press`; `release` then `select` when let go on the control; `cancel` (no select) if the press slides off or its source disappears |
+| Disabled (`disabled: true`, public) | Content at 40 %, no hover; the control is `rigid`, so it barely gives | Presses fire `press` and `release` but never `select` |
+| Not taking input (`enabled = false`, internal) | No change of its own; the container shows why (a receded level's rows, a level on its way out) | Ignores every probe. Containers set it; apps should use `disabled` |
+
+**Press ownership** (Button and everything built from it, Dock apps). A press belongs to the hand or ray that started it until it ends. Another hand or ray hovering the same control can't take it over or end it early. If the pressing source disappears (tracking lost), the press is cancelled and nothing is selected. A ray presses only if its pinch began on the control: a pinch dragged onto a control doesn't press it. In the Dock, an app being pressed keeps the one bubble until its press ends. The Z-Slider has no select: a pinch grab stays with the hand that grabbed it, but two rays dragging the knob at once aren't arbitrated yet (see Known limits).
+
+**Where press feedback sits.** A fingertip drags the dent along as it moves. A ray (controller, mouse, gaze and pinch) pins the dent where the pinch began, because eye tracking wobbles about 1° (35 mm at 2 m).
+
+**Reduced motion** (`prefers-reduced-motion: reduce`, read every frame):
+- Packaging: levels don't travel or grow; they fade in and out where they belong, so depth still reads.
+- Bubbles and dents (rows, toolbar, Dock apps): no settle and no rebound (damping 1).
+- Dock plate: a released stretch settles without overshoot.
+- Z-Slider: unchanged; its knob follows the hand directly, with no animation of its own.
+
+**Inputs supported:** poke (fingertip or controller grip near a component), ray (hand or controller further away, desktop mouse) and pinch, as in the table above.
+
+**Not supported yet:** keyboard focus and activation, screen readers and other assistive technology (WebXR exposes no accessibility tree for 3D content), gaze dwell without a pinch, and loading or error states (no component needs one yet).
+
 ## Values the tokens don't cover yet
 
 These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so they're easy to find and promote. Each is a candidate token.
@@ -196,6 +222,9 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **The backdrop photo is 1k**, so the room looks softly out of focus. Higher-resolution interiors weren't reachable from the build environment.
 - **Not yet tried on a headset.** Desktop rendering and the interaction logic are tested; hand poke and pinch follow the WebXR Hand Input spec but need a real device check, especially the follow and hover values tagged G.
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
+- **The Dock still follows the head under reduced motion.** It follows after `anchor.follow.delay` with a critically damped spring; reduced motion doesn't change that yet.
+- **No keyboard or assistive technology support** (see States and input).
+- **Z-Slider: two rays dragging at once.** A second ray captured on the knob while another drags it moves the knob with the first one's grab offset. Button and Dock press ownership doesn't cover it yet.
 
 ## Decisions
 
@@ -259,6 +288,24 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Why:** Release hysteresis is for a finger hovering at the surface. A ray press is already a clean on/off signal.
 - **Alternatives:** Simulate a finger moving in. Would make every click feel slow.
 - **Trade-offs:** On desktop you see the press depth but not the "follow" feel. That only exists with hands.
+
+### A press stays with the source that started it (2026-10-21, PR #3 review)
+- **Decision:** Buttons and Dock apps remember which hand or ray (its probe id) started a press and read only that source until release or cancel (`pickProbe`). A missing source cancels. With no press, the nearest source wins, and among rays that all hit, the one whose pinch began on the control. A ray presses only when its pinch began on the control (`captured`).
+- **Why:** Every ray hit counts as distance 0, so with two rays on one control the first in the list won each frame. The review reproduced a hovering ray ending another ray's press with a false `select`. Apple's rule for direct input: feedback and outcome belong to the touch that caused them.
+- **Alternatives:** Pick by order or by distance only (the bug). Let the most recent source take over (a second hand passing by would steal the press). Track several presses per control at once (no control needs two simultaneous presses).
+- **Trade-offs:** If a pressing hand's tracking drops for a frame, the press cancels instead of waiting for it to come back.
+
+### Packaging keeps its navigation stack apart from closing levels (2026-10-21, PR #3 review)
+- **Decision:** `PackagingStack` holds the open levels (root first, front last) and, separately, the levels on their way out. A level's depth is its index in the open stack; closing levels still draw, take no input, and are removed once faded.
+- **Why:** Mixing both in one list made a level's position in the list differ from its depth: going back and opening another row before the first finished closing crashed the panel. Locking navigation until animations end would have fixed the crash but broken interruptibility (apple-design: never lock out input during a transition).
+- **Alternatives:** Map indices with filters wherever they're used (the bug's shape, easy to get wrong again). Lock input while levels move (rejected above).
+- **Trade-offs:** Two lists to look through when lighting levels (a closing child still shadows its parent).
+
+### Reduced motion in Packaging: fade in place (2026-10-21, PR #3 review)
+- **Decision:** With reduced motion, levels don't travel or scale. Each is where it belongs at once; opacity, darkening and the hidden list still animate.
+- **Why:** The receding stack moves large surfaces through depth, which is the kind of motion reduced-motion users ask to avoid. apple-design: replace slides and springs with cross-fades and keep the changes that aid comprehension; the darkening and the dropped list are what say "this is behind".
+- **Alternatives:** Shorten or soften the springs (still moves large surfaces). Turn the transition off entirely (levels pop, and a pop of a big surface is its own jolt).
+- **Trade-offs:** With reduced motion you lose the "grows out of its row" link between a row and its child.
 
 ### three.js + WebXR, with Vite for the dev server
 - **Decision:** Components are plain JavaScript modules on three.js. The demo uses Vite.

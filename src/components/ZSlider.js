@@ -295,15 +295,16 @@ export class ZSlider extends Interactable {
     const hovered = this.hoverBand.update(hoverD) || engaged;
     this.engaged = engaged;
     this.hoverT = clamp(this.hoverT + (hovered ? 1 : -1) * dt / this.hoverIn, 0, 1);
-    const h = this.hoverEase(this.hoverT) * (engaged ? 1 : 0.7);
-    this.knobSkin.uniforms.uHover.value = h * 6;
-    this.knob.scale.setScalar(1 + 0.06 * h);  // swells a little toward you, like a bubble
+    const K = DEFAULTS.look.knobHover;
+    const h = this.hoverEase(this.hoverT) * (engaged ? 1 : K.idle);
+    this.knobSkin.uniforms.uHover.value = h * K.glow;
+    this.knob.scale.setScalar(1 + K.swell * h);  // swells a little toward you, like a bubble
     const lit = Math.round(push * this.rings.length);
     const G = DEFAULTS.look.lampGlow;
     this.rings.forEach((r, i) => {
       const on = i < lit;
       r.material.color.set(on ? C.lampLit : 0xffffff);
-      r.material.opacity = r.material.userData.baseOpacity = on ? 0.95 : G.ringUnlit;
+      r.material.opacity = r.material.userData.baseOpacity = on ? G.ringLit : G.ringUnlit;
       this.ringGlow.material.uniforms.uOn.value[i] = on ? 1 : 0;
     });
     // The lamp glows with its value: a floor so it reads as lit glass at

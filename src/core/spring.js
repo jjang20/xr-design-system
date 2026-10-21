@@ -28,3 +28,12 @@ export function springTo(state, target, response, damping, dt) {
   }
   return state.x;
 }
+
+// The viewer asked for less motion (prefers-reduced-motion). The media query
+// is live, so reading it each frame applies a changed setting at once. False
+// outside a browser.
+let reducedQuery;
+export function prefersReducedMotion() {
+  reducedQuery ??= globalThis.matchMedia?.('(prefers-reduced-motion: reduce)') ?? null;
+  return reducedQuery?.matches ?? false;
+}

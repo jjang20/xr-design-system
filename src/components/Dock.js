@@ -40,7 +40,7 @@ import { Interactable, markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { softTexture } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
-import { springStep, springTo } from '../core/spring.js';
+import { springStep, springTo, prefersReducedMotion } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { objectEnvironment } from '../core/objects.js';
 import { DockIcon } from './DockIcon.js';
@@ -417,7 +417,7 @@ export class Dock extends THREE.Group {
     }
     // Not holding: settle with the hand's speed (velocity handoff).
     if (!grip.held) {
-      const calm = REDUCED_MOTION();
+      const calm = prefersReducedMotion();
       springTo(this.sizing, this.sizing.target, P.settle.response, calm ? 1 : P.settle.damping, dt);
       if (Math.abs(this.sizing.x - this.sizing.target) < 1e-4 && Math.abs(this.sizing.v) < 1e-3) { this.sizing.x = this.sizing.target; this.sizing.v = 0; }
     }
@@ -501,7 +501,7 @@ export class Dock extends THREE.Group {
     // so a finger between two never lights both.
     // (Apps not yet whole on the plate take no hands.)
     const near = this.icons.map((icon, i) => this.presence[i] >= 1 ? icon.sense() : (icon.consumeProbes(), icon.best = null, Infinity));
-    const nearest = this.gripping ? -1 : near.indexOf(Math.min(...near));
+    const nearest = this.gripping ? -1 : nearestApp(this.icons, near);
     this.icons.forEach((icon, i) => { icon.exclusive = i === nearest; icon.update(dt); });
     this.layout();
     this.lightPress();
@@ -631,7 +631,19 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smoothstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 // Apple's rubber band: past a limit, each step further moves it less.
 const rubberband = (over, dimension, k) => (over * dimension * k) / (dimension + k * Math.abs(over));
-const REDUCED_MOTION = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+// Which app may react: one being pressed keeps it until its press ends (a
+// ray or hand passing over a neighbour can't take it); otherwise the nearest,
+// and of apps that are all hit by a ray (distance 0) the one whose pinch
+// began on it.
+export function nearestApp(icons, near) {
+  const held = icons.findIndex(icon => icon.press.pressed);
+  if (held >= 0) return held;
+  let best = 0;
+  for (let i = 1; i < near.length; i++) {
+    if (near[i] < near[best] || (near[i] === near[best] && icons[i].best?.captured && !icons[best].best?.captured)) best = i;
+  }
+  return best;
+}
 
 // Reflection in the horizontal plane y = h.
 function mirrorY(h) {
