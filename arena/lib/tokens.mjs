@@ -37,6 +37,24 @@ export function setValue(root, path, patch) {
   }
 }
 
+// Every token a set of patches can change: the patched paths plus each token
+// whose alias chain leads to one of them. Varying the primitive duration.120
+// also changes motion.enter.duration, so both count as varied.
+export function affectedPaths(root, paths) {
+  const links = [];
+  (function walk(node, path) {
+    if (!node || typeof node !== 'object') return;
+    if ('$value' in node) { if (isAlias(node.$value)) links.push([path, node.$value.slice(1, -1)]); return; }
+    for (const [k, v] of Object.entries(node)) if (!k.startsWith('$')) walk(v, path ? `${path}.${k}` : k);
+  })(root, '');
+  const out = new Set(paths);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [from, to] of links) if (out.has(to) && !out.has(from)) { out.add(from); grew = true; }
+  }
+  return out;
+}
+
 export function withOverrides(root, overrides = {}) {
   const copy = structuredClone(root);
   for (const [path, value] of Object.entries(overrides)) setValue(copy, path, value);
