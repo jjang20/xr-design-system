@@ -42,26 +42,189 @@ const TURN = { house: -0.2, ruler: -0.12, scan: 0, image: 0, settings: 0, notes:
 
 export const hasAppObject = kind => kind in BUILDERS;
 
+// Styles, to explore (Jihoon, 2026-10-21: "Please explore 3d icons. Then
+// I'll choose one for the reference"). Each makes the same object a
+// different way, so the families compare app for app:
+//   object  the default: glossy objects drawn to the Mac OS X icon rules
+//   clay    soft matte clay in light colours (Microsoft's Fluent 3D emoji)
+//   glass   clear glass tinted each part's colour, its top edges lit,
+//           printing left solid (Apple's Liquid Glass icons in their
+//           tinted look; Contour's own rule that colour in glass is
+//           tinted glass)
+//   disc    a round badge: a disc in the app's colour, the object in white
+//           relief in front of it, a clear glass dome over both (visionOS
+//           app icons: a background layer, one or two layers on top, and a
+//           glass layer the system adds)
+export const ICON_STYLES = ['object', 'clay', 'glass', 'disc'];
+
 /**
  * @param {string} kind  the app's icon name (see BUILDERS)
- * @param {{color?: number}} [o]  the app's colour
+ * @param {{color?: number, style?: string}} [o]  the app's colour; its style (ICON_STYLES)
  * @returns {THREE.Group}  standing on y = 0, larger side about 1
  */
-export function makeAppObject(kind, { color = 0x8a8f98 } = {}) {
+export function makeAppObject(kind, { color = 0x8a8f98, style = 'object' } = {}) {
   const build = BUILDERS[kind];
   if (!build) throw new Error(`Contour: no app object "${kind}" (add one to src/core/objects.js)`);
-  const inner = build(new THREE.Color(color));
-  inner.rotation.y = TURN[kind];
-  // Stand it on y = 0, centred, its larger side 1.
+  if (!ICON_STYLES.includes(style)) throw new Error(`Contour: no icon style "${style}" (one of ${ICON_STYLES.join(', ')})`);
+  const c = new THREE.Color(color);
+  let inner = build(c);
+  inner.rotation.y = style === 'disc' ? 0 : TURN[kind];
+  if (style === 'clay' || style === 'glass') restyle(inner, style);
+  if (style === 'disc') inner = badge(inner, c);
+  // Stand it on y = 0, centred, its larger side 1 (a badge is the same size
+  // for every app: the disc carries the visual weight).
   const box = new THREE.Box3().setFromObject(inner);
   const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
-  const k = SIZE[kind] / Math.max(size.x, size.y);
+  const k = (style === 'disc' ? 1 : SIZE[kind]) / Math.max(size.x, size.y);
   inner.position.set(-mid.x * k, -box.min.y * k, -mid.z * k);
   inner.scale.setScalar(k);
   const g = new THREE.Group();
   g.add(inner);
   g.userData.kind = kind;
+  g.userData.style = style;
   g.userData.size = size.multiplyScalar(k);   // its footprint and height, for contact shadows
+  return g;
+}
+
+// A material's role, from what it is: glass, metal, a dark part (rubber,
+// a lens barrel), a coloured part (the app's colour, a frame's lacquer) or
+// a plain one (white walls, paper, a dial).
+function role(m) {
+  if (m.transmission > 0) return 'glass';
+  if (m.metalness >= 0.9) return 'metal';
+  const c = m.color ?? new THREE.Color(1, 1, 1), hsl = c.getHSL({});
+  const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  if (lum < 0.03) return 'dark';
+  return hsl.s > 0.35 && lum < 0.85 ? 'colour' : 'plain';
+}
+
+// Clay or glass, part by part. Printing (a map) stays: a label prints on
+// clay and on glass alike. Shared materials are swapped once.
+function restyle(group, style) {
+  const done = new Map();
+  group.traverse(o => {
+    if (!o.isMesh) return;
+    const swap = m => {
+      if (!done.has(m)) done.set(m, (style === 'clay' ? clayOf : glassOf)(m, role(m)));
+      return done.get(m);
+    };
+    o.material = Array.isArray(o.material) ? o.material.map(swap) : swap(o.material);
+  });
+}
+
+// Clay (Fluent 3D emoji): one soft matte material, colours lifted toward
+// white, darks softened to charcoal, metal as pale grey clay, glass as
+// pale frosted clay. A little sheen gives the velvety edge clay has.
+function clayOf(m, r) {
+  const white = new THREE.Color(1, 1, 1);
+  const base = (m.color ?? white).clone();
+  const color = {
+    colour: base.clone().lerp(white, 0.16),
+    plain: base.clone().lerp(new THREE.Color(1, 0.98, 0.95), 0.3),
+    dark: new THREE.Color(0x3a3e47),
+    metal: new THREE.Color(0xc3cad4),
+    glass: new THREE.Color(0xdcecf8),
+  }[r];
+  if (r === 'glass') return new THREE.MeshPhysicalMaterial({ color, roughness: 0.15, transparent: true, opacity: 0.22, depthWrite: false, side: m.side });
+  return new THREE.MeshPhysicalMaterial({
+    color, map: m.map ?? null, roughness: 0.62, metalness: 0,
+    sheen: 0.6, sheenRoughness: 0.55, sheenColor: new THREE.Color(1, 1, 1).multiplyScalar(0.55),
+    clearcoat: 0.12, clearcoatRoughness: 0.55,
+    emissive: m.emissive ?? new THREE.Color(0), emissiveIntensity: m.emissiveIntensity ?? 1,
+    transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side,
+  });
+}
+
+// Glass (Liquid Glass's tinted and clear icons): every part is glass that
+// bends what is behind it. Coloured parts are tinted with their colour and
+// lit a little from inside, so the tint reads over a dark room as well as
+// a light one; plain parts and metal are clear; dark parts are smoked.
+// Printing (a label, a photo, a dial) stays solid under the glass (a
+// coloured part's grain turns to glass with it). Edges catch the light
+// through a clear coat.
+function glassOf(m, r) {
+  const white = new THREE.Color(1, 1, 1), base = (m.color ?? white).clone();
+  if (m.map && r !== 'glass' && r !== 'colour') return new THREE.MeshPhysicalMaterial({
+    color: base, map: m.map, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.04,
+    transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side,
+  });
+  const look = {
+    colour: { color: base.clone().lerp(white, 0.55), attenuationColor: base, attenuationDistance: 0.35, roughness: 0.1, emissive: base.clone().multiplyScalar(0.14), rim: base.clone().lerp(white, 0.45).multiplyScalar(1.1) },
+    plain: { color: new THREE.Color(0xf4f8ff), attenuationColor: white, attenuationDistance: Infinity, roughness: 0.04, emissive: new THREE.Color(0.05, 0.05, 0.055), rim: new THREE.Color(1.3, 1.33, 1.38) },
+    metal: { color: new THREE.Color(0xeef4ff), attenuationColor: white, attenuationDistance: Infinity, roughness: 0.03, emissive: new THREE.Color(0.02, 0.02, 0.025), rim: new THREE.Color(1.2, 1.24, 1.3) },
+    dark: { color: new THREE.Color(0x9aa2ae), attenuationColor: new THREE.Color(0x3a404a), attenuationDistance: 0.25, roughness: 0.12, emissive: new THREE.Color(0), rim: new THREE.Color(0.45, 0.48, 0.52) },
+    glass: { color: white, attenuationColor: white, attenuationDistance: Infinity, roughness: 0.03, emissive: new THREE.Color(0), rim: new THREE.Color(0) },
+  }[r];
+  const { rim, ...rest } = look;
+  const g = new THREE.MeshPhysicalMaterial({
+    ...rest, metalness: 0, transmission: 1, thickness: 1.2, ior: 1.5,
+    clearcoat: 1, clearcoatRoughness: 0.04, specularIntensity: 1,
+    transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side,
+  });
+  // A thick glass edge glows where it turns away from you (light carried
+  // through the glass to its rim), most along the top edges, which face
+  // the light. Squared by multiplying: pow() of a negative is NaN on some
+  // GPUs.
+  g.onBeforeCompile = shader => {
+    shader.uniforms.rim = { value: rim };
+    shader.fragmentShader = 'uniform vec3 rim;\n' + shader.fragmentShader.replace('#include <emissivemap_fragment>',
+      '#include <emissivemap_fragment>\n  float edge = 1.0 - saturate(dot(normal, normalize(vViewPosition)));\n  totalEmissiveRadiance += rim * edge * edge * (0.3 + 0.7 * saturate(normal.y));');
+  };
+  g.customProgramCacheKey = () => 'glass-rim';
+  return g;
+}
+
+// visionOS's layered icon, built in depth: the background layer is a thick
+// disc in the app's colour (lighter at the top, as if lit from above); the
+// object stands in front of it as the foreground layer, in white porcelain
+// with its printing, flattened into a relief; a clear glass dome covers the
+// front (the glass layer the system adds). It stands on its rim.
+function badge(object, color) {
+  const R = 0.5, T = 0.16, edge = 0.06;
+  const g = new THREE.Group();
+  // The disc: its face at z = 0, rounded all round its rim.
+  const disc = lathe(fillet([[0, -T], [R, -T], [R, 0], [0, 0]], edge, 6));
+  const pos = disc.attributes.position, cols = [];
+  const top = color.clone().lerp(new THREE.Color(1, 1, 1), 0.28), bottom = color.clone().multiplyScalar(0.72);
+  for (let i = 0; i < pos.count; i++) {
+    const t = THREE.MathUtils.clamp(0.5 + pos.getY(i) / (2 * R), 0, 1);
+    const c = bottom.clone().lerp(top, t * t * (3 - 2 * t));
+    cols.push(c.r, c.g, c.b);
+  }
+  disc.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  g.add(new THREE.Mesh(disc, plastic(0xffffff, { vertexColors: true, roughness: 0.3, clearcoat: 1, clearcoatRoughness: 0.06 })));
+  // The foreground: the object in white, fitted inside the disc, pressed
+  // flat against it with a small gap (the layers' separation).
+  const porcelain = new Map();
+  object.traverse(o => {
+    if (!o.isMesh) return;
+    const m = o.material;
+    if (!porcelain.has(m)) {
+      const r = role(m);
+      porcelain.set(m, r === 'glass' ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.1, transparent: true, opacity: 0.2, depthWrite: false, side: m.side }) : new THREE.MeshPhysicalMaterial({
+        color: r === 'dark' ? new THREE.Color(0x7d838e) : new THREE.Color(0xf6f6f4),
+        map: m.map ?? null, roughness: 0.34, clearcoat: 0.8, clearcoatRoughness: 0.12,
+        emissive: m.emissive ?? new THREE.Color(0), emissiveIntensity: m.emissiveIntensity ?? 1,
+        transparent: m.transparent, opacity: m.opacity, alphaTest: m.alphaTest, side: m.side,
+      }));
+    }
+    o.material = porcelain.get(m);
+  });
+  const box = new THREE.Box3().setFromObject(object);
+  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+  const k = 0.62 / Math.max(size.x, size.y), depth = 0.07 / (size.z * k);
+  const fg = new THREE.Group();
+  fg.add(object);
+  object.position.set(-mid.x, -mid.y, -box.min.z);
+  fg.scale.set(k, k, k * Math.min(1, depth));
+  fg.position.z = 0.025;
+  g.add(fg);
+  // The glass layer: a clear dome over the face, flat-topped (a squircle
+  // profile), so it clears the relief out to its corners.
+  const r = R - edge * 0.6, h = 0.085;
+  const dome = [];
+  for (let i = 0; i <= 32; i++) { const u = i / 32, q = 1 - u; dome.push([r * q, h * Math.sqrt(Math.max(0, 1 - q ** 4)) + 0.004]); }
+  g.add(new THREE.Mesh(lathe(dome), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transmission: 1, roughness: 0.02, thickness: 0.04, ior: 1.4, clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1 })));
   return g;
 }
 

@@ -49,6 +49,7 @@ if (part === 'dock') {
   const R = 0.5, up = 0.28, back = 0.48;
   dock = new Dock(T, {
     distance: Math.hypot(up, back), eccentricity: -Math.atan2(up, back),
+    // ?icons=: the objects' style (object, clay, glass, disc; see ICON_STYLES).
     apps: [
       { label: 'Planner', icon: 'house', color: 0x2f7cf6, running: true },
       { label: 'Measure', icon: 'ruler', color: 0xe08a1e },
@@ -59,7 +60,7 @@ if (part === 'dock') {
       // plate lengthens to fit it.
       { label: 'Notes', icon: 'notes', color: 0xf7d046 },
       { label: 'Clock', icon: 'clock', color: 0x3f8fd8 },
-    ],
+    ].map(app => ({ ...app, style: q.get('icons') ?? 'object' })),
     visible: Number(q.get('visible') ?? 5),
   });
   scene.add(dock);
@@ -71,7 +72,7 @@ if (part === 'dock') {
   const kinds = [['house', 0x2f7cf6], ['ruler', 0xe08a1e], ['scan', 0x23a26d], ['image', 0xd9455f], ['settings', 0x6b6f78], ['notes', 0xf7d046], ['clock', 0x3f8fd8]];
   const s = 0.07, y = EYE - 0.1;
   kinds.forEach(([k, c], i) => {
-    const o = makeAppObject(k, { color: c });
+    const o = makeAppObject(k, { color: c, style: q.get('icons') ?? 'object' });
     o.scale.setScalar(s);
     o.position.set((i - (kinds.length - 1) / 2) * s * 1.25, y, -0.5);
     scene.add(o);

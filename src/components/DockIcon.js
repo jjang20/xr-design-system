@@ -45,7 +45,7 @@ export class DockIcon extends Interactable {
     this.k = distance / DEFAULTS.distance;   // emboss sizes (mm at 0.6 m) grow with distance
     const side = this.side = T.dmm('size.button.default', distance);
     // The object, standing on the glass.
-    this.object = makeAppObject(app.icon, { color: app.color });
+    this.object = makeAppObject(app.icon, { color: app.color, style: app.style });
     this.object.scale.setScalar(side);
     this.holder = new THREE.Group();
     this.holder.add(this.object);
