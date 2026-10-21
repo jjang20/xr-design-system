@@ -25,11 +25,10 @@ const SS = Number(arg('--ss') ?? 2);
 const ICONS = 'mask:icon0,icon1,icon2,icon3,icon4';
 // [file key, pass] per shot. See window.contour.pass in demo/bench.js.
 const PASSES = {
-  'dock-rest': [['shelf', 'mask:shelf'], ['icons', ICONS], ['mirror', 'mask:mirror'], ['dot', 'mask:dot'],
-    ['noglyph', 'noglyph'], ['nomirror', 'nomirror'], ['noglow', 'noglow'], ['flatroom', 'flatroom'],
-    ['norefract', 'norefract'], ['physical-refract', 'physical-refract'], ['noreflect', 'noreflect'], ['physical-reflect', 'physical-reflect'],
-    ['noicons', 'hide:icon0,icon1,icon2,icon3,icon4,mirror']],
-  'dock-hover': [['shelf', 'mask:shelf'], ['icons', ICONS], ['noglyph', 'noglyph']],
+  'dock-rest': [['shelf', 'mask:shelf'], ['icons', ICONS], ['mirror', 'mask:mirror'], ['contact', 'mask:contact'], ['dot', 'mask:dot'],
+    ['nomirror', 'nomirror'], ['nocontact', 'hide:contact'], ['noicons', 'hide:icon0,icon1,icon2,icon3,icon4,mirror,contact'], ['noglow', 'noglow']],
+  'dock-hover': [['shelf', 'mask:shelf'], ['icons', ICONS], ['bubble', 'mask:bubble'], ['nobubble', 'hide:bubble'], ['nolabel', 'nolabel']],
+  'dock-press': [['bubble', 'mask:bubble'], ['icons', ICONS], ['nobubble', 'hide:bubble']],
   'slider-rest': [['knob', 'mask:knob'], ['stem', 'mask:stem,joint'], ['plate', 'mask:plate'], ['noglow', 'noglow'], ['noglyph', 'noglyph'], ['nolabel', 'nolabel'],
     ['labelglass', 'mask:labelglass'], ['noplate', 'hide:plate'], ['nostem', 'hide:stem'], ['nobubble', 'hide:bubble'], ['flatroom', 'flatroom'],
     ['norefract', 'norefract'], ['physical-refract', 'physical-refract'], ['noreflect', 'noreflect'], ['physical-reflect', 'physical-reflect']],
@@ -37,7 +36,7 @@ const PASSES = {
 const shots = [];
 try {
   const only = process.argv.slice(2).find((a, i, all) => !a.startsWith('--') && !['--set', '--out', '--ss'].includes(all[i - 1]));  // optional: dock | slider
-  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['slider', 'rest']].filter(([p]) => !only || p === only)) {
+  for (const [part, state] of [['dock', 'rest'], ['dock', 'hover'], ['dock', 'press'], ['slider', 'rest']].filter(([p]) => !only || p === only)) {
     // A fresh page per shot: SwiftShader can drop a long-lived context.
     let page = await open(part, state);
     // Each frame is read back from the canvas right after it draws. A blank
@@ -84,17 +83,21 @@ async function open(part, state) {
   await page.evaluate(() => window.contour.tick(30));
   // Text is laid out asynchronously (font load): wait for every label.
   await page.waitForFunction(() => { let ok = true; window.contour.scene?.traverse(o => { if (typeof o.sync === 'function' && o.text && !o.textRenderInfo) ok = false; }); window.contour.tick(1); return ok; }, null, { timeout: 60000, polling: 500 });
-  if (state === 'hover') await page.evaluate(() => {
-    const c = window.contour, p = c.dock.icons[2].getWorldPosition(c.camera.position.clone());
-    c.hands.push(p.add(c.camera.position.clone().sub(p).normalize().multiplyScalar(0.03)));
-  });
+  // Hover: a fingertip 1 cm in front of the middle app's bubble. Press: 7 mm
+  // into it (the full dent), held still.
+  if (state === 'hover') await page.evaluate(() => window.contour.touch(2, -0.01));
+  if (state === 'press') await page.evaluate(async () => { const c = window.contour; c.touch(2, -0.01); c.tick(60); c.touch(2, 0.007); });
   await page.evaluate(() => window.contour.tick(90));
   return page;
 }
 if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
 // Pair each with its Blender frame (render them first with lookdev/dock_slider.py).
+// The Dock's lookdev frames show the glass globes it had until 2026-10-21;
+// its reference now is Jihoon's image of real objects and a hover bubble,
+// which has no same-camera render, so the Dock is not paired.
 for (const [part, state, live] of shots) {
-  const ref = part === 'dock' ? `shots/lookdev2/dock-shelf-${state}.png` : 'shots/lookdev2/slider-stem.png';
+  if (part === 'dock') continue;
+  const ref = 'shots/lookdev2/slider-stem.png';
   if (!existsSync(ref)) continue;
   execFileSync('python3', ['-c', `
 from PIL import Image

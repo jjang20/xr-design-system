@@ -118,18 +118,25 @@ An ornament of actions under a window: one glass bar whose buttons are places wh
 
 ## Dock
 
-The app launcher, body-locked 25° below your view.
+The app launcher, body-locked 25° below your view. Each app is a small real object standing on a curved glass shelf. A finger near one forms a clear bubble round it, and the bubble can be pressed like the list bubble (Jihoon, 2026-10-21, from his reference image of a classic Mac dock with a subtle bubble).
 
-![Dock lookdev: a curved glass shelf with icons floating above it, Scan magnified](images/dock-magnify.png)
-*Rendered 2026-10-20 in Blender (`lookdev/dock_slider.py --part dock --option shelf --state hover`), 2560 × 1600.* **In progress:** this is the lookdev target. The live Dock (built 2026-10-20, see the overview) follows it with the globes Jihoon asked for: clear tinted glass globes that show the room upside down (a ball lens), each glyph glowing inside its globe, over a curved clear glass shelf (the plate itself bends on an arc centred on you). Each globe shows the room bent through it, upside down and small like a crystal ball; it sees the room itself, not the frame behind it, so neighbouring globes don't show up inside it. The room inside reads as soft light and shade, not a hard dark band (its shade is lifted part of the way toward its average light). Its one hotspot sits up and to the left near the rim, clear of the glyph, with a hot point inside it as on a polished marble. Each globe has a faint, blurred, coloured mirror image in the shelf, a contact shadow and a caustic in its colour; a hovered globe grows in place, lifts and its glass visibly brightens in its own colour (it doesn't turn milky), and its neighbours stay where they are. Every hue lets through the same light, so glyph contrast holds in every colour. Values: `DEFAULTS.look.dockShelf`, `DEFAULTS.look.refract.tile`. The hand is not modelled in the render; the shown state is the magnification a nearby hand triggers.
+![The live Dock at 6K: rest, hover and press](images/dock-objects-bubble.jpg)
+*Live render, 2026-10-21, from `demo/bench.html?part=dock` (hover: the finger is 1 cm away, hidden; press: a fingertip stand-in, `&hand`, a placeholder, not a hand model).* **In progress:** first live build; there is no path-traced reference for this design yet, so it has not been matched to one.
+
+- **Objects.** Each app is an object built in code ([`src/core/objects.js`](../src/core/objects.js)): Planner a house, Measure a tape measure, Scan a camera lens, Photos a picture frame, Settings a pair of gears. Painted plastic, rubber, metal and glass, lit by the room plus three soft boxes and a key light up and to the left that casts shadows (`DEFAULTS.look.dockObjects`). They are **placeholders** for objects an app would ship itself.
+- **Shelf.** A clear glass slab bent on an arc centred on you. Each object has a faint mirror image in it, fading with depth, and a soft contact shadow.
+- **Hover.** A clear bubble 1.42× the object's size forms round it, resting on the shelf, and the object rises to its middle as if picked up; the app's name appears above. The bubble grows from 0.9× its size with a small settle (the list bubble's spring) and goes without one. It is a thin clear skin: it reflects the room faintly face-on and strongly at its rim (Fresnel), with one small key highlight. Only the app nearest the finger shows a bubble, so a finger between two never lights both.
+- **Press.** The skin gives way where the finger pushes: the list bubble's dent (`look.emboss.dent`, 1.6× deeper, because the bubble is small and round), with a thin bright lip round the fingertip and the wall turned from the light in shade. The bubble squashes a little against the shelf, the object moves back from the finger and shrinks a touch, and the press glow lights the object from inside the dent. On release the dent springs back past flat once and `select` fires. A ray press (pinch) pushes the dent all the way in.
 
 | Behaviour | Tokens |
 |---|---|
 | Body-lock (only mode implemented) | `anchor.mode` |
 | 25° below the centre of view | `anchor.eccentricity.vertical` |
 | Waits 350 ms after a turn, then follows without wobble | `anchor.follow.delay`, `.damping`, `.frequency` |
-| Icons grow up to 1.2× within 100 dmm of the hand, cosine falloff, and the hovered one lifts 8 dmm. Icons grow in place: neighbours and the shelf don't move (matches the Blender lookdev: one icon in focus, not a zoom of the row). The size eases toward the hand's value with a critically damped spring that settles in the hover duration, so tracking jitter doesn't shake the icons and a lost hand doesn't pop them | `dock.magnify.*`, `motion.hover.in.duration` |
-| Icon size and gaps | `size.button.default`, `size.gap.min` |
+| Apps grow up to 1.2× within 100 dmm of the hand, cosine falloff. They grow in place: neighbours and the shelf don't move. The size eases toward the hand's value with a critically damped spring that settles in the hover duration, so tracking jitter doesn't shake the apps and a lost hand doesn't pop them | `dock.magnify.*`, `motion.hover.in.duration` |
+| The bubble forms within hover distance of its skin, and goes past the exit distance | `proximity.hover.enter`, `.exit` |
+| The dent follows the finger in and recovers at the soft material's pace; release has hysteresis | `material.density.soft.recover`, `proximity.poke.release` |
+| Object size; the gap between apps leaves room for a fully magnified bubble to clear its neighbours' objects (their real width, not their size box, so apps stand close as in the reference) | `size.button.default`, `DEFAULTS.look.dockShelf.bubbleClear` |
 
 WebXR doesn't track the torso, so the dock treats a sustained head turn (more than 20°, held for the delay) as a body turn. A quick glance away never moves it. Events: `select`.
 
@@ -191,7 +198,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Trade-offs:** Tinted glass changes with the room behind it; over a saturated room the hue shifts. Unsaturated colours (Settings' grey) use the plain window glass.
 
 ### Known gaps handed to the arena (2026-10-20)
-- **Dock:** built live as the curved shelf with glass globes. Each globe shows the room (the backdrop) along its bent rays, but not the other virtual objects behind it: a real ball lens would also show its neighbours and the shelf; we cut that because it read as busy (a deliberate departure from physics). In passthrough there is no room image, so a globe falls back to the frame behind its own disc. Every globe reflects the same window, because the room is a distant photo. The shelf's arc is tighter than the lookdev's so the curve reads at Dock distance. The key light sits further left, higher and a little behind the lookdev's, with a larger soft box, so each globe's hotspot sits near its rim, clear of its glyph (it moves the knob's highlight too). The globe glyphs are slightly smaller than a flat icon's (`globeGlyph` 0.5) to leave clear glass round them.
+- **Dock (2026-10-21):** the objects are procedural placeholders, not app assets. The bubble is a thin skin with no refraction (a real soap film barely bends light), so a press reads by its lip, shade, squash and glow, and by the object giving way, not by distortion. Seen straight on, without a finger in view, the dent itself is faint; in a headset the fingertip sits in it. The objects' room light is the same photo for every app, so all five catch the same window.
 - **Z-Slider:** built live as direction A (stem). The plate is `thin` glass, not the lookdev's `regular`, so its rim reads crisp. The knob's long bell fillet changes the stem's outline at every value, not only near the knob.
 - **Backdrop:** the room photo is 1K; renders at 6K show it soft. A 4K+ file is needed (Poly Haven is blocked from the cloud).
 
@@ -202,6 +209,12 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Alternatives:** A light glass lens lifted over the row (`hoverStyle: 'lens'`, still available). It reads fast, but as a separate slab, not the window's own material. A squash press (whole pillow flattens): calmer, but hard to tell from hover.
 - **Trade-offs:** The bubble is a shader effect on a finely split window mesh, so windows cost more vertices. Pressing directly on text briefly lowers that text's contrast under the glow core. With reduced motion, the bubble and dent move without settle or rebound.
 
+
+### Dock: real objects in a pressable bubble (2026-10-21)
+- **Decision:** Apps are real objects on the glass shelf, not glass globes. Hover forms a clear bubble round the nearest one (1.42× its size, resting on the shelf, the object lifted to its middle); press dents the bubble like the list bubble, squashes it a little, lights the object from the dent and moves the object back from the finger. Values: `DEFAULTS.look.dockBubble`, `DEFAULTS.look.dockObjects`.
+- **Why:** Jihoon's reference (2026-10-21): photoreal objects on a curved glass shelf, the hovered one inside a faint clear sphere about 1.5× its width with a bright rim. One bubble language for Contour: the list's swell and dent, here as a sphere. On a clear sphere seen face-on a dent alone barely shows, so the press also reads by light (glow, lip) and by the object giving way, as a visionOS press recedes.
+- **Alternatives:** Glass globes with glyphs inside (the 2026-10-20 build; read as candy, and not real objects). A press that only squashes the whole bubble (clear, but not the list's dent). Refraction through the bubble (a thick glass ball would distort the object at rest, which the reference doesn't).
+- **Trade-offs:** Apps stand further apart than in the reference (a pitch of about 1.5× an object's width, against its 1.25×), because a magnified bubble needs room to clear its neighbours. Each object is real geometry with shadows, so the Dock costs more to draw than flat icons. ⚠️ An app now has to supply an object, not an icon: that is a contract for app makers, harder to undo once apps ship assets.
 
 ### Components take tokens as an argument instead of importing them
 - **Decision:** `new Button(T, …)` receives a token object; no component imports `tokens.json` itself.

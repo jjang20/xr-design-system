@@ -12,20 +12,23 @@
 // place: looking at one target never moves the others (as in the lookdev;
 // judge round 3 caught a row that spread apart).
 //
-// Look (Jihoon, 2026-10-20; lookdev/dock_slider.py --option shelf): a Snow
-// Leopard style dock. Glass globes of tinted glass, each with its glyph
-// floating inside, hover over a thin, clear glass shelf and are mirrored in it. All of it is refractive glass
-// (core/refract.js), lit by the lookdev rig. Shelf and icons follow an arc that curves
-// toward the user (a tight arc, about the forearm's sweep round the elbow),
-// so every icon is the same reach away and the curve reads at a glance.
+// Look (Jihoon, 2026-10-21, his "Classic Mac Dock with Subtle Bubble"):
+// each app is a real object (core/objects.js) standing on a thin, clear
+// glass shelf that curves toward the user, mirrored faintly in it. A finger
+// near an app grows a clear bubble round it (DockIcon), which can be pressed
+// like the bubble list. The shelf is refractive glass (core/refract.js);
+// the objects are lit by the room plus soft boxes and a key light that turn
+// with the Dock (DEFAULTS.look.dockObjects). The shelf's arc is about the
+// forearm's sweep round the elbow, so every app is the same reach away.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { glassSlabGeometry, makeText, cloneGlass, softTexture } from '../core/look.js';
-import { refractiveGlass, refractiveMesh, cloneRefractive, attachGrab } from '../core/refract.js';
+import { glassSlabGeometry, softTexture } from '../core/look.js';
+import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { springStep } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
-import { Button } from './Button.js';
+import { objectEnvironment } from '../core/objects.js';
+import { DockIcon } from './DockIcon.js';
 
 export { magnifyScale, LazyFollow };
 
@@ -62,37 +65,40 @@ export class Dock extends THREE.Group {
     this.rotation.order = 'YXZ';
 
     // Everything sits in a level frame: the group is pitched to face the
-    // eye, but the shelf lies flat in the room and the tiles stand upright on
-    // it, so you look down on them, as on a desk.
+    // eye, but the shelf lies flat in the room and the objects stand upright
+    // on it, so you look down on them, as on a desk.
     this.level = new THREE.Group();
     this.level.rotation.x = -this.eccentricity;
     this.add(this.level);
-    // App icons: upright tiles of tinted glass with a glyph. Names appear on hover.
     const dmm = v => (v / 1000) * dist;
-    const S = DEFAULTS.look.dockShelf;
+    const S = DEFAULTS.look.dockShelf, O = DEFAULTS.look.dockObjects;
+    // Apps: real objects standing on the shelf. Names appear on hover.
     this.icons = o.apps.map(app => {
-      const b = new Button(T, { icon: app.icon, variant: 'tile', color: app.color, thickness: 'thin', density: 'firm', distance: dist });
-      b.addEventListener('select', () => this.dispatchEvent({ type: 'select', app }));
-      const name = makeText(app.label, { size: dmm(13), weight: 500, opacity: 0 });
-      name.position.set(0, b.h / 2 + dmm(12), b.t);  // above: the shelf is below
-      b.add(name);
-      b.nameText = name;
-      this.level.add(b);
-      return b;
+      const icon = new DockIcon(T, app, dist);
+      icon.addEventListener('select', () => this.dispatchEvent({ type: 'select', app }));
+      this.level.add(icon);
+      return icon;
     });
-    this.side = this.icons[0].w;
-    this.lift = dmm(S.lift);
-    this.hoverLift = dmm(S.hoverLift);
+    this.side = this.icons[0].side;
     this.pad = dmm(16);
     this.shelfT = S.thickness / 1000 * dist / 0.6;
     this.arcR = S.arc * dist;
-    // The shelf, just under the floating icons.
+    // Spacing: at least the gap token, and enough that a fully magnified
+    // app's bubble clears its magnified neighbours' objects (the bubble is
+    // wider than the object it holds). It is the objects' own width that
+    // must clear, not their size box: a turned object is narrower than it,
+    // and the reference's apps stand close, its bubble all but touching them.
+    const nb = magnifyScale(this.side + this.gap, this.radius, this.maxScale);
+    const halfWidth = Math.max(...this.icons.map(i => i.footprint.x)) / 2;
+    this.pitch = Math.max(this.side + this.gap, this.icons[0].rb * this.maxScale + halfWidth * nb + dmm(S.bubbleClear));
+    // The shelf: its top is the floor the objects stand on.
+    this.top = -this.side / 2;
     this.shelf = new THREE.Group();
-    this.shelf.position.y = -this.side / 2 - this.lift;
+    this.shelf.position.y = this.top;
     this.level.add(this.shelf);
-    this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * (this.side + this.gap));
-    this.shelfShape = new ShelfGeometry(this.rowWidth(this.icons.map(() => 1)) + this.pad * 2, this.side * S.depth, this.shelfT);
-    // Refractive glass, so the mirrored icons below show through it.
+    this.restX = this.icons.map((_, i) => (i - (this.icons.length - 1) / 2) * this.pitch);
+    this.shelfShape = new ShelfGeometry(this.rowWidth() + this.pad * 2, this.side * S.depth, this.shelfT);
+    // Refractive glass, so the mirrored objects below show through it.
     this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.shelfT }));
     this.base.renderOrder = 1;
     this.shelf.add(this.base);
@@ -100,69 +106,72 @@ export class Dock extends THREE.Group {
     // is in front of them (they lie below its top, as a reflection does).
     // Nudged back a hair so the shelf's own glass never fights it.
     this.mask = new THREE.Mesh(this.base.geometry, new THREE.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 2, polygonOffsetUnits: 4 }));
+    this.mask.renderOrder = -2;
     this.shelf.add(this.mask);
-    // Reflections: each tile mirrored in the shelf's top face (a planar
-    // mirror). Faint, as clear glass reflects only a few percent face-on.
+
+    // Light. The objects are lit by the room plus soft boxes (an environment
+    // made once, on first draw, see objectEnvironment) and a key light up
+    // and to the left; all of it turns with the Dock. The key casts shadows
+    // when the renderer has shadow maps on: the roof's shade on the walls,
+    // the hub's on the gear.
+    this.objectMaterials = new Set();
+    for (const icon of this.icons) icon.object.traverse(m => {
+      if (!m.isMesh) return;
+      m.castShadow = m.receiveShadow = true;
+      this.objectMaterials.add(m.material);
+    });
+    this.key = new THREE.DirectionalLight(new THREE.Color(...O.key.color), O.key.intensity);
+    this.key.position.set(...O.key.dir).normalize().multiplyScalar(0.5);
+    this.key.castShadow = true;
+    const reach = this.rowWidth() / 2 + this.side;
+    Object.assign(this.key.shadow.camera, { left: -reach, right: reach, top: reach, bottom: -reach, near: 0.05, far: 1.2 });
+    this.key.shadow.mapSize.set(O.shadow.size, O.shadow.size);
+    this.key.shadow.bias = O.shadow.bias;
+    this.key.shadow.normalBias = O.shadow.normalBias * this.side;
+    this.key.shadow.radius = O.shadow.radius;
+    this.level.add(this.key, this.key.target);
+    // The press glow lights what is inside the bubble: a small warm light at
+    // the bottom of the dent, so the pressed object brightens where the
+    // finger is (the list bubble's bloom, falling on a real object). One
+    // light, always there (adding one later would rebuild every shader),
+    // dark until something is pressed; it casts no shadow.
+    this.pressLight = new THREE.PointLight(new THREE.Color(...DEFAULTS.look.emboss.glow.color), 0, 0, 2);
+    this.level.add(this.pressLight);
+    this.icons[0].object.traverse(m => {
+      if (m.isMesh && !this.envHook) {
+        this.envHook = m;
+        m.onBeforeRender = (renderer, scene) => this.lightObjects(renderer, scene);
+      }
+    });
+
+    // Reflections: each object mirrored in the shelf's top face (a planar
+    // mirror), faint, as clear glass reflects only a few percent face-on,
+    // and fading with depth below the glass.
+    this.fade = { uFadePlane: { value: new THREE.Vector4() }, uFadeLen: { value: this.side * S.fade } };
     this.mirrors = this.icons.map(icon => {
       const g = new THREE.Group();
       g.matrixAutoUpdate = false;
-      for (const part of [icon.body, icon.face]) {
-        const c = part.clone();
-        c.traverse(m => {
-          if (!m.material) return;
-          if (m.material.userData.refractive) { m.material = cloneRefractive(m.material); attachGrab(m); }
-          else m.material = m.material.isShaderMaterial ? cloneGlass(m.material) : m.material.clone();
-          if (m.material.uniforms?.uOpacity) {
-            const u = m.material.uniforms;
-            u.uOpacity.value = S.reflection;
-            u.uFadeLen.value = this.side * S.fade;   // dimmer the further below the glass
-            // Soft, like a reflection in glass that is not quite a mirror:
-            // the globe's colour and glow carry, its glyph and highlights
-            // blur (judge round 2: sharp mirrored icons competed with the
-            // real ones).
-            u.uRough.value = S.mirrorBlur.rough;
-            u.uCoatRough.value = S.mirrorBlur.rough;
-            u.uGlyphBlur.value = S.mirrorBlur.glyph;
-            // Its glyph dimmer still: a blurred, full-strength glyph read
-            // as a bright block in the shelf (judge round 4).
-            u.uGlyphOn.value = S.mirrorGlyph;
-            // Little of the room's light on it, so it keeps the globe's
-            // colour (judge round 3: milky half-domes).
-            u.uReflect.value *= S.mirrorShine;
-          }
-          else m.material.opacity = (m.material.opacity ?? 1) * S.reflection;
-          m.material.transparent = true;
-          m.material.depthWrite = false;
-          m.material.depthFunc = THREE.GreaterDepth;
-          m.renderOrder = 0.9 + (m.renderOrder - 2) * 0.01;  // before the shelf, in the icon's own order
-          m.raycast = () => {};
-        });
-        g.add(c);
-      }
+      const c = icon.object.clone();
+      c.traverse(m => {
+        if (!m.isMesh) return;
+        m.material = mirrorMaterial(m.material, S.reflection, this.fade);
+        this.objectMaterials.add(m.material);
+        m.castShadow = m.receiveShadow = false;
+        m.renderOrder = -1;   // after the shelf's depth mask, before the objects (see mirrorMaterial)
+        m.raycast = () => {};
+      });
+      g.add(c);
       this.level.add(g);
       return g;
     });
-    // Contact shadow: the light each globe keeps off the glass under it,
-    // so it reads as floating just above the shelf (judge round 2: nothing
-    // showed where a globe sits).
-    this.contacts = this.icons.map(() => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(this.side * S.contact.size, this.side * S.contact.size), new THREE.MeshBasicMaterial({
+    // Contact shadow: the shade each object casts on the glass right under
+    // it, the shape of its footprint, so it reads as standing on the shelf.
+    this.contacts = this.icons.map(icon => {
+      const f = icon.footprint;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(f.x * S.contact.size, f.z * S.contact.size), new THREE.MeshBasicMaterial({
         map: softTexture(), color: 0x000000, opacity: S.contact.opacity, transparent: true, depthWrite: false }));
       m.rotation.x = -Math.PI / 2;
-      m.renderOrder = 1.4;   // on the shelf glass, under the caustic
-      this.level.add(m);
-      return m;
-    });
-    // Caustics: the light each globe focuses onto the glass under it, in
-    // its own colour (a glass ball on a table makes a bright, tinted spot).
-    // It grounds the floating globes without a dark shadow.
-    this.caustics = this.icons.map(icon => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(this.side, this.side), new THREE.MeshBasicMaterial({
-        map: softTexture(), color: new THREE.Color().copy(icon.skin.uniforms.uColor.value).multiplyScalar(1 / Math.max(...icon.skin.uniforms.uColor.value.toArray(), 1e-3)),
-        opacity: S.caustic, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
-      m.rotation.x = -Math.PI / 2;
-      m.renderOrder = 1.5;   // on the shelf glass
-      m.userData.glow = true;
+      m.renderOrder = 1.4;   // on the shelf glass
       this.level.add(m);
       return m;
     });
@@ -186,6 +195,19 @@ export class Dock extends THREE.Group {
     this.layout();
   }
 
+  // On first draw: the objects' environment (needs the renderer), then
+  // kept turned with the Dock.
+  lightObjects(renderer, scene) {
+    const O = DEFAULTS.look.dockObjects;
+    if (this.envRoom !== scene.environment) {
+      this.envRoom = scene.environment;
+      const env = objectEnvironment(renderer, scene.environment, scene.environmentRotation, O.boxes);
+      for (const m of this.objectMaterials) { m.envMap = env; m.envMapIntensity = O.envIntensity; m.needsUpdate = true; }
+    }
+    const yaw = this.envYaw ?? 0;
+    for (const m of this.objectMaterials) m.envMapRotation.set(0, yaw, 0);
+  }
+
   // A point on the dock's arc: s along the arc, t toward the user. The arc
   // curves toward the user around a point arcR in front of the icons.
   arc(s, t = 0) {
@@ -193,48 +215,36 @@ export class Dock extends THREE.Group {
     return [R * Math.sin(a), A - R * Math.cos(a), -a];
   }
 
-  rowWidth(scales) {
-    return scales.reduce((a, s) => a + s * this.side, 0) + this.gap * (scales.length - 1);
+  rowWidth() {
+    return this.pitch * (this.icons.length - 1) + this.side;
   }
 
   layout() {
     const S = DEFAULTS.look.dockShelf;
-    const top = -this.side / 2 - this.lift;
+    const top = this.top;
     this.icons.forEach((icon, i) => {
       const s = this.scales[i];
-      const sx = this.restX[i];   // in place: a magnified globe grows into the gaps
-      // The icon's middle sits on the arc (a globe is as deep as it is wide).
-      const [px, pz, yaw] = this.arc(sx, -s * icon.t / 2);
+      const sx = this.restX[i];   // in place: a magnified app grows into the gaps
+      // Standing on the shelf's middle line, turned to face the user.
+      const [px, pz, yaw] = this.arc(sx, 0);
       icon.scale.setScalar(s);
-      // Grow upward from a shared float height, turned to face the user;
-      // the hovered globe also rises (as in the lookdev).
-      const m = (s - 1) / Math.max(1e-3, this.maxScale - 1);   // 0 at rest, 1 fully magnified
-      const cy = (s - 1) * this.side / 2 + this.hoverLift * m;
-      // Hover also lights the globe: a sheen on its glass, its glyph brighter.
-      const u = icon.skin.uniforms;
-      u.uSheen.value = S.hoverSheen * m;
-      u.uGlyphGlow.value = DEFAULTS.look.refract.tile.glyphGlow * (1 + 0.5 * m);
-      icon.position.set(px, cy, pz);
+      icon.position.set(px, top, pz);
       icon.rotation.y = yaw;
       icon.updateMatrix();
-      this.mirrors[i].matrix.copy(mirrorY(top)).multiply(icon.matrix);
-      const [cx, cz] = this.arc(sx, 0);
-      this.contacts[i].position.set(cx, top + 0.0002, cz);
+      icon.holder.updateMatrix();
+      this.mirrors[i].matrix.copy(mirrorY(top)).multiply(icon.matrix).multiply(icon.holder.matrix);
+      this.contacts[i].position.set(px, top + 0.0002, pz);
       this.contacts[i].rotation.z = yaw;
       this.contacts[i].scale.setScalar(s);
-      // Softer as the globe rises on hover.
-      this.contacts[i].material.opacity = S.contact.opacity / (1 + 2 * (s - 1));
-      const [qx, qz] = this.arc(sx, this.side * 0.12);
-      this.caustics[i].position.set(qx, top + 0.0003, qz);
-      this.caustics[i].rotation.z = yaw;
-      this.caustics[i].scale.setScalar(s);
+      // Lighter as the object rises into its bubble.
+      this.contacts[i].material.opacity = S.contact.opacity * (1 - 0.8 * Math.min(1, icon.hover));
       if (this.dots[i]) {
-        const [dx, dz] = this.arc(sx, this.side * DEFAULTS.look.dockShelf.depth * 0.38);
+        const [dx, dz] = this.arc(sx, this.side * S.depth * 0.4);
         this.dots[i].position.set(dx, top + 0.0006, dz);
         this.dots[i].glow.position.copy(this.dots[i].position);
       }
     });
-    this.shelfShape.fit(this.rowWidth(this.icons.map(() => 1)) + this.pad * 2, this.arcR);
+    this.shelfShape.fit(this.rowWidth() + this.pad * 2, this.arcR);
   }
 
   /**
@@ -266,6 +276,15 @@ export class Dock extends THREE.Group {
     // Magnify from the nearest hand, measured to each icon's rest position.
     const inv = new THREE.Matrix4().copy(this.level.matrixWorld).invert();
     const local = hands.map(h => h.clone().applyMatrix4(inv));
+    // Once a finger is close enough to form an app's bubble, the app holds
+    // its size: a finger nearer than that, or pressing in, counts as at that
+    // distance (the press makes the app give way, never swell).
+    for (const p of local) this.icons.forEach((icon, i) => {
+      const s = this.scales?.[i] ?? 1;
+      const c = icon.position.clone().add(new THREE.Vector3(0, icon.rb * s, 0));
+      const r = (icon.rb + icon.hoverBand.enter) * s;
+      if (p.distanceTo(c) < r) p.sub(c).setLength(r).add(c);
+    });
     const want = this.restX.map(x => {
       let s = 1;
       for (const p of local) {
@@ -276,16 +295,39 @@ export class Dock extends THREE.Group {
     });
     this.scaleState ??= want.map(x => ({ x, v: 0 }));
     this.scales = want.map((s, i) => Math.max(1, springStep(this.scaleState[i], s, this.magnifyOmega, dt)));
+    // One bubble at a time: only the app nearest the finger may show one,
+    // so a finger between two never lights both.
+    const near = this.icons.map(icon => icon.sense());
+    const nearest = near.indexOf(Math.min(...near));
+    this.icons.forEach((icon, i) => { icon.exclusive = i === nearest; icon.update(dt); });
     this.layout();
+    this.lightPress();
     // The mirror images fade with depth below the shelf's top (world plane).
     this.shelf.updateMatrixWorld();
     const n = new THREE.Vector3(0, 1, 0).transformDirection(this.shelf.matrixWorld);
-    const plane = new THREE.Vector4(n.x, n.y, n.z, -n.dot(new THREE.Vector3().setFromMatrixPosition(this.shelf.matrixWorld)));
-    for (const g of this.mirrors) g.traverse(m => { if (m.material?.uniforms?.uFadePlane) m.material.uniforms.uFadePlane.value.copy(plane); });
+    this.fade.uFadePlane.value.set(n.x, n.y, n.z, -n.dot(new THREE.Vector3().setFromMatrixPosition(this.shelf.matrixWorld)));
+    this.envYaw = yaw;
+  }
+
+  // The skins' highlight comes from the objects' key light, wherever the
+  // Dock has turned; the press light sits in the pressed bubble's dent.
+  lightPress() {
+    const B = DEFAULTS.look.dockBubble;
+    this.level.updateMatrixWorld(true);
+    const dir = new THREE.Vector3().setFromMatrixPosition(this.key.matrixWorld)
+      .sub(new THREE.Vector3().setFromMatrixPosition(this.key.target.matrixWorld)).normalize();
+    let pressed = null;
     for (const icon of this.icons) {
-      icon.update(dt);
-      icon.nameText.fillOpacity = icon.hover;
+      icon.skin.uKeyDir.value.copy(dir);
+      if (icon.skin.uGlow.value > (pressed?.skin.uGlow.value ?? 0)) pressed = icon;
     }
+    const L = this.pressLight;
+    if (!pressed) { L.intensity = 0; return; }
+    const at = pressed.dentAt.clone().multiplyScalar(pressed.bubble.scale.x - Math.max(0, pressed.dent.x)).add(pressed.centre);
+    L.position.copy(this.level.worldToLocal(pressed.localToWorld(at)));
+    // B.pressLight is the light's strength at the bubble's radius from it.
+    const scale = pressed.getWorldScale(new THREE.Vector3()).x;
+    L.intensity = B.pressLight * pressed.skin.uGlow.value * (pressed.rb * scale) ** 2;
   }
 }
 
@@ -332,4 +374,30 @@ function mirrorY(h) {
   return new THREE.Matrix4().makeTranslation(0, h, 0)
     .multiply(new THREE.Matrix4().makeScale(1, -1, 1))
     .multiply(new THREE.Matrix4().makeTranslation(0, -h, 0));
+}
+
+// A faint copy of an object's material for its reflection in the shelf:
+// drawn only below the shelf's top (GreaterDepth against the shelf's
+// depth), fading with depth below it. Glass parts stay clear (no
+// transmission pass for a reflection).
+function mirrorMaterial(src, opacity, fade) {
+  const m = src.clone();
+  // Drawn in the opaque pass, before the objects (renderOrder -1, after the
+  // shelf's depth mask at -2), blending by hand: drawn after them, its test
+  // against the shelf's depth also passed wherever an object stood in front
+  // (the lens's mirrored rim showed across the lens).
+  Object.assign(m, { transparent: false, opacity: (src.opacity ?? 1) * opacity, depthWrite: false, depthFunc: THREE.GreaterDepth,
+    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor, blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor });
+  if (m.transmission) { m.transmission = 0; m.opacity *= 0.3; }
+  m.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, fade);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMirrorWorld;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvMirrorWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vMirrorWorld;\nuniform vec4 uFadePlane;\nuniform float uFadeLen;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= exp(-max(0.0, -(dot(uFadePlane.xyz, vMirrorWorld) + uFadePlane.w)) / uFadeLen);');
+  };
+  m.customProgramCacheKey = () => 'contour-mirror';
+  return m;
 }

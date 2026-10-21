@@ -175,9 +175,27 @@ export const DEFAULTS = {
     // same reach away); hoverLift: how far the hovered globe rises (dmm, as
     // the lookdev); hoverSheen: light on the hovered globe's glass; caustic: the coloured light each globe focuses on the
     // glass under it; runGlow: the running light's halo (size in dmm).
-    dockShelf: { lift: 10, depth: 1.7, thickness: 3, reflection: 0.7, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.4, size: 0.7 }, fade: 0.3, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.5, size: 12 } },
+    dockShelf: { bubbleClear: 4, lift: 10, depth: 1.35, thickness: 3, reflection: 0.7, mirrorBlur: { rough: 0.45, glyph: 4 }, mirrorGlyph: 0.35, mirrorShine: 0.3, contact: { opacity: 0.5, size: 1.15 }, fade: 0.3, arc: 0.75, hoverLift: 8, hoverSheen: 1.4, caustic: 0.45, runGlow: { color: [0.75, 0.88, 1], opacity: 0.7, size: 12 } },
     // Dock globe: glyph size before the glass magnifies it, x a flat icon's.
     globeGlyph: 0.5, // 0.56 left no clear glass between the glyph and the hotspot (judge round 5)
+    // Dock apps as real objects (Jihoon, 2026-10-21; core/objects.js), lit
+    // by the room plus soft boxes in front (direction, size, power), and a
+    // key light up and to the left, a little in front (direction from the
+    // Dock, colour, strength). The boxes give glossy shells and chrome a
+    // clean, shaped highlight; the room keeps them in it.
+    dockObjects: {
+      boxes: [{ at: [-1, 1.2, 1], size: [4, 2.5], power: 5 }, { at: [1.2, 0.3, 1], size: [3, 3], power: 1.5 }, { at: [0, 1, -0.3], size: [5, 5], power: 2 }],
+      envIntensity: 1,
+      key: { dir: [-0.6, 0.9, 0.5], color: [1, 0.95, 0.88], intensity: 2.5 },
+      shadow: { size: 2048, bias: -0.0002, normalBias: 0.01, radius: 3 }, // normalBias x the object's size
+    },
+    // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
+    // size: its diameter x the object's larger side (Jihoon's reference:
+    // about 1.5; 1.42 holds the corners of a square). from: it grows from
+    // this fraction of its size, never from nothing (Emil Kowalski). lift:
+    // how far the object rises toward the bubble's middle. The press dent
+    // and glow are the list bubble's (emboss), its shadow and glow x these.
+    dockBubble: { size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.25, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
     // Text sits on glass with a faint shadow, so it reads as on the surface.
     textShadow: null, // no halos: text earns contrast from weight and the glass tone (visionOS vibrancy), not a CSS-style shadow
     separator: 0.08, // hairline between rows: white opacity

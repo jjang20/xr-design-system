@@ -7,6 +7,8 @@ import tokenJson from '../tokens.json';
 import { createTokens, PackagingPanel, InputSystem, Dock, ZSlider } from '../src/index.js';
 import { loadBackdrop } from './backdrop.js';
 import { DEFAULTS } from '../src/core/defaults.js';
+import { makeAppObject, objectFontsReady, objectEnvironment } from '../src/core/objects.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { catalogItems } from './catalog-data.js';
 
 const q = new URLSearchParams(location.search);
@@ -23,6 +25,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, Number(q.get('dpr')) || 2)); // ?dpr=4 for 6K stills
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.shadowMap.enabled = true; // the Dock's objects shade themselves (DEFAULTS.look.dockObjects.shadow)
 document.body.prepend(renderer.domElement);
 
 const scene = new THREE.Scene();
@@ -57,6 +60,39 @@ if (part === 'dock') {
   scene.add(dock);
   camera.fov = 24;
   camera.lookAt(0, EYE - up, -back);
+} else if (part === 'objects') {
+  // The Dock's app objects on their own, large, under the Dock's light
+  // (lookdev for src/core/objects.js).
+  const kinds = [['house', 0x2f7cf6], ['ruler', 0xe08a1e], ['scan', 0x23a26d], ['image', 0xd9455f], ['settings', 0x6b6f78]];
+  const s = 0.07, y = EYE - 0.1;
+  kinds.forEach(([k, c], i) => {
+    const o = makeAppObject(k, { color: c });
+    o.scale.setScalar(s);
+    o.position.set((i - 2) * s * 1.25, y, -0.5);
+    scene.add(o);
+  });
+  if (q.has('studio')) {
+    const env = q.get('studio') === 'room' ? new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.02).texture
+      : objectEnvironment(renderer, scene.environment, scene.environmentRotation, JSON.parse(q.get('boxes') ?? '[{"at":[-1,1.2,1],"size":[4,2.5],"power":5},{"at":[1.2,0.3,1],"size":[3,3],"power":1.5},{"at":[0,1,-0.3],"size":[5,5],"power":2}]'));
+    scene.traverse(m => { if (m.material?.isMeshStandardMaterial) { m.material.envMap = env; } });
+  }
+  const key = new THREE.DirectionalLight(0xfff1e2, Number(q.get('key') ?? 2.2));
+  key.position.set(-0.6, EYE + 0.6, 0.2);
+  key.target.position.set(0, y, -0.5);
+  scene.add(key, key.target);
+  if (q.has('shadows')) {
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    key.castShadow = true;
+    key.shadow.mapSize.set(4096, 4096);
+    Object.assign(key.shadow.camera, { left: -0.3, right: 0.3, top: 0.3, bottom: -0.3, near: 0.1, far: 3 });
+    key.shadow.bias = -0.0002; key.shadow.normalBias = 0.0005; key.shadow.radius = Number(q.get('shadows')) || 3;
+    scene.traverse(m => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; } });
+  }
+  if (q.has('envk')) scene.traverse(m => { if (m.material?.isMeshStandardMaterial) m.material.envMapIntensity = Number(q.get('envk')); });
+  camera.fov = Number(q.get('fov') ?? 36);
+  camera.position.set(0, EYE, 0);
+  camera.lookAt(0, y + s * 0.4, -0.5);
 } else if (part === 'slider') {
   // Blender: the slider faces the camera's side; camera 0.6 m away, 0.75 rad
   // round to the right and 5 cm up, lens 11°.
@@ -79,10 +115,43 @@ const input = new InputSystem({ T, renderer, camera, scene });
 // ?state=hover on the Dock: a hand point at Scan, so it magnifies.
 const hands = [];
 const timer = new THREE.Timer();
+// A fingertip held at a Dock app (window.contour.touch), fed to the apps as
+// a poke each frame, as the InputSystem does in a headset; also the hand
+// the Dock magnifies toward.
+let finger = null;
+const fingerPoint = () => {
+  const icon = dock.icons[finger.i];
+  icon.updateMatrixWorld(true);
+  const c = icon.localToWorld(icon.centre.clone());
+  // A right hand poking what the eye looks at: the finger comes in near the
+  // line of sight, from a little below and to the right (?finger=x,y in m
+  // from the eye moves it).
+  const [fx, fy] = (q.get('finger') ?? '0.1,-0.12').split(',').map(Number);
+  const dir = camera.position.clone().add(new THREE.Vector3(fx, fy, 0)).sub(c).normalize();
+  return c.add(dir.multiplyScalar(icon.rb * icon.getWorldScale(new THREE.Vector3()).x - finger.depth));
+};
+// ?hand: a fingertip stand-in drawn where the finger is (a placeholder, not
+// a hand model), so a still of a press shows what the eye sees in a
+// headset: the finger in the dent, the skin round it.
+const fingertip = q.has('hand') ? new THREE.Mesh(new THREE.CapsuleGeometry(0.008, 0.09, 8, 24),
+  new THREE.MeshPhysicalMaterial({ color: new THREE.Color().setRGB(0.86, 0.62, 0.5, THREE.SRGBColorSpace), roughness: 0.55, sheen: 0.6, sheenColor: new THREE.Color(1, 0.75, 0.7), sheenRoughness: 0.5 })) : null;
+if (fingertip) { fingertip.visible = false; scene.add(fingertip); }
 const step = dt => {
   scene.updateMatrixWorld();
   camera.updateMatrixWorld();
   input.update();
+  if (finger && dock) {
+    const p = fingerPoint();
+    hands.length = 0; hands.push(p);
+    for (const icon of dock.icons) icon.feed({ kind: 'poke', point: icon.worldToLocal(p.clone()) });
+    if (fingertip) {
+      const icon = dock.icons[finger.i];
+      const along = p.clone().sub(icon.localToWorld(icon.centre.clone())).normalize();
+      fingertip.visible = true;
+      fingertip.position.copy(p).addScaledVector(along, 0.008 + 0.045);
+      fingertip.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), along);
+    }
+  }
   panel?.update(dt);
   slider?.update(dt);
   dock?.update(dt, camera, hands);
@@ -104,9 +173,10 @@ function parts() {
   const add = (k, o) => { if (o) (P[k] ??= []).push(o); };
   if (dock) {
     add('shelf', dock.base);
-    dock.icons.forEach((b, i) => { add('icon' + i, b.body); add('glyph', b.icon); });
+    dock.icons.forEach((b, i) => { add('icon' + i, b.object); add('bubble', b.bubble); add('label', b.nameText); });
     dock.mirrors.forEach(m => add('mirror', m));
-    dock.dots.forEach(d => add('dot', d));
+    dock.contacts.forEach(m => add('contact', m));
+    dock.dots.forEach(d => { add('dot', d); add('glow', d?.glow); });
   }
   if (slider) {
     add('knob', slider.knobSkin && slider.knob.children.find(c => c.material === slider.knobSkin));
@@ -183,10 +253,20 @@ window.contour = {
     obj.updateMatrixWorld();
     return pts.map(p => { const v = new THREE.Vector3(...p).applyMatrix4(obj.matrixWorld).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; });
   },
+  // Hold a fingertip at Dock app i: depth metres into its bubble's skin
+  // (negative: in front of it). null lets go.
+  touch(i, depth = -0.01) { finger = i == null ? null : { i, depth }; if (!finger) hands.length = 0; },
   tick(frames = 1, dt = 1 / 60) { for (let i = 0; i < frames; i++) step(dt); renderer.render(scene, camera); },
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);
     return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };
   },
 };
+await objectFontsReady;   // printed object textures repaint in Inter
+// Labels lay out their glyphs off the main thread, and a label that has not
+// been on screen yet (the Dock's app names) may still be waiting: a still
+// taken then shows an empty capsule. Wait for every one.
+const labels = [];
+scene.traverse(o => { if (o.geometry?.type === 'GlyphsGeometry' || 'textRenderInfo' in o) labels.push(o); });
+while (labels.some(t => !t.textRenderInfo)) await new Promise(r => setTimeout(r, 20));
 window.ready = true;

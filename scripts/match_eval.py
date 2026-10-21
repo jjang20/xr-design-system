@@ -257,186 +257,112 @@ if have('dock-rest-beauty'):
     check('D1', 'Dock', 'Shelf is visibly curved like the lookdev arc (bottom edge bow / width, live vs Blender)',
           f'{sag:+.3f} vs Blender {ref:+.3f} ({sag / ref:.2f}x)', sag / ref >= 0.8 and sag / ref <= 1.8 and abs(sag) >= 0.015,
           '0.8x to 1.8x of Blender, and at least 1.5% of the width', 'Jihoon: "plate is still straight"; lookdev shelf_dock()')
-    for state in ('rest', 'hover'):
-        if not have(f'dock-{state}-icons'):
-            continue
-        each = split_columns(rgb(f'dock-{state}-icons').mean(axis=2) > 0.1)
-        fits = [ellipse_fit(m) for m in each]
-        iou = min(f[0] for f in fits); ratio = min(f[1] for f in fits)
-        if len(each) != 5:
-            iou = 0
-        check(f'D2{state[0]}', 'Dock', f'Icons are globes: outline is an ellipse ({state})', f'worst IoU {iou:.3f}, axis ratio {ratio:.2f}',
-              iou >= 0.975 and ratio >= 0.9, 'IoU with fitted ellipse >= 0.975, axis ratio >= 0.9',
-              'Jihoon: "Dock icons should look like literally globe, not rounded square"')
-    # Glyph legibility through the globe: the glyph's own pixels, found by
-    # switching it off, against the same pixels without it.
+    # The Dock since 2026-10-21 (Jihoon's reference image): real objects
+    # standing on the glass; a clear bubble forms round the one a finger
+    # comes near, and gives way where it is pressed. The checks before it
+    # (D2-D20) measured the glass globes it replaced.
+    Rb = rgb('dock-rest-beauty')
     icons = rgb('dock-rest-icons').mean(axis=2) > 0.1
-    diff = np.abs(rgb('dock-rest-beauty') - rgb('dock-rest-noglyph')).max(axis=2)
-    worst, each = 99, []
-    for one in split_columns(icons):
-        reg = erode(one, 2)
-        g = reg & (diff > 0.25)
-        if g.sum() < 20:
-            worst = 0; continue
-        on, off = lum(rgb('dock-rest-beauty'))[g], lum(rgb('dock-rest-noglyph'))[g]
-        each.append(contrast(float(np.median(on)), float(np.median(off))))
-        worst = min(worst, each[-1])
-    check('D3', 'Dock', 'Glyph inside each globe stays legible (contrast, glyph vs glass behind it)', f'worst {worst:.1f}:1 (' + ', '.join(f'{c:.1f}' for c in each) + ')', worst >= 3,
-          '>= 3:1 (WCAG 1.4.11 non-text contrast)', 'accessibility-review skill')
+    objs = split_columns(icons)
+    feet = []
+    for one in objs:
+        ys, xs = np.nonzero(one)
+        y = ys.max(); x = int(np.median(xs[ys >= y - 2]))
+        feet.append(bool(dilate(shelf, 3)[y, x]))
+    check('D21', 'Dock', 'Five app objects, each standing on the glass shelf', f'{len(objs)} objects, {sum(feet)} with their foot on the shelf',
+          len(objs) == 5 and all(feet), '5 of 5', 'Jihoon 2026-10-21: "3d icons should look like real 3d objects" (reference: objects on a glass shelf)')
+    # A real object is lit: faces toward the light, faces away, highlights.
+    # A flat-coloured 2D icon has almost no range of light inside it.
+    L = lum(Rb)
+    rng = [contrast(float(np.percentile(L[erode(o, 2)], 95)), float(np.percentile(L[erode(o, 2)], 5))) for o in objs]
+    check('D22', 'Dock', 'Objects are lit like real things: light and shade across each one', 'flattest ' + f'{min(rng):.1f}:1 (' + ', '.join(f'{r:.1f}' for r in rng) + ')',
+          min(rng) >= 4, 'brightest 5% vs darkest 5% of each object >= 4:1', 'Jihoon 2026-10-21: "real 3d objects"; apple-design: depth from light, not outline')
+    contact = mask('dock-rest-contact') & shelf
+    dark = float((lum(rgb('dock-rest-nocontact')) - L)[contact].mean()) if contact.any() else 0
+    check('D23', 'Dock', 'Each object is grounded by a soft contact shadow on the glass', f'{dark:+.3f} darker under the objects', dark >= 0.01,
+          '>= 0.01 mean luminance darker inside the contact areas', 'Jihoon 2026-10-19: compelling depth; apple-design: contact shadow anchors an object')
     mirror = mask('dock-rest-mirror') & shelf
     refl = energy('dock-rest-beauty', 'dock-rest-nomirror', mirror) if mirror.any() else 0
-    check('D4', 'Dock', 'Icons are visibly mirrored in the shelf (colour change the mirror makes, inside the shelf)', f'{refl:.1f}/255', refl >= 5,
-          '>= 5/255 mean (was 14 until round 4; judges 3 and 4 found the mirror competing, so D12 caps it and the glass reflection Jihoon asked for is D5)',
-          'lookdev mirror-smooth shelf; judge rounds 3-4')
-    glass = (icons | shelf)
-    r_now = energy('dock-rest-beauty', 'dock-rest-noreflect', glass)
-    r_phys = energy('dock-rest-physical-reflect', 'dock-rest-noreflect', glass)
-    check('D5', 'Dock', 'Glass reflections stronger than physical (v4 was physical)', f'{r_now:.1f} vs {r_phys:.1f} ({r_now / max(r_phys, 1e-3):.2f}x)',
-          r_phys > 0.5 and r_now >= 1.5 * r_phys, '>= 1.5x', 'Jihoon: "Reflection and distortion value should be larger"')
-    d_now = energy('dock-rest-beauty', 'dock-rest-norefract', glass)
-    d_phys = energy('dock-rest-physical-refract', 'dock-rest-norefract', glass)
-    check('D6', 'Dock', 'Refraction distortion stronger than physical (v4 was physical)', f'{d_now:.1f} vs {d_phys:.1f} ({d_now / max(d_phys, 1e-3):.2f}x)',
-          d_phys > 0.5 and d_now >= 1.5 * d_phys, '>= 1.5x', 'Jihoon: "Reflection and distortion value should be larger"')
+    check('D4', 'Dock', 'Objects are visibly mirrored in the shelf (colour change the mirror makes, inside the shelf)', f'{refl:.1f}/255', refl >= 3,
+          '>= 3/255 mean', 'Jihoon\'s reference: objects reflected in the glass shelf')
+    m_e = energy('dock-rest-beauty', 'dock-rest-nomirror', mirror)
+    g_e = energy('dock-rest-beauty', 'dock-rest-noicons', erode(icons, 2))
+    check('D12', 'Dock', 'Reflections are faint, not a second row of objects', f'{m_e / max(g_e, 1e-3):.2f} of the objects\' strength', m_e <= 0.25 * g_e,
+          '<= 0.25', 'Judge rounds 3-4: reflections competed with the icons; back layers must not compete with the front (Jihoon 2026-10-19)')
     dot = mask('dock-rest-dot')
-    if dot.any():
+    if dot.any() and have('dock-rest-noglow'):
         ring = dilate(dot, 14) & ~dilate(dot, 2)
-        g = float((lum(rgb('dock-rest-beauty')) - lum(rgb('dock-rest-noglow')))[ring].mean())
+        g = float((L - lum(rgb('dock-rest-noglow')))[ring].mean())
     else:
         g = 0
     check('D7', 'Dock', 'Running light glows (light added around the dot by its glow)', f'{g:+.3f}', g >= 0.03,
           '>= +0.03 mean luminance in a 2-14 px ring', 'Jihoon: "Lighting should be glow"')
-    # Judge round 2: the mirror images competed with the globes (readable
-    # upside-down glyphs). A soft reflection keeps the colour, not the detail.
-    if have('dock-rest-flatroom'):
-        md = np.abs(lum(rgb('dock-rest-beauty')) - lum(rgb('dock-rest-noglyph')))[mirror]
-        on, off = lum(rgb('dock-rest-beauty'))[mirror], lum(rgb('dock-rest-noglyph'))[mirror]
-        top = md >= np.percentile(md, 99) if md.size else md
-        c = contrast(float(on[top].mean()), float(off[top].mean())) if md.size else 99
-        check('D9', 'Dock', 'Mirrored glyphs stay soft: the reflection carries colour, not readable icons', f'{c:.2f}:1 (brightest 1% of glyph pixels)', c <= 1.5,
-              '<= 1.5:1', 'Judge round 2: "reflected globes, with readable upside-down icons, compete with the real ones"; lookdev mirror is faint')
-        # How much of the room the globes let through: change when the room
-        # turns flat grey, inside each globe (glyph left out) over the same
-        # change right beside them.
-        flat = np.abs(lum(rgb('dock-rest-beauty')) - lum(rgb('dock-rest-flatroom')))
-        inner = erode(icons, 4) & ~dilate(diff > 0.1, 3)
-        beside = dilate(icons, 30) & ~dilate(icons, 6) & ~dilate(shelf, 2)
-        t = float(flat[inner].mean() / max(flat[beside].mean(), 1e-3))
-        check('D10', 'Dock', 'Globes are clear glass: the room shows through them', f'{t:.2f} of the room passes', t >= 0.3,
-              '>= 0.30 (tinted clear glass; milky glass is lower)', 'Judge round 2: "milky, opaque globes with no refraction"')
-    # Judge round 3: hovering pushed the neighbours aside and stretched the
-    # shelf. Looking at a target must never move the others (visionOS): the
-    # hovered globe grows in place.
-    if have('dock-hover-icons'):
-        rest_i = split_columns(icons)
-        hov_i = split_columns(rgb('dock-hover-icons').mean(axis=2) > 0.1)
+
+    if have('dock-hover-beauty'):
+        Hb, Hn = rgb('dock-hover-beauty'), rgb('dock-hover-nobubble')
+        bub = mask('dock-hover-bubble')
+        hov = split_columns(rgb('dock-hover-icons').mean(axis=2) > 0.1)
+        iou, ratio = ellipse_fit(bub) if bub.any() else (0, 0)
+        bw = lambda m: int(np.ptp(np.nonzero(m)[1])) + 1
+        bh = lambda m: int(np.ptp(np.nonzero(m)[0])) + 1
+        size = bw(bub) / bw(hov[2]) if bub.any() and len(hov) == 5 else 0
+        check('D24', 'Dock', 'Hover forms a round bubble about one and a half times the object', f'IoU with an ellipse {iou:.3f}; {size:.2f}x the object\'s width',
+              iou >= 0.97 and 1.3 <= size <= 1.6, 'IoU >= 0.97; 1.3-1.6x', 'Jihoon\'s reference: the sphere is about 1.5x the icon')
+        # Clear, not milky: the object keeps its light and shade through the
+        # bubble, and the bubble's middle adds little; its rim carries it.
+        obj = erode(hov[2], 2) if len(hov) == 5 else bub
+        Lh, Ln = lum(Hb), lum(Hn)
+        keep = (np.percentile(Lh[obj], 95) - np.percentile(Lh[obj], 5)) / max(np.percentile(Ln[obj], 95) - np.percentile(Ln[obj], 5), 1e-3)
+        check('D25', 'Dock', 'The object stays clear through the bubble (its light and shade survive)', f'{keep:.2f} of its tonal range', keep >= 0.85,
+              '>= 0.85', 'Jihoon: "light bubble layer"; first try read as a milky veil (self-review 2026-10-21)')
+        d = max(3, bw(bub) // 16)
+        rim = bub & ~erode(bub, d)
+        mid = erode(bub, 3 * d) & ~dilate(hov[2], 3)
+        r_add = float((Lh - Ln)[rim].mean())
+        m_add = float(np.abs(Lh - Ln)[mid].mean()) if mid.any() else 0
+        check('D26', 'Dock', 'The bubble shows at its rim and stays clear in the middle', f'rim {r_add:+.3f}, middle {m_add:.3f}',
+              r_add >= 0.04 and m_add <= 0.6 * abs(r_add), 'rim >= +0.04 mean luminance; middle change <= 0.6x the rim\'s',
+              'Jihoon\'s reference: a faint sphere whose rim is bright; glass: Fresnel')
+        ys = np.nonzero(bub)[0]
+        foot = np.nonzero(objs[2])[0].max() if len(objs) == 5 else 0
+        rest_on = abs(int(ys.max()) - int(foot)) / bh(bub)
+        check('D27', 'Dock', 'The bubble rests on the shelf where the object stood', f'its bottom is {rest_on:.1%} of its height from the object\'s foot', rest_on <= 0.06,
+              '<= 6%', 'Jihoon\'s reference: the bubble sits on the shelf')
         cx = lambda m: float(np.nonzero(m)[1].mean())
-        if len(rest_i) == 5 and len(hov_i) == 5:
-            move = max(abs(cx(a) - cx(b)) for i, (a, b) in enumerate(zip(rest_i, hov_i)) if i != 2)
-        else:
-            move = 99.0
+        move = max(abs(cx(a_) - cx(b_)) for i, (a_, b_) in enumerate(zip(objs, hov)) if i != 2) if len(objs) == len(hov) == 5 else 99.0
         cols = lambda m: np.where(m.any(axis=0))[0]
         sh = mask('dock-hover-shelf')
         stretch = max(abs(int(cols(shelf).min()) - int(cols(sh).min())), abs(int(cols(shelf).max()) - int(cols(sh).max())))
-        check('D11', 'Dock', 'Hover grows the globe in place: neighbours and shelf stay put', f'neighbours move {move:.1f} px, shelf ends {stretch} px', move <= 2 and stretch <= 2,
-              '<= 2 px each', 'Judge round 3: "hovering pushes the neighbours about 25 px outward and widens the shelf"; lookdev hover keeps them')
-        # Hover lights the globe as well as growing it (a sheen on its glass).
-        if have('dock-hover-noglyph'):
-            gh = np.abs(rgb('dock-hover-beauty') - rgb('dock-hover-noglyph')).max(axis=2) > 0.04
-            a_ = erode(rest_i[2], 4) & ~dilate(diff > 0.04, 4)
-            b_ = erode(hov_i[2], 4) & ~dilate(gh, 4)
-            lift = float(lum(rgb('dock-hover-beauty'))[b_].mean() - lum(rgb('dock-rest-beauty'))[a_].mean())
-            ch_r, ch_h = chroma(rgb('dock-rest-beauty')[a_]), chroma(rgb('dock-hover-beauty')[b_])
-            check('D20', 'Dock', 'Hover keeps the globe\'s colour (it glows, it does not turn milky)', f'{ch_h / max(ch_r, 1e-3):.2f}x the colour at rest', ch_h >= 0.9 * ch_r,
-                  '>= 0.9x', 'Judge round 5: "the green turns milky and loses saturation"')
-            check('D14', 'Dock', 'Hover lights the globe, not only scales it', f'{lift:+.3f} mean luminance', lift >= 0.05,
-                  '>= +0.05 over the same globe at rest', 'Judge round 3: "there is no highlight, only scale"; round 4: "no rim or brightness cue" at +0.03; apple-design: hover = light, not size alone')
-    # Judge round 3: the reflections were a second row of milky half-domes,
-    # as big and bright as the globes. A reflection in clear glass is faint
-    # and keeps the globe's colour.
-    if have('dock-rest-noicons'):
-        m_e = energy('dock-rest-beauty', 'dock-rest-nomirror', mirror)
-        g_e = energy('dock-rest-beauty', 'dock-rest-noicons', erode(icons, 2))
-        dm = rgb('dock-rest-beauty') - rgb('dock-rest-nomirror')
-        tint = []
-        for one in split_columns(mask('dock-rest-mirror') & shelf)[:4]:   # the four coloured globes
-            d = dm[one & (np.abs(dm).max(axis=2) > 0.02)]
-            if len(d):
-                tint.append(float(np.abs(d.mean(axis=0) - d.mean()).mean() / max(np.abs(d).mean(), 1e-3)))
-        t = min(tint) if tint else 0
-        check('D12', 'Dock', 'Reflections are faint and coloured, not a second row of globes', f'{m_e / max(g_e, 1e-3):.2f} of the globes\' strength; colour share {t:.2f}',
-              m_e <= 0.2 * g_e and t >= 0.15, 'strength <= 0.2 of the globes; colour share (hue in the added light) >= 0.15',
-              'Judge round 3: "a second row of milky half-domes, as big and as bright as the globes"; round 4: "almost full size and full saturation ... drop to about 20%"; lookdev mirror is faint')
-    # Judge round 3: dirt and ghost icons in every globe. The room seen in
-    # the glass should be soft light, not pixel-scale detail: share of
-    # pixels where the reflection carries sharp detail (glyph left out).
-    refl_d = sharp(np.abs(rgb('dock-rest-beauty') - rgb('dock-rest-noreflect')))
-    dirt = [float((refl_d[erode(one, 3) & ~dilate(diff > 0.04, 3)] > 0.04).mean()) for one in split_columns(icons)]
-    check('D13', 'Dock', 'Globes are clean: reflections are soft, no fine dirt or ghost icons', 'worst ' + f'{max(dirt):.1%} (' + ', '.join(f'{x:.0%}' for x in dirt) + ')',
-          max(dirt) <= 0.05, '<= 5% of each globe has pixel-scale detail in its reflection', 'Judge round 3: "room-reflection artifacts that read as dirt or bugs"')
-    # Judge round 4: the globes showed no refracted background, an even
-    # body of colour (candy). A ball lens shows the room upside down: light
-    # and dark shapes across its middle, beyond the smooth shading.
-    # The room's own share: the frame less the same frame with the room
-    # turned flat grey, so shading and highlights cancel out.
-    ng = lum(rgb('dock-rest-noglyph'))
-    room = lum(rgb('dock-rest-beauty')) - lum(rgb('dock-rest-flatroom'))
-    struct = []
-    for one in split_columns(icons):
-        mid = disc(one, 0.75) & ~dilate(diff > 0.04, 3)
-        struct.append(residual_std(room, mid))
-    check('D15', 'Dock', 'Globes show the room through them (upside down), not an even body of colour',
-          'weakest ' + f'{min(struct):.3f} (' + ', '.join(f'{x:.3f}' for x in struct) + ')', min(struct) >= 0.02,
-          '>= 0.02 luminance spread across each globe\'s middle after its smooth shading', 'Judge round 4: "the globes read as candy ... no refracted background"')
-    # Judge round 4: two or three highlight blobs per globe, one sitting on
-    # the glyph and washing it out. One main hotspot, clear of the glyph.
-    hot_n, hot_on = [], []
-    gl = diff > 0.25
-    for one in split_columns(icons):
-        spots = components(erode(one, 2) & (ng > 0.8), 4)
-        hot_n.append(len(spots))
-        hot_on.append(float((spots[0] & dilate(gl, 2)).sum() / spots[0].sum()) if spots else 0.0)
-    # Judge round 5: the room's dark door showed as a hard dark band across
-    # each globe and read as dirt. The room should read as soft light and
-    # shade: the darkest part of a globe's middle stays near its median.
-    # Measured on value (the brightest channel), not luminance: a deep blue
-    # is dark in luminance but reads as colour, not dirt. 0.65 fails the
-    # round-5 renders the judge called dirty (0.51) and passes round 4's,
-    # which no judge called dirty (0.69).
-    dark = []
-    val = rgb('dock-rest-beauty').max(axis=2)
-    for one in split_columns(icons):
-        mid = disc(one, 0.8) & ~dilate(diff > 0.04, 3)
-        v = val[mid]
-        dark.append(float(np.percentile(v, 5) / max(np.median(v), 1e-3)))
-    check('D17', 'Dock', 'No dark band inside the globes: the room seen through them is soft light and shade',
-          'worst ' + f'{min(dark):.2f} (' + ', '.join(f'{x:.2f}' for x in dark) + ')', min(dark) >= 0.65,
-          'darkest 5% of each globe\'s middle >= 0.65x its median (value, the brightest channel)', 'Judge round 5: "the refracted dark room reads as dirt"')
-    # Judge round 5: the hotspot sat right above every glyph, touching it.
-    # The hotspot is the bright patch round the brightest point inside the
-    # globe (the rim's window reflection is left out), at 0.75x its peak.
-    gap_ = []
-    gy, gx = np.nonzero(gl)
-    for one in split_columns(icons):
-        d_ = 2 * math.sqrt(one.sum() / math.pi)
-        inner = disc(one, 0.8)
-        peak = ng[inner].max()
-        spot = [c for c in components(inner & (ng >= 0.75 * peak), 1) if (c & inner & (ng == peak)).any()]
-        sy, sx = np.nonzero(spot[0] if spot else inner & (ng == peak))
-        inside = one[gy, gx]
-        dmin = float(np.sqrt((gx[inside][:, None] - sx[None, :]) ** 2 + (gy[inside][:, None] - sy[None, :]) ** 2).min()) if inside.any() else d_
-        gap_.append(dmin / d_)
-    check('D18', 'Dock', 'The highlight stays clear of the glyph', 'closest ' + f'{min(gap_):.2f} of the globe\'s width (' + ', '.join(f'{x:.2f}' for x in gap_) + ')',
-          min(gap_) >= 0.08, '>= 0.08 of the globe\'s width between the hotspot and the glyph', 'Judge round 5: "the same white hotspot directly above every glyph ... touches the top of the ruler"')
-    check('D16', 'Dock', 'One main highlight per globe, clear of its glyph',
-          f'hotspots per globe {hot_n}; worst share on the glyph {max(hot_on):.0%}', max(hot_n) <= 2 and max(hot_on) <= 0.15,
-          '<= 2 hotspots (a key and at most a rim glint); <= 15% of the main one within 2 px of the glyph',
-          'Judge round 4: "two or three separate highlight blobs ... a hotspot sits right on the glyph"')
-    region = dilate(icons | shelf, 6)
-    for state in ('rest', 'hover'):
-        if have(f'shown-dock-{state}'):
-            c = float(((np.abs(rgb(f'shown-dock-{state}') - np.asarray(Image.open(f'shots/match/live-dock-{state}.png').convert('RGB'), dtype=np.float32) / 255).max(axis=2) > 0.06) & region).sum() / region.sum())
-            check(f'D8{state[0]}', 'Dock', f'Change from the version Jihoon last saw is visible ({state})', f'{c:.0%} of the Dock\'s pixels', c >= 0.25,
-                  '>= 25% of pixels change by more than 6%', 'Jihoon: "Nothing has changed"')
+        check('D11', 'Dock', 'Hover never moves the neighbours or the shelf', f'neighbours move {move:.1f} px, shelf ends {stretch} px', move <= 2 and stretch <= 2,
+              '<= 2 px each', 'Judge round 3: hover pushed the neighbours aside; visionOS: looking at a target never moves the others')
+        # The name's own pixels: where the frame changes when it is switched
+        # off (a flat mask can't draw signed-distance text).
+        lab = (np.abs(Hb - rgb('dock-hover-nolabel')).max(axis=2) > 0.15) if have('dock-hover-nolabel') else np.zeros(Hb.shape[:2], bool)
+        c = contrast(float(np.median(Lh[lab])), float(np.median(lum(rgb('dock-hover-nolabel'))[lab]))) if lab.sum() > 20 else 0
+        check('D28', 'Dock', 'The app\'s name reads against what is behind it', f'{c:.1f}:1', c >= 4.5,
+              '>= 4.5:1 (WCAG 1.4.3, text)', 'accessibility-review skill')
+
+    if have('dock-press-beauty') and have('dock-hover-beauty'):
+        Pb = rgb('dock-press-beauty')
+        pb = mask('dock-press-bubble')
+        prs = split_columns(rgb('dock-press-icons').mean(axis=2) > 0.1)
+        moved = changed('dock-press-beauty', 'dock-hover-beauty', bub)
+        # The bubble's outline as drawn (a flat mask has no dent or squash):
+        # where it changes the frame, near where it stands.
+        near = dilate(bub, 24)
+        seen = lambda b, n: (np.abs(rgb(b) - rgb(n)).max(axis=2) > 0.03) & near
+        sh_, sp_ = seen('dock-hover-beauty', 'dock-hover-nobubble'), seen('dock-press-beauty', 'dock-press-nobubble')
+        bulge = bw(sp_) / bw(sh_) if sp_.any() and sh_.any() else 1
+        check('D29', 'Dock', 'Pressing visibly changes the bubble, and it gives (bulges round the finger)', f'{moved:.0%} of the bubble changes; {bulge:.3f}x as wide as at hover',
+              moved >= 0.15 and bulge >= 1.02, '>= 15% of its pixels; >= 1.02x', 'Jihoon: "the bubble layer can be pressed like the bubble-pressed list"; a soft ball pressed from the front bulges round it')
+        give = (prs[2].sum() / hov[2].sum()) if len(prs) == 5 and len(hov) == 5 else 1
+        check('D30', 'Dock', 'The object gives way under the press (moves back, a touch smaller)', f'{give:.3f}x its hover size on screen', give <= 0.97,
+              '<= 0.97x', 'apple-design: press feedback is immediate and physical; visionOS: a pressed element recedes')
+        po = erode(prs[2], 2) if len(prs) == 5 else pb
+        Lp, Lpn = lum(Pb), lum(rgb('dock-press-nobubble'))
+        keep_p = (np.percentile(Lp[po], 95) - np.percentile(Lp[po], 5)) / max(np.percentile(Lpn[po], 95) - np.percentile(Lpn[po], 5), 1e-3)
+        check('D31', 'Dock', 'Pressing does not fog the object', f'{keep_p:.2f} of its tonal range', keep_p >= 0.75,
+              '>= 0.75', 'Self-review 2026-10-21: the first press read as a whitish veil over the object')
 
 if have('slider-rest-beauty'):
     geo = json.loads((E / 'slider-rest.json').read_text())
