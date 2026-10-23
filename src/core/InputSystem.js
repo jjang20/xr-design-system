@@ -2,7 +2,7 @@
 //   - desktop mouse            -> a ray (click = press, wheel = push/pull)
 //   - XR hand or controller    -> a poke (fingertip / grip) when near,
 //                                 a ray (pinch / trigger = press) when far
-// Near/far switching uses proximity.nearfar.threshold +/- hysteresis, so a
+// Near/far switching uses absolute input.direct.distance enter/exit edges, so a
 // hand at the boundary doesn't flicker between poke and ray.
 import * as THREE from 'three';
 import { Hysteresis } from './Hysteresis.js';
@@ -48,14 +48,14 @@ export class InputSystem {
     }, { passive: false });
 
     // XR: two hands or controllers.
-    const T_ = T.get('proximity.nearfar.threshold');
-    const hy = T.get('proximity.nearfar.hysteresis');
+    const enter = T.get('input.direct.distance.enter');
+    const exit = T.get('input.direct.distance.exit');
     this.xr = [0, 1].map(i => {
       const ray = renderer.xr.getController(i);
       const grip = renderer.xr.getControllerGrip(i);
       const hand = renderer.xr.getHand(i);
       scene.add(ray, grip, hand);
-      const src = { id: `xr${i}`, ray, grip, hand, selecting: false, connected: false, near: new Hysteresis(T_ - hy, T_ + hy), state: {} };
+      const src = { id: `xr${i}`, ray, grip, hand, selecting: false, connected: false, near: new Hysteresis(enter, exit), state: {} };
       ray.addEventListener('connected', () => { src.connected = true; });
       ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; });
       ray.addEventListener('selectstart', () => { src.selecting = true; });

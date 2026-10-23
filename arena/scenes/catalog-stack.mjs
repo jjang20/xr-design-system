@@ -74,7 +74,7 @@ async function titleContrast(page, png, defaultsUrl) {
     g.drawImage(img, 0, 0);
     const k = img.width / innerWidth;
     const lin = c => (c /= 255) <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    const dist = C.panel.distance, dmm = v => (v / 1000) * dist;
+    const dist = C.panel.distance, dmm = v => (v / 1000) * C.panel.T.effectiveDistance(dist);
     // Contrast of the brightest pixels over the median in a box given in a
     // level's own coordinates, clipped to stop above `clipY` (screen px).
     const contrast = (l, [left, top, right, bottom], clipY = Infinity) => {

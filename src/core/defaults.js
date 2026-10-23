@@ -6,7 +6,7 @@ export const DEFAULTS = {
   // Proposed token: placement.distance.near (arm's reach for poke).
   distance: 0.6, // m
 
-  // Hover fade out. Only motion.hover.in exists; out mirrors it for now.
+  // Hover fade out. Only motion.enter exists; out mirrors it for now.
   hoverOutSameAsIn: true,
 
   // Layout follows Apple's visionOS 26 kit, converted with 1 pt ≈ 0.73 dmm
@@ -212,8 +212,8 @@ export const DEFAULTS = {
     // edge, crown, under: mm as seen at `distance` (0.6 m), growing with the
     // Dock's distance: the rolled edge's rise, the dome on top under the
     // apps, the underside's swell. pad: dmm of plate past the last app, its
-    // handle (at least size.target.min). minSize, maxSize: the apps' sizes
-    // the stretch reaches (x size.button.default); the smallest is the
+    // handle (at least size.interactive.minimum). minSize, maxSize: the apps' sizes
+    // the stretch reaches (x size.interactive.default); the smallest is the
     // default, so stretching never takes a target below its resting size.
     // appear: the share of a slot over which an added app forms. fit: the
     // spring that fits the plate to the apps when one is added (response s,
@@ -224,7 +224,7 @@ export const DEFAULTS = {
     // damping ratio; Apple's drawer after a drag; reduced motion: 1). swell:
     // a held end swells by this share. glow: the hold's light (x the press
     // glow), a hover's, its radius (x pad). reach: a pinch grabs within this
-    // share of the hover distance (proximity.hover.enter).
+    // share of the hover distance (input.hover.distance.enter).
     dockPlate: { edge: 5, crown: 3, under: 3, pad: 44, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.5 }, reach: 0.4 },
     // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
     // size: its diameter x the object's larger side (Jihoon's reference:
@@ -243,7 +243,7 @@ export const DEFAULTS = {
   // Colours. Contour has no colour tokens yet (MR-first: colour is the open problem).
   color: {
     glassTint: 0x1b1c20, // glass where it doesn't show the room (and the MR fallback)
-    window: 0x1e2025, // platters: neutral dark graphite, opaque (surface.opacity.base)
+    window: 0x1e2025, // platters: neutral dark graphite, opaque (material.opacity.default)
     control: 0x3e4047, // secondary buttons
     controlHover: 0x5a5c63,
     row: 0x5a5c63, // list row hover fill

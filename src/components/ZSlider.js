@@ -18,8 +18,8 @@
 // etched detent rings on the plate light up amber, with a glow, up to it.
 //
 // Tokens used: zslider.travel, feedback.detent.*, feedback.shadow.press.*,
-// size.button.default, material.t.*, proximity.hover.*, feedback.glow.edge,
-// motion.hover.in.*, surface.*
+// size.interactive.default, material.thickness.*, input.hover.distance.*, material.glow.width,
+// motion.enter.*, surface.*
 import * as THREE from 'three';
 import { Interactable, markComponent } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
@@ -41,23 +41,24 @@ export class ZSlider extends Interactable {
     const distance = o.distance ?? DEFAULTS.distance;
     this.travel = T.get('zslider.travel');
     this.interval = T.get('feedback.detent.interval');
-    this.tickGain = T.get('feedback.detent.audio.gain');
-    this.tickLength = T.get('feedback.detent.audio.length');
-    this.shadowScale = T.get('feedback.shadow.press.scale');
-    this.shadowMin = T.get('feedback.shadow.press.opacity.min');
-    this.shadowMax = T.get('feedback.shadow.press.opacity.max');
-    this.hoverIn = T.get('motion.hover.in.duration');
-    this.hoverEase = cubicBezier(T.get('motion.hover.in.easing'));
-    this.hoverBand = new Hysteresis(T.dmm('proximity.hover.enter', distance), T.dmm('proximity.hover.exit', distance));
+    this.tickGain = T.get('sound.detent.gain');
+    this.tickLength = T.get('sound.detent.duration');
+    this.shadowScale = T.get('shadow.contact.scaleGain');
+    this.shadowMin = T.get('shadow.contact.opacity.minimum');
+    this.shadowMax = T.get('shadow.contact.opacity.maximum');
+    this.hoverIn = T.get('motion.enter.duration');
+    this.hoverEase = cubicBezier(T.get('motion.enter.easing'));
+    this.hoverBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
     this.hoverT = 0;
 
-    const side = T.dmm('size.button.default', distance);
-    const dmm = v => (v / 1000) * distance;
-    const t = T.get('material.t.regular');
+    const side = T.viewSize('size.interactive.default', distance);
+    const dmm = v => (v / 1000) * T.effectiveDistance(distance);
+    const t = T.get('material.thickness.regular');
     // Thin glass (the lookdev's plate is regular, 8 mm; judge round 2 read
     // that rim as an inflated tyre), so the rim reads as a crisp edge.
-    const plateT = T.get('material.t.thin');
+    const plateT = T.get('material.thickness.thin');
     this.side = side;
+    this.touchSide = T.touchSize('size.interactive.default', distance);
     this.t = t;
 
     // Plate: a round disc of clear glass the stem rises out of. All the
@@ -237,7 +238,7 @@ export class ZSlider extends Interactable {
   }
 
   insideKnob(p, margin = 0) {
-    const h = this.side / 2 + margin;
+    const h = this.touchSide / 2 + margin;
     return Math.abs(p.x) <= h && Math.abs(p.y) <= h;
   }
 
@@ -251,8 +252,8 @@ export class ZSlider extends Interactable {
       if (p.kind === 'poke') {
         const front = z + this.t;
         const d = Math.hypot(
-          Math.max(0, Math.abs(p.point.x) - this.side / 2),
-          Math.max(0, Math.abs(p.point.y) - this.side / 2),
+          Math.max(0, Math.abs(p.point.x) - this.touchSide / 2),
+          Math.max(0, Math.abs(p.point.y) - this.touchSide / 2),
           Math.max(0, p.point.z - front),
         );
         hoverD = Math.min(hoverD, d);

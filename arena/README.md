@@ -29,9 +29,9 @@ Rendering uses Playwright with Chromium. If you have no Playwright browser insta
 
 | Step | File | What it does | What you do |
 |---|---|---|---|
-| Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.t.regular": 12`. | Write the question and pick the values to compare. |
+| Experiment | `experiments/<id>.json` | One question, the criteria, and 2 to 5 variants. A variant is a list of token patches like `"material.thickness.regular": 0.012`. | Write the question and pick the values to compare. |
 | Render | `render.mjs`, `scenes/`, `scene/button.html` | Draws each variant at 1:1 scale from the wearer's eye at the headset's pixel density (25 px per degree, about Quest 3), using the real components where a scene exists (see below). | Nothing. |
-| Check | `check.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
+| Check | `check.mjs`, `lib/checks.mjs` | Code-measured rules. A variant that fails is not judged. | Read the warnings. |
 | Bar | `judge-human.mjs`, `judge-ai.mjs`, `lib/bar.mjs` | Each variant alone, next to your reference images: does it reach visionOS level? Scored by eye on seven rows (material, light, shape, type, states, depth, cohesion; the material, type, states and depth rows spell out Apple's own standards); the AI needs 4 of 5 on every row. An eighth row, motion, is checked by code (see below). Variants that fail stop here. | Ship it / Not yet, and tick what falls short. |
 | Pairwise | `judge-human.mjs`, `judge-ai.mjs` | Only bar passers, two at a time, names hidden, sides shuffled. The AI judges every pair twice with the sides swapped; if it flips, that pair counts as a tie. | Vote. Your votes decide. |
 | Score | `score.mjs` | Win/tie/loss and a Bradley-Terry strength per variant, plus how often the AI agreed with you. | Read `report.md`. |
@@ -51,7 +51,7 @@ Put captures of the level you want to reach in `arena/references/` (your own vis
 
 ## Adding an experiment
 
-Copy `experiments/button-thickness.json`, change the question, criteria and variants. Any token the button scene reads can be varied today: `material.t.*`, `material.density.firm.press`, `size.button.default`, `size.gap.min`, `feedback.glow.edge`, `feedback.shadow.press.*`, `surface.opacity.base`, `anchor.eccentricity.vertical`. Other components (Z-Slider, packaging, dock) need their own scene file under `scene/`.
+Copy `experiments/button-thickness.json`, change the question, criteria and variants. Any token the button scene reads can be varied today: `material.thickness.*`, `material.firmness.firm.pressDepth`, `size.interactive.default`, `spacing.gap.minimum`, `material.glow.width`, `shadow.contact.*`, `material.opacity.default`, `anchor.eccentricity.vertical`. Other components (Z-Slider, packaging, dock) need their own scene file under `scene/`.
 
 ## What gets rendered
 

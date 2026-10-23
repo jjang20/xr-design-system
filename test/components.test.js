@@ -17,13 +17,13 @@ const T = createTokens(json);
 const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
 
 test('tokens convert to scene units', () => {
-  near(T.get('material.t.regular'), 0.008); // 8 mm
-  near(T.get('material.density.firm.recover'), 0.14); // 140 ms
-  near(T.dmm('size.button.default', 0.6), 0.036); // 60 dmm at 0.6 m
+  near(T.get('material.thickness.regular'), 0.008); // 8 mm
+  near(T.get('motion.recovery.firm.duration'), 0.14); // 140 ms
+  near(T.viewSize('size.interactive.default', 0.6), 0.036); // 60 dmm at 0.6 m
   near(T.get('anchor.eccentricity.vertical'), (-25 * Math.PI) / 180);
-  assert.equal(T.get('anchor.mode'), 'body-lock');
+  assert.equal(T.get('anchor.mode'), 'bodyLock');
   assert.throws(() => T.get('nope.missing'), /unknown token/);
-  assert.throws(() => T.dmm('material.t.regular', 1), /not dmm/);
+  assert.throws(() => T.viewSize('material.thickness.regular', 1), /not a view size/);
 });
 
 test('every token name used in src/ exists in tokens.json', () => {
@@ -32,9 +32,9 @@ test('every token name used in src/ exists in tokens.json', () => {
   const used = new Set();
   for (const f of files) {
     const code = readFileSync(new URL(`../${f}`, import.meta.url), 'utf8');
-    for (const m of code.matchAll(/T\.(?:get|dmm)\(\s*'([^']+)'/g)) used.add(m[1]);
+    for (const m of code.matchAll(/T\.(?:get|viewSize|touchSize)\(\s*'([^']+)'/g)) used.add(m[1]);
     // Template names like `material.density.${density}.press`.
-    for (const m of code.matchAll(/T\.(?:get|dmm)\(\s*`([^`]+)`/g)) {
+    for (const m of code.matchAll(/T\.(?:get|viewSize|touchSize)\(\s*`([^`]+)`/g)) {
       for (const v of ['soft', 'firm', 'rigid', 'thin', 'regular', 'thick']) {
         const name = m[1].replace(/\$\{[^}]+\}/, v);
         if (T.names().includes(name)) used.add(name);
@@ -55,8 +55,8 @@ test('hysteresis does not flicker inside the band', () => {
 });
 
 test('press depth is density x thickness, and follows the finger', () => {
-  const t = T.get('material.t.regular');
-  const p = new PressModel({ thickness: t, pressRatio: 0.4, recover: 0.14, release: T.get('proximity.poke.release') });
+  const t = T.get('material.thickness.regular');
+  const p = new PressModel({ thickness: t, pressRatio: 0.4, recover: 0.14, release: T.get('input.poke.distance.release') });
   near(p.maxDepth, 0.0032); // firm 0.4 x 8 mm
   assert.equal(p.update(0.016, -0.01, true), null); // hovering in front
   assert.equal(p.update(0.016, 0.001, true), 'press'); // touched
@@ -65,7 +65,7 @@ test('press depth is density x thickness, and follows the finger', () => {
   near(p.depth, 0.0032);
 });
 
-test('release needs the finger to retreat proximity.poke.release', () => {
+test('release needs the finger to retreat input.poke.distance.release', () => {
   const p = new PressModel({ thickness: 0.008, pressRatio: 0.4, recover: 0.14, release: 0.003 });
   p.update(0.016, -0.01, true);
   p.update(0.016, 0.003, true); // pressed, deepest 3 mm
@@ -100,7 +100,7 @@ test('a soft surface lags behind a retreating finger', () => {
 });
 
 test('ease-out curve from tokens', () => {
-  const ease = cubicBezier(T.get('motion.hover.in.easing'));
+  const ease = cubicBezier(T.get('motion.enter.easing'));
   near(ease(0), 0);
   near(ease(1), 1);
   assert.ok(ease(0.5) > 0.5, 'ease-out is ahead of linear at the midpoint');
@@ -132,7 +132,7 @@ test('dock ignores a short glance', () => {
 });
 
 test('dock magnify uses the cosine falloff', () => {
-  const r = T.dmm('dock.magnify.radius', 0.55), max = T.get('dock.magnify.scale.max');
+  const r = T.viewSize('dock.magnify.radius', 0.55), max = T.get('dock.magnify.scale.max');
   near(magnifyScale(0, r, max), max);
   near(magnifyScale(r, r, max), 1);
   near(magnifyScale(r / 2, r, max), 1 + (max - 1) * Math.cos(Math.PI / 4));
@@ -160,6 +160,6 @@ test('z-slider detents tick every interval, shadow grows with push', () => {
   assert.equal(detentIndex(0.1, i), 1);
   assert.equal(detentIndex(0.3, i), 3); // floating point safe
   assert.equal(detentIndex(1, i), 10);
-  const s = shadowAt(1, T.get('feedback.shadow.press.scale'), 0.15, 0.6);
+  const s = shadowAt(1, T.get('shadow.contact.scaleGain'), 0.15, 0.6);
   near(s.scale, 1.9); near(s.opacity, 0.6);
 });

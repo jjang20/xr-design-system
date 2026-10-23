@@ -22,7 +22,7 @@ Other commands: `npm test` (token check + interaction logic tests), `npm run sho
 Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/core/look.js). The bar is a shipping visionOS app. The Catalog window has been rebuilt to [the Catalog spec](catalog-spec.md); the toolbar, Z-Slider and Dock now use the same glass (2026-10-20).
 
 - **Glass windows.** A window is a thick glass slab with a fully rounded rim. It shows the room behind it frosted and darkened, refracts it at the rim, reflects the room in front (strongest at the rim), and has a fine frost grain. It reads the room from the backdrop's light map along the view ray, so it works per eye in a headset with no extra render pass.
-- **Adaptive scrim.** Over a bright part of the room the glass darkens just enough to keep white text legible, up to `surface.scrim.max`.
+- **Adaptive scrim.** Over a bright part of the room the glass darkens just enough to keep white text legible, up to `color.scrim.opacity.maximum`.
 - **Contact shadows.** Layers that float in front of a window (a child level, a lifted row) cast soft shadows on it, softer the further away they are.
 - **Thick controls.** Buttons and knobs are rounded solids extruded to their token thickness. Pressing compresses the solid and the face content moves with it. Thickness says "pressable", so windows don't have it.
 - **List rows** are invisible at rest. On hover a light glass lens lifts out of the window, carrying the row with it; on press it moves back and shrinks slightly. Icons sit in glass beads.
@@ -31,7 +31,7 @@ Behaviour comes from tokens; appearance lives in [`src/core/look.js`](../src/cor
 
 Appearance options on `Button`: `shape` (`rounded`, `capsule`, `circle`), `variant` (`secondary`, `primary`, `plain`, `glass`, `tinted`, `window`), `icon`, `label`, `sublabel`, `accessory: 'chevron'`, `layout: 'row'`. `makePlatter()` draws a non-interactive toolbar background.
 
-**Glass in mixed reality.** WebXR never gives the page the camera image of your room, so in mixed reality the glass cannot blur it. There the sheet falls back to a tinted surface at `surface.opacity.base`, which keeps text readable over any room. On desktop, in VR and in the arena, it is real frosted glass.
+**Glass in mixed reality.** WebXR never gives the page the camera image of your room, so in mixed reality the glass cannot blur it. There the sheet falls back to a tinted surface at `material.opacity.default`, which keeps text readable over any room. On desktop, in VR and in the arena, it is real frosted glass.
 
 ## Using a component
 
@@ -52,7 +52,9 @@ renderer.setAnimationLoop(t => {
 });
 ```
 
-`createTokens()` converts units once (mm → m, dmm → m at 1 m, deg → rad, ms → s), so components never do unit maths. `T.dmm(name, distance)` gives a dmm size at a placement distance. This is the same shape as the token pipeline's generated `dist/tokens.js`, so the components can switch to it by changing one import.
+`createTokens(json)` resolves aliases and shares unit conversion with the build pipeline: m stays m; vpt becomes m at 1 m; deg becomes rad; ms becomes s. `T.viewSize(name, distance)` applies the placement-time f(d) rule, and `T.touchSize(name, distance)` also applies the 22 mm fingertip floor. Physical hover and direct-input distances use `T.get()` without distance scaling. Runtime JSON input is retained so Arena overrides reach the real components. Generated `dist/tokens.js` exports nested values and numeric sizing helpers; it is not a drop-in replacement for the runtime API.
+
+Width, height, radius and layout defaults still accept their existing dmm numbers, scaled by the same f(d). `o.density` remains the component option while tokens use `firmness`. Legacy `T.dmm()` and exported `atDistance()` retain linear behavior for old dmm inputs. Direct-touch hit areas expand to the fingertip floor without changing visible faces or ray hit areas. Closely packed targets in the hand zone still need headset overlap/usability checks.
 
 ## Button
 
@@ -60,13 +62,13 @@ A thick object that compresses toward its back face when poked.
 
 | Behaviour | Tokens |
 |---|---|
-| Thickness | `material.t.thin / regular / thick` |
-| Press depth = ratio × t; recover time | `material.density.soft / firm / rigid .press, .recover` |
-| Press starts on contact; release after the finger retreats 3 mm from the deepest point | `proximity.poke.press`, `proximity.poke.release` |
-| Hover on at 100 dmm, off at 140 dmm | `proximity.hover.enter`, `.exit` |
-| Hover glow fades in, 1.5 dmm wide | `motion.hover.in.*`, `feedback.glow.edge` |
-| Face size 60 dmm | `size.button.default` |
-| Opaque surface with a high-contrast outline | `surface.opacity.base`, `surface.outline.mr` |
+| Thickness | `material.thickness.thin / regular / thick` |
+| Press depth = ratio × t; recover time | `material.firmness.{soft,firm,rigid}.pressDepth`, `motion.recovery.{soft,firm,rigid}.duration` |
+| Press starts on contact; release after the finger retreats 3 mm from the deepest point | `input.poke.pressTrigger`, `input.poke.distance.release` |
+| Hover on at 100 mm, off at 140 mm | `input.hover.distance.enter`, `.exit` |
+| Hover glow fades in, 2 vpt wide | `motion.enter.*`, `material.glow.width` |
+| Face size 80 vpt (60 mm at 1 m) | `size.interactive.default` |
+| Opaque surface with a high-contrast outline | `material.opacity.default`, `material.outline.width` |
 
 Disabled buttons are always `rigid`: they barely give, which reads as "not now". Events: `press`, `release`, `select`, `cancel` (finger slid off).
 
@@ -78,11 +80,11 @@ A knob you push away from you (value up) and pull back (value down), along Z ins
 |---|---|
 | Travel from fully pulled to fully pushed | `zslider.travel` |
 | A tick every 1/10 of the range, as sound | `feedback.detent.interval`, `.audio.gain`, `.audio.length` |
-| Contact shadow grows and darkens with push | `feedback.shadow.press.*` |
+| Contact shadow grows and darkens with push | `shadow.contact.*` |
 | Hover, glow, surface | as Button |
 
 ![Z-Slider lookdev, direction A: an amber glass bead on a glass stem over five etched detents, two lit at 40%](images/lookdev/slider-stem.jpg)
-*Rendered 2026-10-20 in Blender.* **In progress:** Jihoon picked this direction (A, stem) on 2026-10-20. The live knob (see the overview) is built to it: a clear amber glass bead on a translucent amber stem (the room shows through it; a crisp highlight runs along its top) that flows into the plate and into the knob through curved fillets (stem and fillets are one piece of glass). The fillets follow a superellipse profile: a short flare into the plate and a long bell into the knob, so the curve shows beside the knob instead of hiding behind it. Under it sit a thin clear glass plate (`material.t.thin`; the room shows through it in its own colour and its rim catches the light, as in the lookdev), five etched rings that light amber up to the value (unlit rings stay visible as frosted etches), a glow that rises with the value (inside the glass, round the lit rings, a halo in the knob's own plane, and a warm pool on the plate round the stem's foot), and the value label on a thin capsule of neutral grey smoked glass beside the plate (Jihoon chose this on 2026-10-21; half the plate's thickness, and only as long as its text needs, with room for any two-digit value, so it holds still while you drag (only 100% widens it) and the words never meet). The value is larger and bolder than the name; both are full white, because secondary-opacity text fell to 4.1:1 on the glass. Values: `DEFAULTS.look.lampGlow` (`fillet.plate`, `fillet.knob`, `spill`), `DEFAULTS.look.valueLabel`, `DEFAULTS.look.refract.plate`, `.label`.
+*Rendered 2026-10-20 in Blender.* **In progress:** Jihoon picked this direction (A, stem) on 2026-10-20. The live knob (see the overview) is built to it: a clear amber glass bead on a translucent amber stem (the room shows through it; a crisp highlight runs along its top) that flows into the plate and into the knob through curved fillets (stem and fillets are one piece of glass). The fillets follow a superellipse profile: a short flare into the plate and a long bell into the knob, so the curve shows beside the knob instead of hiding behind it. Under it sit a thin clear glass plate (`material.thickness.thin`; the room shows through it in its own colour and its rim catches the light, as in the lookdev), five etched rings that light amber up to the value (unlit rings stay visible as frosted etches), a glow that rises with the value (inside the glass, round the lit rings, a halo in the knob's own plane, and a warm pool on the plate round the stem's foot), and the value label on a thin capsule of neutral grey smoked glass beside the plate (Jihoon chose this on 2026-10-21; half the plate's thickness, and only as long as its text needs, with room for any two-digit value, so it holds still while you drag (only 100% widens it) and the words never meet). The value is larger and bolder than the name; both are full white, because secondary-opacity text fell to 4.1:1 on the glass. Values: `DEFAULTS.look.lampGlow` (`fillet.plate`, `fillet.knob`, `spill`), `DEFAULTS.look.valueLabel`, `DEFAULTS.look.refract.plate`, `.label`.
 
 How each input moves it: a fingertip can only **push** the face (like a real knob). **Pinching** near the knob grabs it so it can be pulled back. A **ray** (mouse, controller) drags it: moving the pointer further away pushes. The value is shown beside the knob, not on it, so the hand doesn't cover it. Five rings on the plate show the value at a glance (each is two detents); the 10 detents are felt as ticks. Events: `change`, `detent`.
 
@@ -99,7 +101,7 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 | Compress: back 50 mm, up 35 mm, 8 % smaller per level | `packaging.parent.recede.z / y / scale` |
 | Parents darken 0.6 → −0.14 per level, never below 0.3 (they don't turn see-through) | `packaging.parent.recede.opacity.*` |
 | Up to 3 levels deep; deeper rows show as disabled | `packaging.depth.max` |
-| Open and close: a critically damped spring, response = the dropdown duration | `motion.expand.dropdown.duration` |
+| Open and close: a critically damped spring, response = the dropdown duration | `motion.expand.duration` |
 
 Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside.
 
@@ -136,12 +138,12 @@ The app launcher, body-locked 25° below your view. Each app is a small object d
 | Body-lock (only mode implemented) | `anchor.mode` |
 | 25° below the centre of view | `anchor.eccentricity.vertical` |
 | Waits 350 ms after a turn, then follows without wobble | `anchor.follow.delay`, `.damping`, `.frequency` |
-| Apps grow up to 1.2× within 100 dmm of the hand, cosine falloff. They grow in place: neighbours and the shelf don't move. The size eases toward the hand's value with a critically damped spring that settles in the hover duration, so tracking jitter doesn't shake the apps and a lost hand doesn't pop them | `dock.magnify.*`, `motion.hover.in.duration` |
-| The bubble forms within hover distance of its skin, and goes past the exit distance | `proximity.hover.enter`, `.exit` |
-| The dent follows the finger in and recovers at the soft material's pace; release has hysteresis | `material.density.soft.recover`, `proximity.poke.release` |
-| Object size; the gap between apps leaves room for a fully magnified bubble to clear its neighbours' objects (their real width, not their size box, so apps stand close as in the reference) | `size.button.default`, `DEFAULTS.look.dockShelf.bubbleClear` |
-| The plate's ends are handles at least a target long; a hand there takes it from the apps (no bubble, no magnify) | `size.target.min`, `DEFAULTS.look.dockPlate.pad` |
-| An end lights and swells within hover distance; a pinch within 40% of it grabs | `proximity.hover.enter`, `.exit`, `dockPlate.reach` |
+| Apps grow up to 1.2× within 100 dmm of the hand, cosine falloff. They grow in place: neighbours and the shelf don't move. The size eases toward the hand's value with a critically damped spring that settles in the hover duration, so tracking jitter doesn't shake the apps and a lost hand doesn't pop them | `dock.magnify.*`, `motion.enter.duration` |
+| The bubble forms within hover distance of its skin, and goes past the exit distance | `input.hover.distance.enter`, `.exit` |
+| The dent follows the finger in and recovers at the soft material's pace; release has hysteresis | `motion.recovery.soft.duration`, `input.poke.distance.release` |
+| Object size; the gap between apps leaves room for a fully magnified bubble to clear its neighbours' objects (their real width, not their size box, so apps stand close as in the reference) | `size.interactive.default`, `DEFAULTS.look.dockShelf.bubbleClear` |
+| The plate's ends are handles at least a target long; a hand there takes it from the apps (no bubble, no magnify) | `size.interactive.minimum`, `DEFAULTS.look.dockPlate.pad` |
+| An end lights and swells within hover distance; a pinch within 40% of it grabs | `input.hover.distance.enter`, `.exit`, `dockPlate.reach` |
 | Release settles with a spring of response 0.35 s and damping 0.8 (Apple's drawer after a drag), carrying the hand's speed; reduced motion: damping 1, no overshoot | `DEFAULTS.look.dockPlate.settle` |
 | An added app: the plate fits it with a spring of response 0.4 s and damping 1 (Apple's reposition) | `DEFAULTS.look.dockPlate.fit` |
 
@@ -178,7 +180,7 @@ What every interactive component (Button and the rows and toolbar built from it,
 | State | What you see | What it does |
 |---|---|---|
 | Default | The resting material | Takes hover and press |
-| Hover | Bubble: the glass swells (rows, toolbar) or forms round the object (Dock); lens style: a lens lifts | Nothing fires; a fingertip enters at `proximity.hover.enter` and leaves at `.exit`, a ray hovers while it hits |
+| Hover | Bubble: the glass swells (rows, toolbar) or forms round the object (Dock); lens style: a lens lifts | Nothing fires; a fingertip enters at `input.hover.distance.enter` and leaves at `.exit`, a ray hovers while it hits |
 | Press | A dent where the press lands, lit from inside; a ray press goes to full depth at once | `press`; `release` then `select` when let go on the control; `cancel` (no select) if the press slides off or its source disappears |
 | Disabled (`disabled: true`, public) | Content at 40 %, no hover; the control is `rigid`, so it barely gives | Presses fire `press` and `release` but never `select` |
 | Not taking input (`enabled = false`, internal) | No change of its own; the container shows why (a receded level's rows, a level on its way out) | Ignores every probe. Containers set it; apps should use `disabled` |
@@ -205,7 +207,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 |---|---|---|---|
 | Placement distance for dmm | 0.6 m | dmm needs a distance to become metres | `placement.distance.near` |
 | Corner radius | window 34, row 15, control 12 dmm | every surface has corners | `shape.radius.*` |
-| Hover fade out | same as in | only `motion.hover.in` exists | `motion.hover.out.*` |
+| Hover fade out | same as in | only `motion.enter` exists | `motion.hover.out.*` |
 | Panel layout | width 240, row 48, padding 18 dmm, and the gaps in [the spec](catalog-spec.md) | the packaging panel's layout | `size.panel.*`, `size.row.*` |
 | Type ramp | title 21 / headline 12.4 / body 12.4 / subheadline 11 / footnote 9.5 dmm (Apple's kit × 0.73) | text needs sizes, weights and tracking | `type.*` |
 | Text emphasis | white at 100 / 90 / 50 % | contrast on glass | `color.text.*` |
@@ -217,7 +219,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 
 ## Known limits
 
-- **The adaptive scrim works only where the page can see the room** (desktop, VR, arena). In mixed reality it would need the camera image, which WebXR doesn't give by default; there the glass uses the fixed `surface.opacity.base`.
+- **The adaptive scrim works only where the page can see the room** (desktop, VR, arena). In mixed reality it would need the camera image, which WebXR doesn't give by default; there the glass uses the fixed `material.opacity.default`.
 - **Glass blurs the backdrop, not other 3D objects.** An object between the window and the room (a placed sofa) won't show through the glass. Fine for windows over a room; a real blur pass would be needed for objects.
 - **The backdrop photo is 1k**, so the room looks softly out of focus. Higher-resolution interiors weren't reachable from the build environment.
 - **Not yet tried on a headset.** Desktop rendering and the interaction logic are tested; hand poke and pinch follow the WebXR Hand Input spec but need a real device check, especially the follow and hover values tagged G.
@@ -242,7 +244,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 ### Bubble: the hover and press language (locked 2026-10-20)
 - **Decision:** A hovered row doesn't get a separate lens or a colour fill. The window's own glass swells into a soft pillow under it (6 mm at 0.6 m, domed like the icon beads, glossy and clearer on the crown). Pressing makes a dent where the press lands (bell-shaped, 20 mm wide at half depth, 4.5 mm deep), shaded as a hollow with an inner shadow on the wall facing the light. Light gathers in an 8 mm core at the bottom of the dent and travels to the bubble's edge, brightest nearest the finger. On release the dent springs back past flat once; the bubble deflates without a wobble. Values: `DEFAULTS.look.emboss`.
 - **Why:** Jihoon's reference is a fluid-filled tactile display: the surface itself becomes the button. Path-traced lookdev (`lookdev/catalog.py`) chose the pillow over a flat plateau, and a blind critique chose the shading and glow fixes. The glow makes the press visible by light as well as by shape (WCAG 1.4.11, non-text contrast); the bloom under text stays under the legibility cap.
-- **Distance and input:** sizes are mm as seen at 0.6 m and grow with the window's distance like dmm, so a far window reads the same. A fingertip drags the dent along; a ray or gaze-and-pinch pins it where the pinch began (eye tracking wobbles about 1°). Far away the dent reads by shading and glow, since stereo depth fades with the square of distance.
+- **Distance and input:** sizes are mm as seen at 0.6 m and grow with f(d), matching the window's placement-time sizing. A fingertip drags the dent along; a ray or gaze-and-pinch pins it where the pinch began (eye tracking wobbles about 1°). Far away the dent reads by shading and glow, since stereo depth fades with the square of distance.
 - **Alternatives:** A light glass lens lifted over the row (`hoverStyle: 'lens'`, still available). It reads fast, but as a separate slab, not the window's own material. A squash press (whole pillow flattens): calmer, but hard to tell from hover.
 - **Trade-offs:** The bubble is a shader effect on a finely split window mesh, so windows cost more vertices. Pressing directly on text briefly lowers that text's contrast under the glow core. With reduced motion, the bubble and dent move without settle or rebound.
 
@@ -278,7 +280,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Trade-offs:** A few more files to read when following one behaviour end to end.
 
 ### Press: down follows the finger, up springs back at the material's pace
-- **Decision:** Going down, the surface tracks the finger exactly (`motion.press.down = follow-input`). Coming back up, it eases back so a full recovery takes exactly `density.recover`, even while the finger is still touching.
+- **Decision:** Going down, the surface tracks the finger exactly (`motion.press.behavior = follow-input`). Coming back up, it eases back so a full recovery takes exactly `density.recover`, even while the finger is still touching.
 - **Why:** Recovery only shows if the surface can lag behind the finger. If it followed the finger both ways, soft and rigid would look the same on the way up, and the recover tokens would do nothing.
 - **Alternatives:** Follow the finger both ways and only animate after release. Simpler, but the release hysteresis means the finger is already 3 mm back by then, so there is almost nothing left to animate.
 - **Trade-offs:** A soft surface briefly separates from a fast-retreating finger. That is the intended feel, but it should be checked on a headset.

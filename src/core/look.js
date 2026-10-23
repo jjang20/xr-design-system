@@ -65,7 +65,7 @@ export function bodyGeometry(w, h, t, r) {
 // Materials
 
 export function bodyMaterial(T, { color, opacity, metal = false } = {}) {
-  const o = opacity ?? T.get('surface.opacity.base');
+  const o = opacity ?? T.get('material.opacity.default');
   return new THREE.MeshPhysicalMaterial({
     color, vertexColors: true,
     roughness: metal ? 0.3 : 0.62,
@@ -79,9 +79,9 @@ export function bodyMaterial(T, { color, opacity, metal = false } = {}) {
 
 // Light effects drawn on the front face in one pass, from a rounded-rect
 // distance field so edges stay crisp at any distance:
-//   rim   a thin luminous edge, brighter at the top (surface.outline.mr width)
+//   rim   a thin luminous edge, brighter at the top (material.outline.width width)
 //   spot  a soft highlight that follows the hand or pointer while hovering
-//   glow  the hover edge glow (feedback.glow.edge width)
+//   glow  the hover edge glow (material.glow.width width)
 //   press a slight darkening as the surface is pushed in
 const FACE_VERT = /* glsl */`
   varying vec2 vP;
@@ -121,9 +121,9 @@ export function faceMaterial(T, { w, h, r, distance, rimStrength = L.rimStrength
     uniforms: {
       uSize: { value: new THREE.Vector2(w, h) },
       uRadius: { value: Math.min(r, w / 2, h / 2) },
-      uRim: { value: T.dmm('surface.outline.mr', distance) },
+      uRim: { value: T.viewSize('material.outline.width', distance) },
       uRimStrength: { value: rimStrength },
-      uGlowWidth: { value: T.dmm('feedback.glow.edge', distance) },
+      uGlowWidth: { value: T.viewSize('material.glow.width', distance) },
       uGlowColor: { value: new THREE.Color(DEFAULTS.color.glow) },
       uHover: { value: 0 },
       uPress: { value: 0 },
@@ -145,7 +145,7 @@ export function faceMaterial(T, { w, h, r, distance, rimStrength = L.rimStrength
 // why glass never shows another glass sheet through it (no light glass on
 // light glass). In mixed reality a web page can't read the passthrough
 // camera, so with no backdrop the sheet becomes a tinted surface at
-// surface.opacity.base.
+// material.opacity.default.
 
 const backdrop = {
   envMap: { value: null },
@@ -429,7 +429,7 @@ const GLASS_FRAG = /* glsl */`
         col = mix(col, bg * uTintColor * exp(-uAbsorb * uThick / cosR), tm * uTintParam.z);
       }
       // Adaptive scrim: over a bright room darken just enough to keep white
-      // text legible, up to surface.scrim.max. The rim carries no text, so
+      // text legible, up to color.scrim.opacity.maximum. The rim carries no text, so
       // it keeps the room's light.
       // A press glow blooms inside the glass, so the scrim below keeps the
       // text over it legible.
@@ -559,7 +559,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uBlur: { value: G.blur },
       uReflBlur: { value: G.reflBlur },
       uAbsorb: { value: G.absorb },
-      uThick: { value: t ?? T.get('material.t.regular') },
+      uThick: { value: t ?? T.get('material.thickness.regular') },
       uAlbedo: { value: new THREE.Color(...K.albedo) },
       uIor: { value: G.ior },
       uF0: { value: G.f0 },
@@ -570,16 +570,16 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uEdge: { value: K.edge },
       uFrost: { value: K.frost },
       uFrostScale: { value: G.frostScale },
-      uScrimMax: { value: T.get('surface.scrim.max') },
+      uScrimMax: { value: T.get('color.scrim.opacity.maximum') },
       uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
-      uSolidOpacity: { value: T.get('surface.opacity.base') },
+      uSolidOpacity: { value: T.get('material.opacity.default') },
       uDim: { value: 0 },
       uHover: { value: 0 },
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
-      uBulgeParam: { value: [new THREE.Vector4(0, 0, 0, t ?? T.get('material.t.regular')), new THREE.Vector4()] },
+      uBulgeParam: { value: [new THREE.Vector4(0, 0, 0, t ?? T.get('material.thickness.regular')), new THREE.Vector4()] },
       uBulgeDent: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uBulgeGlow: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
@@ -793,7 +793,7 @@ export function setGroupOpacity(root, k, dim = 0, back = dim) {
 
 // A non-interactive platter (window background, toolbar ornament).
 export function makePlatter(T, { w, h, r, distance, thickness = 'thick', color = DEFAULTS.color.window }) {
-  const t = T.get(`material.t.${thickness}`);
+  const t = T.get(`material.thickness.${thickness}`);
   const g = new THREE.Group();
   const body = new THREE.Mesh(bodyGeometry(w, h, t, r), bodyMaterial(T, { color }));
   body.castShadow = true;

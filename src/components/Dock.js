@@ -1,6 +1,6 @@
 // Contour Dock: the app launcher, body-locked below your view.
 //
-// Anchor (anchor.mode = body-lock): like a bag strapped to your waist. It
+// Anchor (anchor.mode = bodyLock): like a bag strapped to your waist. It
 // stays put when you glance around, and follows when your body turns:
 // after anchor.follow.delay, with a critically damped spring (no wobble).
 // WebXR does not track the torso, so the body's direction is estimated from
@@ -8,7 +8,7 @@
 //
 // Magnify: icons grow as the hand approaches (dock.magnify.*), so targets get
 // bigger before you reach them (a Fitts's-law aid, not decoration). The size
-// eases toward the hand's value in motion.hover.in.duration. Each grows in
+// eases toward the hand's value in motion.enter.duration. Each grows in
 // place: looking at one target never moves the others (as in the lookdev;
 // judge round 3 caught a row that spread apart).
 //
@@ -62,17 +62,17 @@ export class Dock extends THREE.Group {
     super();
     markComponent(this);
     this.T = T;
-    if (T.get('anchor.mode') !== 'body-lock') console.warn('Contour Dock only implements anchor.mode = body-lock');
+    if (T.get('anchor.mode') !== 'bodyLock') console.warn('Contour Dock only implements anchor.mode = bodyLock');
     const dist = this.distance = o.distance ?? DEFAULTS.dockDistance;
     this.eccentricity = o.eccentricity ?? T.get('anchor.eccentricity.vertical');
-    this.radius = T.dmm('dock.magnify.radius', dist);
+    this.radius = T.viewSize('dock.magnify.radius', dist);
     this.maxScale = T.get('dock.magnify.scale.max');
     // Icon size follows the hand through a critically damped spring that
-    // settles (95%) in motion.hover.in.duration: hand-tracking jitter does not
+    // settles (95%) in motion.enter.duration: hand-tracking jitter does not
     // shake the icons, and a hand that drops out of tracking shrinks them
     // instead of popping them back in one frame.
-    this.magnifyOmega = 4.74 / T.get('motion.hover.in.duration');
-    this.gap = T.dmm('size.gap.min', dist);
+    this.magnifyOmega = 4.74 / T.get('motion.enter.duration');
+    this.gap = T.viewSize('spacing.gap.minimum', dist);
     this.follow = new LazyFollow({
       delay: T.get('anchor.follow.delay'),
       omega: T.get('anchor.follow.frequency'),
@@ -88,7 +88,7 @@ export class Dock extends THREE.Group {
     this.level = new THREE.Group();
     this.level.rotation.x = -this.eccentricity;
     this.add(this.level);
-    const dmm = v => (v / 1000) * dist;
+    const dmm = v => (v / 1000) * T.effectiveDistance(dist);
     const S = DEFAULTS.look.dockShelf, O = DEFAULTS.look.dockObjects;
     // Apps: real objects standing on the shelf. Names appear on hover.
     this.icons = o.apps.map(app => {
@@ -100,8 +100,8 @@ export class Dock extends THREE.Group {
     this.side = this.icons[0].side;
     const P = DEFAULTS.look.dockPlate;
     // Past the last app the plate is the handle: its end runs on this far,
-    // at least a target's size (size.target.min) clear of the app.
-    this.pad = Math.max(dmm(P.pad), T.dmm('size.target.min', dist));
+    // at least a target's size (size.interactive.minimum) clear of the app.
+    this.pad = Math.max(dmm(P.pad), T.viewSize('size.interactive.minimum', dist));
     this.arcR = S.arc * dist;
     // How many apps the Dock holds: a whole number, in between only while
     // one is being added or taken out (showApps), when the plate lengthens
@@ -116,8 +116,8 @@ export class Dock extends THREE.Group {
     this.sizing = { x: 1, v: 0, target: 1 };
     this.size = 1;
     this.grip = { hover: { x: 0, v: 0 }, side: 1, at: new THREE.Vector3(), held: null, history: [] };
-    this.gripBand = new Hysteresis(T.dmm('proximity.hover.enter', dist), T.dmm('proximity.hover.exit', dist));
-    this.thick = (P.edge + P.crown + P.under) / 1000 * dist / DEFAULTS.distance;
+    this.gripBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
+    this.thick = (P.edge + P.crown + P.under) / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.neck = 1;
     // Spacing: at least the gap token, and enough that a fully magnified
     // app's bubble clears its magnified neighbours' objects (the bubble is
@@ -135,7 +135,7 @@ export class Dock extends THREE.Group {
     this.shelf.position.y = this.top;
     this.level.add(this.shelf);
     this.restX = this.icons.map(() => 0);
-    const mm = v => v / 1000 * dist / DEFAULTS.distance;
+    const mm = v => v / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
     // Refractive glass, so the mirrored objects below show through it.
     this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.thick }));

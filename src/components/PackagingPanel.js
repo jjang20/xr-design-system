@@ -49,7 +49,7 @@ export class PackagingPanel extends THREE.Group {
     this.maxDepth = T.get('packaging.depth.max');
     // Spring response (Apple's term: one undamped oscillation) is the
     // dropdown duration token; the curve token no longer applies.
-    this.omega = (2 * Math.PI) / T.get('motion.expand.dropdown.duration');
+    this.omega = (2 * Math.PI) / T.get('motion.expand.duration');
     this.pose = {
       recedeZ: T.get('packaging.parent.recede.z'),
       recedeY: T.get('packaging.parent.recede.y'),
@@ -80,7 +80,7 @@ export class PackagingPanel extends THREE.Group {
 
   buildLevel(item, levelIndex) {
     const T = this.T, dist = this.distance;
-    const dmm = v => (v / 1000) * dist;
+    const dmm = v => (v / 1000) * T.effectiveDistance(dist);
     const D = DEFAULTS;
     const W = dmm(D.panelWidth);
     const rowH = dmm(D.rowHeight);
@@ -94,7 +94,7 @@ export class PackagingPanel extends THREE.Group {
     // The window is glass and rigid: structural, it barely gives. Once it
     // has receded it becomes the way back (the breadcrumb).
     const panel = new Button(T, {
-      width: D.panelWidth, height: H / dist * 1000, radius: D.radius.window,
+      width: D.panelWidth, height: H / T.effectiveDistance(dist) * 1000, radius: D.radius.window,
       thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);

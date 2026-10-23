@@ -4,8 +4,8 @@
 // docs/components.md). The primary action is a patch of accent-tinted glass:
 // the bar's material, coloured, so the room shows through it blue.
 //
-// Tokens used: as Button (size.button.default, material.t.*, density.*,
-// proximity.*), plus DEFAULTS.look.emboss and DEFAULTS.color.accentGlass.
+// Tokens used: as Button (size.interactive.default, material.thickness.*, density.*,
+// input.*), plus DEFAULTS.look.emboss and DEFAULTS.color.accentGlass.
 import * as THREE from 'three';
 import { markComponent } from '../core/Interactable.js';
 import { DEFAULTS } from '../core/defaults.js';
@@ -26,9 +26,9 @@ export class Toolbar extends THREE.Group {
     super();
     markComponent(this);
     const dist = this.distance = o.distance ?? DEFAULTS.distance;
-    const dmm = v => (v / 1000) * dist;
+    const dmm = v => (v / 1000) * T.effectiveDistance(dist);
     const gap = dmm(o.gap ?? 4), pad = dmm(o.pad ?? 10);
-    const side = T.dmm('size.button.default', dist);
+    const side = T.viewSize('size.interactive.default', dist);
 
     // Buttons first, to size the bar around them.
     this.buttons = o.tools.map(t => new Button(T, {
@@ -38,7 +38,7 @@ export class Toolbar extends THREE.Group {
     const H = side + pad * 2;
     // The bar: rigid glass, like a window (it barely gives).
     this.bar = new Button(T, {
-      width: W / dist * 1000, height: H / dist * 1000, shape: 'capsule',
+      width: W / T.effectiveDistance(dist) * 1000, height: H / T.effectiveDistance(dist) * 1000, shape: 'capsule',
       thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
     this.add(this.bar);

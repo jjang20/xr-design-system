@@ -14,11 +14,11 @@
 // magnify scale grows it upward from the glass.
 //
 // Tokens used:
-//   size.button.default                     the object's size (dmm)
-//   proximity.hover.enter / exit            hover, measured to the bubble's skin
-//   proximity.poke.release                  release hysteresis
-//   material.density.soft.recover           the skin's recovery
-//   material.t.thin                         the name capsule's glass
+//   size.interactive.default                     the object's size (dmm)
+//   input.hover.distance.enter / exit            hover, measured to the bubble's skin
+//   input.poke.distance.release                  release hysteresis
+//   motion.recovery.soft.duration           the skin's recovery
+//   material.thickness.thin                         the name capsule's glass
 import * as THREE from 'three';
 import { Interactable, pickProbe } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
@@ -41,9 +41,9 @@ export class DockIcon extends Interactable {
     this.T = T;
     this.app = app;
     const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
-    const dmm = v => (v / 1000) * distance;
-    this.k = distance / DEFAULTS.distance;   // emboss sizes (mm at 0.6 m) grow with distance
-    const side = this.side = T.dmm('size.button.default', distance);
+    const dmm = v => (v / 1000) * T.effectiveDistance(distance);
+    this.k = T.effectiveDistance(distance) / T.effectiveDistance(DEFAULTS.distance);   // emboss sizes (mm at 0.6 m) grow with distance
+    const side = this.side = T.viewSize('size.interactive.default', distance);
     // The object, standing on the glass.
     this.object = makeAppObject(app.icon, { color: app.color, style: app.style });
     this.object.scale.setScalar(side);
@@ -54,6 +54,7 @@ export class DockIcon extends Interactable {
     this.footprint = this.object.userData.size.clone().multiplyScalar(side);
     // The bubble: big enough to hold the object, resting on the shelf.
     this.rb = B.size * side / 2;
+    this.touchRadius = Math.max(this.rb, T.get('input.touch.size.minimum') / 2);
     this.centre = new THREE.Vector3(0, this.rb, 0);
     this.bubble = makeBubble();
     this.bubble.position.copy(this.centre);
@@ -69,7 +70,7 @@ export class DockIcon extends Interactable {
     // Z-Slider label's (Jihoon, 2026-10-21: dark smoked, neutral grey), as
     // text in Contour sits on glass, so it reads over a bright room.
     const L = DEFAULTS.look.valueLabel;
-    const lh = dmm(L.height), pad = dmm(L.pad), lt = T.get('material.t.thin') * L.thickness;
+    const lh = dmm(L.height), pad = dmm(L.pad), lt = T.get('material.thickness.thin') * L.thickness;
     this.nameTag = new THREE.Group();
     this.nameTag.position.set(0, 2 * this.rb + dmm(B.nameGap) + lh / 2, 0);
     this.nameTag.visible = false;
@@ -93,8 +94,8 @@ export class DockIcon extends Interactable {
     this.nameText.addEventListener('synccomplete', fit);
 
     this.dentMax = E.dent.depth * B.dentDepth * this.k / 1000;
-    this.press = new PressModel({ thickness: this.dentMax, pressRatio: 1, recover: T.get('material.density.soft.recover'), release: T.get('proximity.poke.release') });
-    this.hoverBand = new Hysteresis(T.dmm('proximity.hover.enter', distance), T.dmm('proximity.hover.exit', distance));
+    this.press = new PressModel({ thickness: this.dentMax, pressRatio: 1, recover: T.get('motion.recovery.soft.duration'), release: T.get('input.poke.distance.release') });
+    this.hoverBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
     this.hovered = false;
     this.exclusive = true;     // the Dock clears this on every icon but the nearest
     this.distanceToSkin = Infinity;
@@ -115,7 +116,7 @@ export class DockIcon extends Interactable {
   // The Dock compares icons before any of them reacts.
   sense() {
     const { probe, distance } = pickProbe(this.consumeProbes(),
-      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.rb),
+      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.touchRadius),
       this.press.pressed ? this.pressOwner : null);
     this.best = probe;
     this.distanceToSkin = distance;
@@ -131,9 +132,9 @@ export class DockIcon extends Interactable {
     let penetration = null, inside = false;
     if (best && this.enabled) {
       const r = best.point.distanceTo(this.centre);
-      inside = r < this.rb + this.hoverBand.exit;
+      inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit;
       // Only a pinch that began on this app presses it (captured).
-      penetration = best.kind === 'poke' ? this.rb - r : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
+      penetration = best.kind === 'poke' ? this.touchRadius - r : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;

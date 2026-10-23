@@ -1,14 +1,14 @@
 // Contour Button: a thick object that compresses when poked.
 //
 // Tokens used:
-//   material.t.{thin|regular|thick}        thickness
-//   material.density.{soft|firm|rigid}.*   press ratio and recover time
-//   proximity.hover.enter / exit           hover hysteresis (dmm)
-//   proximity.poke.release                 release hysteresis
-//   size.button.default                    default face size (dmm)
-//   motion.hover.in.*                      hover fade
-//   feedback.glow.edge                     hover edge glow width (dmm)
-//   surface.opacity.base / outline.mr      opaque surface, luminous MR edge
+//   material.thickness.{thin|regular|thick}        thickness
+//   material.firmness.* / motion.recovery.*   press ratio and recover time
+//   input.hover.distance.enter / exit           hover hysteresis (m)
+//   input.poke.distance.release                 release hysteresis
+//   size.interactive.default                    default face size (vpt)
+//   motion.enter.*                      hover fade
+//   material.glow.width                     hover edge glow width (vpt)
+//   material.opacity.default / outline.mr      opaque surface, luminous MR edge
 //
 // Appearance options (not behaviour): shape, variant, icon, label, sublabel,
 // accessory, layout. See docs/components.md.
@@ -38,8 +38,8 @@ export class Button extends Interactable {
    * @param {number} [o.color]      fill colour override (tinted variant)
    * @param {'soft'|'firm'|'rigid'} [o.density='firm']
    * @param {'thin'|'regular'|'thick'} [o.thickness='regular']
-   * @param {number} [o.width]      face width in dmm (default size.button.default)
-   * @param {number} [o.height]     face height in dmm (default size.button.default)
+   * @param {number} [o.width]      face width in dmm (default size.interactive.default)
+   * @param {number} [o.height]     face height in dmm (default size.interactive.default)
    * @param {number} [o.radius]     corner radius in dmm
    * @param {number} [o.distance]   placement distance in m, for dmm
    * @param {boolean} [o.disabled]
@@ -49,16 +49,18 @@ export class Button extends Interactable {
     markComponent(this);
     this.T = T;
     const distance = this.distance = o.distance ?? DEFAULTS.distance;
-    const dmm = v => (v / 1000) * distance;
+    const dmm = v => (v / 1000) * T.effectiveDistance(distance);
     this.disabled = !!o.disabled;
     this.variant = o.variant ?? 'secondary';
     // Disabled elements are rigid: they barely give, which reads as "not now".
     this.density = this.disabled ? 'rigid' : (o.density ?? 'firm');
-    this.t = T.get(`material.t.${o.thickness ?? 'regular'}`);
-    const side = T.dmm('size.button.default', distance);
+    this.t = T.get(`material.thickness.${o.thickness ?? 'regular'}`);
+    const side = T.viewSize('size.interactive.default', distance);
     this.w = o.width != null ? dmm(o.width) : side;
     this.h = o.height != null ? dmm(o.height) : side;
     if (o.shape === 'circle') this.w = this.h = Math.min(this.w, this.h);
+    this.touchW = Math.max(this.w, T.get('input.touch.size.minimum'));
+    this.touchH = Math.max(this.h, T.get('input.touch.size.minimum'));
     this.r = o.shape === 'circle' || o.shape === 'capsule' ? Math.min(this.w, this.h) / 2
       : dmm(o.radius ?? DEFAULTS.radius.control);
     // An app tile is a glass globe: as deep as it is wide.
@@ -68,16 +70,16 @@ export class Button extends Interactable {
 
     this.press = new PressModel({
       thickness: this.t,
-      pressRatio: T.get(`material.density.${this.density}.press`),
-      recover: T.get(`material.density.${this.density}.recover`),
-      release: T.get('proximity.poke.release'),
+      pressRatio: T.get(`material.firmness.${this.density}.pressDepth`),
+      recover: T.get(`motion.recovery.${this.density}.duration`),
+      release: T.get('input.poke.distance.release'),
     });
     this.hoverBand = new Hysteresis(
-      T.dmm('proximity.hover.enter', distance),
-      T.dmm('proximity.hover.exit', distance),
+      T.get('input.hover.distance.enter'),
+      T.get('input.hover.distance.exit'),
     );
-    this.hoverIn = T.get('motion.hover.in.duration');
-    this.hoverEase = cubicBezier(T.get('motion.hover.in.easing'));
+    this.hoverIn = T.get('motion.enter.duration');
+    this.hoverEase = cubicBezier(T.get('motion.enter.easing'));
     this.hoverT = 0;
     this.hovered = false;
     this.spot = new THREE.Vector2();
@@ -131,7 +133,7 @@ export class Button extends Interactable {
       // body only stays as the row's hit area.
       this.emboss = (o.hoverStyle ?? DEFAULTS.look.hoverStyle) === 'emboss';
       // Emboss sizes are mm at DEFAULTS.distance, grown with distance like dmm.
-      this.k = distance / DEFAULTS.distance;
+      this.k = T.effectiveDistance(distance) / T.effectiveDistance(DEFAULTS.distance);
       this.lift = (this.emboss ? DEFAULTS.look.emboss.height * this.k : DEFAULTS.look.lensLift) / 1000;
       this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r), glassMaterial(T, { w: this.w, h: this.h, t: this.t, kind: 'lens' }));
       this.body.renderOrder = 2;
@@ -287,14 +289,14 @@ export class Button extends Interactable {
 
   // Distance from a local point to the face rectangle at the front plane.
   faceDistance(p) {
-    const dx = Math.max(0, Math.abs(p.x) - this.w / 2);
-    const dy = Math.max(0, Math.abs(p.y) - this.h / 2);
+    const dx = Math.max(0, Math.abs(p.x) - this.touchW / 2);
+    const dy = Math.max(0, Math.abs(p.y) - this.touchH / 2);
     const dz = Math.max(0, p.z - this.t);
     return Math.hypot(dx, dy, dz);
   }
 
-  inside(p) {
-    return Math.abs(p.x) <= this.w / 2 && Math.abs(p.y) <= this.h / 2;
+  inside(p, touch = false) {
+    return Math.abs(p.x) <= (touch ? this.touchW : this.w) / 2 && Math.abs(p.y) <= (touch ? this.touchH : this.h) / 2;
   }
 
   update(dt) {
@@ -312,7 +314,7 @@ export class Button extends Interactable {
     // Press: pokes press by depth; a ray press pushes all the way in.
     let penetration = null, inside = false;
     if (best && this.enabled) {
-      inside = this.inside(best.point);
+      inside = this.inside(best.point, best.kind === 'poke');
       if (best.kind === 'poke') penetration = this.t - best.point.z;
       // A ray has no depth: press goes all the way in, and letting go is a
       // clean release (no retreat distance to cover). Only a pinch that
@@ -328,7 +330,7 @@ export class Button extends Interactable {
     }
     if (ev === 'cancel') this.dispatchEvent({ type: 'cancel' });
 
-    // Hover fade, eased by motion.hover.in (out mirrors in, see DEFAULTS).
+    // Hover fade, eased by motion.enter (out mirrors in, see DEFAULTS).
     const target = this.hovered && !this.disabled ? 1 : 0;
     this.hoverT = clamp(this.hoverT + (target ? 1 : -1) * dt / this.hoverIn, 0, 1);
     const hover = this.hoverEase(this.hoverT);

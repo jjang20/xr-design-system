@@ -1,12 +1,12 @@
 // The press of a Contour object, independent of rendering.
 //
-// - Press starts when the fingertip touches the front face (proximity.poke.press).
-// - Going down, depth follows the finger exactly, capped at density.press x t
-//   (motion.press.down = follow-input: no animation).
+// - Press starts when the fingertip touches the front face (input.poke.pressTrigger).
+// - Going down, depth follows the finger exactly, capped at firmness.pressDepth x t
+//   (motion.press.behavior = followInput: no animation).
 // - Coming back up, the material springs back at its own pace: a full-depth
-//   recovery takes exactly density.recover, with an ease-out. A soft object
+//   recovery takes exactly motion.recovery duration, with an ease-out. A soft object
 //   lags behind a retreating finger; a rigid one keeps up.
-// - Release only after the finger retreats proximity.poke.release from the
+// - Release only after the finger retreats input.poke.distance.release from the
 //   deepest point reached (release hysteresis).
 import { clamp } from './easing.js';
 
