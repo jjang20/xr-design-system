@@ -193,3 +193,11 @@ Research behind this part: the [anatomy review](https://claude.ai/artifact/SyKK3
 - **Trade-offs:** Public layout options and untokenized defaults remain dmm numbers, now using f(d); they are not silently reinterpreted as vpt. `o.density` is retained as a component option. Legacy `T.dmm()`/`atDistance()` remain linear for old dmm input. Closely packed direct-touch targets need headset evaluation when their invisible hit areas grow to the floor.
 - **Conflict resolution:** Preserve PR #3's later single-icon Dock tuning: 100 dmm = 133 1/3 vpt and maximum 1.2, superseding the older 332 vpt / 1.6 migration values in §24. No rounding to a new design-grid value. Regenerate all three dist outputs. Preserve the recovered Arena catalog checks alongside PR #4's alias-aware motion checks.
 - **Validation:** See [integration evidence](token-v02-integration-2026-10-23.md). Functional validation is not visual approval, a headset result, or Figma import confirmation.
+
+
+### 26. Preserve proximity while routing overlapping direct touches (2026-10-23)
+- **Decision:** Route press eligibility per fingertip among Buttons, rank eligible targets by world-space distance to the visible face, and retain a pressed target until release/cancellation. All Buttons still receive hover probes; two fingers can own different targets. Disabled press/release feedback stays intact and never emits select.
+- **Why:** Applying the 22 mm floor to small adjacent controls caused one fingertip to select multiple actions. Withholding non-selected probes also removed legitimate lateral hover, so press ownership and proximity sensing must remain separate.
+- **Alternatives:** Grow visual controls or widen their layout. These change product design and do not resolve generic overlapping hit regions. Shrink the hit floor. This violates §22.
+- **Trade-offs:** When faces are equally near, scene traversal order breaks the tie deterministically. Headset testing still needs to evaluate intent/comfort for densely packed controls; no automatic visual redesign is implied.
+- **Related correction:** Style-based text uses the same f(d) as its container. Button and uniformly scaled DockIcon hover, release and fingertip floors retain physical world-metre semantics through existing transforms.

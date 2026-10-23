@@ -106,10 +106,7 @@ export class InputSystem {
         if (tip) for (const c of components) dist = Math.min(dist, _box.setFromObject(c).distanceToPoint(tip));
         if (tip && src.near.update(dist)) {
           this.handPoints.push(tip);
-          for (const it of items) {
-            _m.copy(it.matrixWorld).invert();
-            it.feed({ kind: 'poke', id: src.id, point: tip.clone().applyMatrix4(_m), pinch: src.selecting });
-          }
+          this.pokeStep(src, tip, items);
           src.state = {};
         } else {
           src.line.visible = true;
@@ -128,6 +125,26 @@ export class InputSystem {
     } else {
       this.mouse.state = {};
     }
+  }
+
+  pokeStep(src, worldPoint, items) {
+    const probes = items.map(item => ({ item, point: item.worldToLocal(worldPoint.clone()) }));
+    // The same finger reaches every nearby object, but overlapping Button
+    // hit floors must not dispatch multiple actions. Keep a held press on
+    // its original button until it releases or cancels.
+    let target = probes.find(({ item }) => item.pokeDistance && item.press.pressed
+      && item.pressKind === 'poke' && item.pressOwner === src.id)?.item;
+    if (!target) {
+      let nearest = Infinity;
+      for (const { item, point } of probes) {
+        const distance = item.pokeDistance?.(point) ?? Infinity;
+        if (distance < nearest) { nearest = distance; target = item; }
+      }
+    }
+    // Every object keeps proximity hover; only the selected Button can
+    // press. Other interactables retain their own input arbitration.
+    for (const { item, point } of probes) item.feed({ kind: 'poke', id: src.id, point, pinch: src.selecting,
+      canPress: !item.pokeDistance || item === target });
   }
 
   rayStep(ptr, worldRay, pressed, wheel, items) {

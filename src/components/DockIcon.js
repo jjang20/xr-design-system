@@ -30,6 +30,8 @@ import { makeBubble } from '../core/bubble.js';
 import { makeText, glassSlabGeometry } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 
+const inputScale = new THREE.Vector3();
+
 export class DockIcon extends Interactable {
   /**
    * @param {object} T tokens
@@ -54,7 +56,6 @@ export class DockIcon extends Interactable {
     this.footprint = this.object.userData.size.clone().multiplyScalar(side);
     // The bubble: big enough to hold the object, resting on the shelf.
     this.rb = B.size * side / 2;
-    this.touchRadius = Math.max(this.rb, T.get('input.touch.size.minimum') / 2);
     this.centre = new THREE.Vector3(0, this.rb, 0);
     this.bubble = makeBubble();
     this.bubble.position.copy(this.centre);
@@ -106,6 +107,10 @@ export class DockIcon extends Interactable {
     this.hover = 0;
   }
 
+  // Dock scales icons uniformly for magnification and user resizing.
+  get inputScale() { return Math.abs(this.getWorldScale(inputScale).x); }
+  get touchRadius() { return Math.max(this.rb, this.T.get('input.touch.size.minimum') / (2 * this.inputScale)); }
+
   // A ray held on the bubble while pressed meets its sphere.
   rayPoint(localRay, out) {
     return localRay.intersectSphere(new THREE.Sphere(this.centre, this.rb), out);
@@ -116,7 +121,7 @@ export class DockIcon extends Interactable {
   // The Dock compares icons before any of them reacts.
   sense() {
     const { probe, distance } = pickProbe(this.consumeProbes(),
-      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.touchRadius),
+      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.touchRadius) * this.inputScale,
       this.press.pressed ? this.pressOwner : null);
     this.best = probe;
     this.distanceToSkin = distance;
@@ -125,6 +130,8 @@ export class DockIcon extends Interactable {
 
   update(dt) {
     const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
+    const scale = this.inputScale;
+    this.press.release = this.T.get('input.poke.distance.release') / scale;
     const best = this.exclusive ? this.best : null;
     this.hovered = best?.kind === 'ray' ? true : this.hoverBand.update(best ? this.distanceToSkin : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a
@@ -132,7 +139,7 @@ export class DockIcon extends Interactable {
     let penetration = null, inside = false;
     if (best && this.enabled) {
       const r = best.point.distanceTo(this.centre);
-      inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit;
+      inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
       // Only a pinch that began on this app presses it (captured).
       penetration = best.kind === 'poke' ? this.touchRadius - r : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();

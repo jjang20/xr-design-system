@@ -23,6 +23,7 @@ import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
+const inputScale = new THREE.Vector3();
 
 export class Button extends Interactable {
   /**
@@ -59,8 +60,6 @@ export class Button extends Interactable {
     this.w = o.width != null ? dmm(o.width) : side;
     this.h = o.height != null ? dmm(o.height) : side;
     if (o.shape === 'circle') this.w = this.h = Math.min(this.w, this.h);
-    this.touchW = Math.max(this.w, T.get('input.touch.size.minimum'));
-    this.touchH = Math.max(this.h, T.get('input.touch.size.minimum'));
     this.r = o.shape === 'circle' || o.shape === 'capsule' ? Math.min(this.w, this.h) / 2
       : dmm(o.radius ?? DEFAULTS.radius.control);
     // An app tile is a glass globe: as deep as it is wide.
@@ -191,13 +190,13 @@ export class Button extends Interactable {
         x += b + dmm(DEFAULTS.badgeGap);
       }
       const hasSub = !!o.sublabel;
-      const label = makeText(o.label ?? '', { style: 'headline', distance: this.distance, anchorX: 'left', opacity: dim });
+      const label = makeText(o.label ?? '', { style: 'headline', size: dmm(DEFAULTS.type.headline.size), anchorX: 'left', opacity: dim });
       // Label and detail centred as a pair: half of each line's height apart.
       const lineGap = (DEFAULTS.type.headline.size + DEFAULTS.type.footnote.size) * 0.6 / 2;
       label.position.set(x, hasSub ? dmm(lineGap) : 0, z);
       this.face.add(label);
       if (hasSub) {
-        const sub = makeText(o.sublabel, { style: 'footnote', distance: this.distance, anchorX: 'left', opacity: E.secondary * dim });
+        const sub = makeText(o.sublabel, { style: 'footnote', size: dmm(DEFAULTS.type.footnote.size), anchorX: 'left', opacity: E.secondary * dim });
         sub.position.set(x, -dmm(lineGap), z);
         this.face.add(sub);
       }
@@ -287,34 +286,53 @@ export class Button extends Interactable {
     this.dz = Math.abs(d.x) < 1e-6 && Math.abs(d.v) < 1e-5 ? 0 : d.x; this.dv = d.v;
   }
 
-  // Distance from a local point to the face rectangle at the front plane.
+  // Direct-touch floors and reach thresholds are physical, even while a
+  // Packaging parent scales this button. Probes arrive in local space.
+  get touchW() { return Math.max(this.w, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).x)); }
+  get touchH() { return Math.max(this.h, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).y)); }
+
   faceDistance(p) {
     const dx = Math.max(0, Math.abs(p.x) - this.touchW / 2);
     const dy = Math.max(0, Math.abs(p.y) - this.touchH / 2);
-    const dz = Math.max(0, p.z - this.t);
-    return Math.hypot(dx, dy, dz);
+    this.getWorldScale(inputScale);
+    return Math.hypot(dx * inputScale.x, dy * inputScale.y, Math.max(0, p.z - this.t) * inputScale.z);
   }
 
   inside(p, touch = false) {
     return Math.abs(p.x) <= (touch ? this.touchW : this.w) / 2 && Math.abs(p.y) <= (touch ? this.touchH : this.h) / 2;
   }
 
+  // Rank overlapping touch regions by distance to the visible face, in
+  // world metres. InputSystem gives one button each fingertip's press.
+  pokeDistance(p) {
+    if (!this.inside(p, true)) return Infinity;
+    this.getWorldScale(inputScale);
+    return Math.hypot(Math.max(0, Math.abs(p.x) - this.w / 2) * inputScale.x,
+      Math.max(0, Math.abs(p.y) - this.h / 2) * inputScale.y, Math.max(0, p.z - this.t) * inputScale.z);
+  }
+
   update(dt) {
+    this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getWorldScale(inputScale).z);
     const probes = this.consumeProbes();
-    // The probe closest to the face (rays that hit count as distance 0), or,
-    // while pressed, the source that pressed (see pickProbe).
-    const { probe: best, distance: bestD } = pickProbe(probes,
-      p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point),
-      this.press.pressed ? this.pressOwner : null);
+    // Prefer this button's routed press source over another finger whose
+    // overlapping region only contributes proximity hover. With no eligible
+    // source, retain hover sensing but do not let that probe start a press.
+    const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
+    const candidates = eligible.length ? eligible : probes;
+    const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point);
+    const owner = this.press.pressed ? this.pressOwner : null;
+    const { probe: best } = pickProbe(candidates, distance, owner);
+    // Press eligibility cannot hide a closer hand's proximity feedback.
+    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance, owner);
 
     // Hover with hysteresis (pokes) or direct hit (rays).
-    this.hovered = best?.kind === 'ray' ? bestD === 0 : this.hoverBand.update(bestD);
-    if (!best) this.hoverBand.update(Infinity);
+    this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
+    if (!hoverProbe) this.hoverBand.update(Infinity);
 
     // Press: pokes press by depth; a ray press pushes all the way in.
     let penetration = null, inside = false;
     if (best && this.enabled) {
-      inside = this.inside(best.point, best.kind === 'poke');
+      inside = best.canPress !== false && this.inside(best.point, best.kind === 'poke');
       if (best.kind === 'poke') penetration = this.t - best.point.z;
       // A ray has no depth: press goes all the way in, and letting go is a
       // clean release (no retreat distance to cover). Only a pinch that
@@ -337,7 +355,8 @@ export class Button extends Interactable {
     this.hover = hover;
 
     // The highlight spot drifts after the pointer instead of jumping.
-    if (best) this.spot.lerp(new THREE.Vector2(best.point.x, best.point.y), 1 - Math.exp(-dt * 18));
+    const feedbackProbe = this.press.pressed ? best : hoverProbe;
+    if (feedbackProbe) this.spot.lerp(new THREE.Vector2(feedbackProbe.point.x, feedbackProbe.point.y), 1 - Math.exp(-dt * 18));
     const u = this.skin.uniforms;
     u.uHover.value = hover;
     if (u.uPress) u.uPress.value = this.press.amount;

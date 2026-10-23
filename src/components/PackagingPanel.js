@@ -103,13 +103,13 @@ export class PackagingPanel extends THREE.Group {
 
     // Header: title, optional subtitle.
     let y = H / 2 - dmm(D.panelPadTop);
-    const title = makeText(item.label, { style: 'title', distance: dist, anchorX: 'left' });
+    const title = makeText(item.label, { style: 'title', size: dmm(D.type.title.size), anchorX: 'left' });
     title.anchorY = 'top';
     title.position.set(left, y, front);
     group.add(title);
     y -= titleH;
     if (item.subtitle) {
-      const sub = makeText(item.subtitle, { style: 'subheadline', distance: dist, anchorX: 'left', opacity: D.emphasis.secondary });
+      const sub = makeText(item.subtitle, { style: 'subheadline', size: dmm(D.type.subheadline.size), anchorX: 'left', opacity: D.emphasis.secondary });
       sub.anchorY = 'top';
       sub.userData.hideWhenDim = true;
       sub.position.set(left, y - dmm(D.subtitleGap), front);

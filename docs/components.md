@@ -314,3 +314,10 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **Why:** three.js is a widely used WebGL/WebXR library that runs in headset browsers and on desktop, so the same page works for quick desktop checks and real headset tests. Vite gives a dev server that reloads when `tokens.json` changes and an https mode for headsets, which WebXR requires.
 - **Alternatives:** React Three Fiber (nicer for app code, but adds React to a component library that doesn't need it); Unity (best headset tooling, but no browser preview and a separate codebase from the website).
 - **Trade-offs:** ⚠️ Components are tied to three.js objects. The pure logic ports anywhere, but a Unity version would re-implement the rendering parts.
+
+
+### Token integration review follow-up (2026-10-23)
+
+Style-based row and header text receives the same f(d)-scaled metre size as its container. Direct Button input is routed per fingertip: every nearby Button still senses proximity hover, but only the nearest eligible visible face may press; a held press keeps its original target until release or cancellation. Separate fingers can press separate buttons. Disabled controls retain press/release feedback while suppressing selection.
+
+Button and uniformly scaled DockIcon input convert local probe distances to world metres for hover and convert the physical release retreat back to local depth. The 22 mm hit floor also accounts for world scale. This preserves the physical contract under Packaging transforms and Dock resizing/magnification without changing their visible motion.
