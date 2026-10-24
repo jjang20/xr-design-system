@@ -150,7 +150,7 @@ export class Dock extends THREE.Group {
     // It stays in the level frame as the plate pitches; no pendulum motion.
     const H = DEFAULTS.dockRail;
     this.handle = new BubbleHandle(T, { width: H.sphereSize, distance: dist,
-      feedback: { depth: .004, hold: .003, width: .018, core: .012 } });
+      feedback: { depth: .004, hold: .003, width: .008, core: .012 } });
     this.handle.position.set(0, this.top - H.stemLength - this.handle.r, 0);
     this.level.add(this.handle);
     this.stem = new THREE.Mesh(new THREE.CylinderGeometry(H.stemRadius, H.stemRadius, H.stemLength, 12),
@@ -703,6 +703,13 @@ class PlateGeometry {
     g.computeVertexNormals();
     this.flatP = g.attributes.position.array.slice();
     this.flatN = g.attributes.normal.array.slice();
+    // Rest underside at each XZ location, used to preserve local thickness
+    // when the narrow dent reaches a rolled cap rather than the flat top.
+    this.flatBottom = new Float32Array(this.flatP.length / 3);
+    for (let i = 0; i < this.flatP.length; i += 3) {
+      const inset = Math.max(0, half - Math.hypot(Math.max(0, Math.abs(this.flatP[i]) - a), this.flatP[i + 2]));
+      this.flatBottom[i / 3] = bottom(inset);
+    }
     this.w = w; this.end = half;
     this.geometry = g;
   }
@@ -714,7 +721,7 @@ class PlateGeometry {
   }
 
   fit(w, R, { neck = 1, size = 1, swell = [0, 0], dent = null, dents = [] } = {}) {
-    const key = [w, R, neck, size, swell[0], swell[1], dent?.depth, dent?.point.x, dent?.point.z,...dents.flatMap(d=>[d.depth,d.point.x,d.point.z])].join();
+    const key = [w, R, neck, size, swell[0], swell[1], dent?.depth, dent?.radius, dent?.point.x, dent?.point.z,...dents.flatMap(d=>[d.depth,d.radius,d.point.x,d.point.z])].join();
     if (this.fitKey === key) return;
     this.fitKey = key;
     const g = this.geometry, p = g.attributes.position.array, n = g.attributes.normal.array;
@@ -746,8 +753,19 @@ class PlateGeometry {
           const x=p[i]-d.point.x,z=p[i+2]-d.point.z,r=d.radius**2,v=d.depth*Math.exp(-(x*x+z*z)/r);
           if(v>dip){dip=v;dx=x;dz=z;rr=r;}
         }
+        // A solid cap must retain its top/underside ordering. Keep 20%
+        // of the local rest thickness; full depth remains on the flat pad.
+        const limit = Math.max(0, (F[i + 1] - this.flatBottom[i / 3]) * ky * .8);
+        if (dip > limit) {
+          dip = limit;
+          // y' = .2 * top + .8 * bottom. Their rolled profiles share
+          // an inset function, with slopes in ratio -under / edge.
+          const slope = .2 - .8 * this.under / this.edge;
+          n[i] *= slope; n[i + 2] *= slope;
+        } else {
+          n[i] -= 2 * dx * dip / rr * ny; n[i + 2] -= 2 * dz * dip / rr * ny;
+        }
         p[i + 1] -= dip;
-        n[i] -= 2 * dx * dip / rr; n[i + 2] -= 2 * dz * dip / rr;
         const length = Math.hypot(n[i], n[i + 1], n[i + 2]);
         n[i] /= length; n[i + 1] /= length; n[i + 2] /= length;
       }

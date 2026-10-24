@@ -113,6 +113,21 @@ export class InputSystem {
     return null;
   }
 
+  // A curled tracked tip can touch, but is not an approaching pointer.
+  // Missing pose joints preserve the existing proximity path; no global
+  // hand winner is imposed on independent physical contacts.
+  fingerProximity(src, name) {
+    const joints = src.hand.joints ?? {};
+    const baseName = name === 'thumb-tip' ? 'thumb-phalanx-proximal'
+      : name.replace('-tip', '-phalanx-proximal');
+    const wrist = joints.wrist, base = joints[baseName], tip = joints[name];
+    if (!wrist?.visible || !base?.visible || !tip?.visible) return true;
+    const w = wrist.getWorldPosition(new THREE.Vector3());
+    const b = base.getWorldPosition(new THREE.Vector3()).distanceTo(w);
+    if (b < 1e-6) return true;
+    return tip.getWorldPosition(new THREE.Vector3()).distanceTo(w) > b * DEFAULTS.handInput.fingerExtension;
+  }
+
   // WebXR exposes joints, not a palm point. Estimate its centre and plane
   // from the wrist and knuckles; at least three extended fingers distinguish
   // a flat push from an index poke or pinch. Missing joints never dismiss.
@@ -209,7 +224,8 @@ export class InputSystem {
           const radius = hand ? (Number.isFinite(joint?.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;
           if (tip && (!hand || joint?.visible)) {
             this.handPoints.push(tip);
-            this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0);
+            this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0,
+              !hand || this.fingerProximity(src, 'index-finger-tip'));
           } else src.pokeHistory = null;
           // History belongs to each fingertip, while pinch/palm capture
           // belongs to the hand. The index keeps the legacy source id.
@@ -223,7 +239,7 @@ export class InputSystem {
               const point = joint.getWorldPosition(new THREE.Vector3());
               const r = Number.isFinite(joint.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius;
               this.handPoints.push(point);
-              this.pokeStep(finger, point, items, r, DEFAULTS.handInput.pressOffset);
+              this.pokeStep(finger, point, items, r, DEFAULTS.handInput.pressOffset, this.fingerProximity(src, name));
             }
           } else src.fingers.clear();
           src.state = {};
@@ -255,7 +271,7 @@ export class InputSystem {
     }
   }
 
-  pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0) {
+  pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0, proximity = true) {
     const probes = items.filter(item=>!item.continuingOwner || item.continuingOwner===src.id)
       .map(item => ({ item, point: item.inputCaptureInverse ? worldPoint.clone().applyMatrix4(item.inputCaptureInverse) : item.worldToLocal(worldPoint.clone()) }));
     const previous = src.pokeHistory;
@@ -288,7 +304,9 @@ export class InputSystem {
     // Special handles (the Dock shelf) retain their own arbitration.
     // Radius is in world metres; consumers convert it through their scale.
     for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
-      item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius, pressOffset, pinch: src.selecting,
+      const contactOnly = item.emboss && !proximity;
+      item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius,
+        pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly, pinch: src.selecting,
         surfaceCrossing: crossings.get(item) });
     }
   }

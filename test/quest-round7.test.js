@@ -35,7 +35,7 @@ test('R7: Dock is flat between rolled sides and symmetric above/below its rim',(
  const {d}=rig(),s=d.shelfShape,half=s.depth/2;
  assert.ok(Math.abs(s.top(half)-s.top(half*.65))<1e-7,'centre must not dome');
  const y=Array.from(s.geometry.attributes.position.array).filter((_,i)=>i%3===1),height=Math.max(...y)-Math.min(...y);
- assert.ok(height>.012,'plate thicker than the R6 10.24mm mesh');
+ assert.ok(height>.010&&height<.012,'R8 trial is slightly thinner than the R7 12.8mm mesh');
  for(const inset of [0,half*.1,half*.3,half*.65,half])assert.ok(Math.abs(s.top(inset)+s.bottom(inset)+height)<1e-6,'upper/lower edge profile is symmetric');
 });
 

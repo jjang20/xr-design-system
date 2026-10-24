@@ -84,7 +84,7 @@ export const DEFAULTS = {
     palmMaxStep: 0.08, // reject a tracking teleport instead of dismissing
     platePressDepth: 0.005,
     plateHoldDent: 0.0035, // R5 trial: local physical dent during above-skin capture
-    plateDentRadius: 0.025,
+    plateDentRadius: 0.010,
   },
 
   // Quest layout comparison; component defaults remain reusable.
@@ -263,7 +263,7 @@ export const DEFAULTS = {
     // a held end swells by this share. glow: the hold's light (x the press
     // glow), a hover's, its radius (x pad). reach: a pinch grabs within this
     // share of the hover distance (input.hover.distance.enter).
-    dockPlate: { edge: 8, under: 8, thicknessScale: 1.2, pad: 80, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.7 }, reach: 0.4 },
+    dockPlate: { edge: 7, under: 7, thicknessScale: 1.2, pad: 105, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 8 / 15 }, reach: 0.4 },
     // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
     // size: its diameter x the object's larger side (Jihoon's reference:
     // about 1.5; 1.42 holds the corners of a square). from: it grows from

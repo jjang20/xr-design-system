@@ -350,7 +350,8 @@ export class Button extends Interactable {
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
-    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance);
+    const hoverProbes = probes.filter(p => p.allowHover !== false || p.id === owner || distance(p) === 0);
+    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
 
     // Hover with hysteresis (pokes) or direct hit (rays).
     this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
@@ -363,7 +364,8 @@ export class Button extends Interactable {
       if (best.kind === 'poke') {
         const front = this.press.pressed ? this.pokeFront : this.surfaceZ(best.point);
         if (this.emboss) separation = best.point.z - front - (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
-        penetration = front - best.point.z + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / Math.abs(this.getInputScale(inputScale).z);
+        const offset = this.press.pressed ? (this.pokePressOffset ?? best.pressOffset ?? 0) : (best.pressOffset ?? 0);
+        penetration = front - best.point.z + ((best.radius ?? 0) + offset) / Math.abs(this.getInputScale(inputScale).z);
       }
       // A ray has no depth: press goes all the way in, and letting go is a
       // clean release (no retreat distance to cover). Only a pinch that
@@ -375,6 +377,7 @@ export class Button extends Interactable {
     if (ev === 'press') {
       this.pressOwner = best.id;
       this.pokeFront = this.surfaceZ(best.point);
+      this.pokePressOffset = best.pressOffset ?? 0;
       this.dispatchEvent({ type: 'press' });
     }
     if (ev === 'release') {
