@@ -1,6 +1,6 @@
 # Quest round 7 — independent contacts and material/profile feedback
 
-Status: implementation and review in progress. Source: R6 a68f647 and user Q32–Q39. All numbers below are adjustable trial values, not final design acceptance. Existing Quest preview stays on a68 until the complete candidate passes review and provision checks.
+Implementation contract from R6 a68f647 and user Q32–Q39. All numbers below are adjustable trial values, not final design acceptance. Publication status and device acceptance are recorded separately in the validation handoff; the preview changes only after the complete candidate passes review and provision checks.
 
 ## Accepted behavior to preserve
 
@@ -47,3 +47,7 @@ Status: implementation and review in progress. Source: R6 a68f647 and user Q32�
 - Shared glass runs only through the active bulge slots (maximum 12); secondary bubble contacts remain bounded at 9. This bounds work but is not Quest GPU performance acceptance.
 
 - Partial index loss during held pinch blocks reacquisition until release even when another fingertip remains near. Plate hover never moves an existing pressure owner's dent/Glow; explicit pinch can take the manipulation feedback.
+
+## Thin rear sheet evidence
+
+The old RGB >20-pixel gate records9 pixels/max2 for the three-layer no-env oldest sheet on cd1. This failed brightness observation remains diagnostic; its cause is not established solely by the thickness change. Full-sheet opacity is tested separately in a transparent RGBA target (the default bench has no alpha channel), using the same exposed ROI split into three zones, opacity-zero and body-removed negative controls, and unchanged rear .30/.12/title1 plus front multipliers. It does not establish Quest visibility or permit changing the accepted rear opacity.

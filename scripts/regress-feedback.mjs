@@ -197,12 +197,26 @@ try {
     const regionPixels=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);const pixels=[];for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;pixels.push(data[i],data[i+1],data[i+2]);}return pixels;};
     const compare=(on,off)=>{let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=3){const d=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(d>=2)changed++;maxDelta=Math.max(maxDelta,d);}return {changed,maxDelta};};
     const visible=regionPixels(),save=rear.panel.skin.uniforms.uOpacity.value;rear.panel.skin.uniforms.uOpacity.value=0;const hidden=regionPixels();rear.panel.skin.uniforms.uOpacity.value=save;
-    return {...compare(visible,hidden),bodyExtension:(frontBottom-bottom)*p.scale.y,
+    const target=new r.THREE.WebGLRenderTarget(w,h), oldAlpha=c.renderer.getClearAlpha();c.renderer.setRenderTarget(target);c.renderer.setClearAlpha(0);
+    const alphaPixels=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);c.renderer.readRenderTargetPixels(target,0,0,w,h,data);const pixels=[];for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++)pixels.push({a:data[(y*w+x)*4+3],zone:Math.min(2,Math.floor((x-(lo.x+1)*w/2)/((hi.x-lo.x)*w/2)*3))});return pixels;};
+    const alphaOn=alphaPixels();rear.panel.skin.uniforms.uOpacity.value=0;const alphaOff=alphaPixels();rear.panel.skin.uniforms.uOpacity.value=save;
+    rear.panel.body.visible=false;const bodyRemoved=alphaPixels();rear.panel.body.visible=true;
+    let alphaChanged=0,alphaMaxDelta=0,negativeChanged=0;const alphaRegions=[0,0,0];
+    for(let i=0;i<alphaOn.length;i++){const d=Math.abs(alphaOn[i].a-alphaOff[i].a);if(d>=2){alphaChanged++;alphaRegions[alphaOn[i].zone]++;}alphaMaxDelta=Math.max(alphaMaxDelta,d);if(Math.abs(bodyRemoved[i].a-alphaOff[i].a)>=2)negativeChanged++;}
+    const materials=p.levels.map(l=>({opacity:l.panel.skin.uniforms.uOpacity.value,front:l.panel.skin.uniforms.uFrontOpacity.value,fade:l.panel.skin.uniforms.uFade.value,t:l.panel.t,title:l.title.fillOpacity,hasEnv:Object.hasOwn(l.panel.skin.defines,'ENVMAP_TYPE_CUBE_UV')}));
+    c.renderer.setRenderTarget(null);c.renderer.setClearAlpha(oldAlpha);target.dispose();
+    return {...compare(visible,hidden),alphaChanged,alphaMaxDelta,alphaSamples:alphaOn.length,alphaRegions,negativeChanged,materials,bodyExtension:(frontBottom-bottom)*p.scale.y,
       controlsHidden:front.corners.every(h=>!h.affordance.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
   });
   const deep=result.traces.deepChild;
-  check('three-layer variable heights preserve the complete ancestor sheet',deep.bodyExtension>.02 && deep.changed>20 && deep.maxDelta>=2);
+  // Retain the historical RGB observation; this is not a visibility pass.
+  // Q35 halves thickness while preserving .12 alpha. Test full sheet opacity
+  // in an RGBA target; the default bench framebuffer has alpha disabled.
+  deep.legacyRgbGate=deep.changed>20&&deep.maxDelta>=2;
+  check('three-layer variable heights preserve the complete ancestor sheet',deep.bodyExtension>.02 && deep.alphaChanged>20 && deep.alphaMaxDelta>=2 && deep.alphaRegions.every(n=>n>20));
 
+  check('removed body and zero alpha are equally absent',deep.negativeChanged===0);
+  check('rear opacity and front multiplier stay at the accepted values',Math.abs(deep.materials[0].opacity-.12)<1e-6&&Math.abs(deep.materials[1].opacity-.30)<1e-6&&deep.materials.slice(0,2).every(m=>Math.abs(m.front-1)<1e-6&&m.fade===1&&Math.abs(m.title-1)<1e-6&&!m.hasEnv&&m.t===.004));
   await capture(deepPage,'10-deep-child-mr');await deepPage.close();
 
   const dockPage = await open('part=dock&visible=7');
