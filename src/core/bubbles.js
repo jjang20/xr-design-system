@@ -10,16 +10,15 @@ export const raised = b => b.emboss ? Math.abs(b.bulge) / b.lift : b.hover ?? 0;
 /**
  * @param {THREE.ShaderMaterial} m   the sheet's glass material
  * @param {Button[]} buttons          emboss buttons, positioned in the sheet's local space
- * @param {(b: Button) => number} [radius] bubble corner radius for a button
  * @returns {Button[]} the buttons ranked by how raised they are
  */
-export function driveBubbles(m, buttons, radius = b => Math.min(b.h / 2, b.r)) {
+export function driveBubbles(m, buttons) {
   const ranked = buttons.filter(b => b.emboss && raised(b) > 0.001).sort((a, b) => raised(b) - raised(a));
   for (let i = 0; i < 2; i++) {
     const b = ranked[i];
     if (!b) { setBulge(m, i); continue; }
     setBulge(m, i, {
-      x: b.position.x, y: b.position.y, hw: b.w / 2, hh: b.h / 2, r: radius(b),
+      x: b.position.x, y: b.position.y, hw: b.w / 2, hh: b.h / 2, r: b.embossRadius,
       height: b.bulge, scale: b.k,
       dent: b.dent && { ...b.dent, x: b.position.x + b.dent.x, y: b.position.y + b.dent.y },
       glow: b.glow,

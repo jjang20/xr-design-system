@@ -4,7 +4,7 @@ Baseline: `57a279a640dc1ea45f2ec6884b7e1423cb4d3145`, PR #5. Source: the user's 
 
 ## Requested contract
 
-1. A single fingertip must not hover multiple adjacent controls. Two independent hands can target separate controls; held input keeps ownership.
+1. A single fingertip must not hover multiple adjacent controls. Two independent hands can target separate buttons; held input keeps ownership. The Dock retains its existing global one-app bubble policy; this fix does not redesign it for simultaneous app interaction.
 2. Press begins at the visible surface, without requiring the tracked finger to pass through the component. Count tracked fingertip thickness and embossed row height. Preserve the 22 mm touch floor and 3 mm release retreat.
 3. Z-Slider percentage increases as its knob moves outward from the base: base 0%, full extension 100%. Preserve direct movement and grab offset.
 4. Remove the black rectangle around the slider's central axis while retaining the existing ring glow.
@@ -13,7 +13,7 @@ Baseline: `57a279a640dc1ea45f2ec6884b7e1423cb4d3145`, PR #5. Source: the user's 
 
 | Before | After | Why |
 |---|---|---|
-| Every nearby button receives the same finger's hover | One nearest visible target per fingertip; a held target retains ownership | Avoid ambiguous feedback while preserving two-hand use |
+| Every nearby button receives the same finger's hover | One nearest visible target per fingertip; a held target retains ownership | Avoid ambiguous feedback while preserving independent hands on buttons and Dock's existing one-app policy |
 | Joint centre crosses the flat hit plane | Finger surface touches the rendered row crown or button face | Align visible contact and input; do not change physical release hysteresis |
 | Pulling 10 mm outward reduced 50% to about 36% | Outward motion increases value; base 0%, extension 100% | Match the user's direction contract |
 | Glow plane writes alpha 1 even in empty areas | Empty pixels write alpha 0; rings retain additive light | Keep MR passthrough visible around the axis |

@@ -32,6 +32,7 @@ import { playTick } from '../core/audio.js';
 
 export { detentIndex, shadowAt };
 const C = DEFAULTS.color;
+const inputScale = new THREE.Vector3();
 
 export class ZSlider extends Interactable {
   constructor(T, o = {}) {
@@ -58,7 +59,6 @@ export class ZSlider extends Interactable {
     // that rim as an inflated tyre), so the rim reads as a crisp edge.
     const plateT = T.get('material.thickness.thin');
     this.side = side;
-    this.touchSide = T.touchSize('size.interactive.default', distance);
     this.t = t;
 
     // Plate: a round disc of clear glass the stem rises out of. All the
@@ -212,6 +212,8 @@ export class ZSlider extends Interactable {
   }
 
   get frontZ() { return this.knobZ + this.t; }
+  get touchW() { return Math.max(this.side, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).x)); }
+  get touchH() { return Math.max(this.side, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).y)); }
 
   setValue(v, { silent = false } = {}) {
     v = clamp(v, 0, 1);
@@ -238,12 +240,11 @@ export class ZSlider extends Interactable {
   }
 
   insideKnob(p, margin = 0) {
-    const h = this.touchSide / 2 + margin;
-    return Math.abs(p.x) <= h && Math.abs(p.y) <= h;
+    return Math.abs(p.x) <= this.touchW / 2 + margin && Math.abs(p.y) <= this.touchH / 2 + margin;
   }
 
   pokeDistance(p) {
-    const scale = this.getWorldScale(new THREE.Vector3());
+    const scale = this.getWorldScale(inputScale);
     return Math.hypot(Math.max(0, Math.abs(p.x) - this.side / 2) * scale.x,
       Math.max(0, Math.abs(p.y) - this.side / 2) * scale.y,
       Math.max(0, p.z - this.frontZ) * scale.z);
@@ -258,14 +259,15 @@ export class ZSlider extends Interactable {
 
     for (const p of probe ? [probe] : []) {
       if (p.kind === 'poke') {
-        const radius = (p.radius ?? 0) / Math.abs(this.getWorldScale(new THREE.Vector3()).z);
+        const scale = this.getWorldScale(inputScale);
+        const radius = (p.radius ?? 0) / Math.abs(scale.z);
         const contactZ = p.point.z - radius;
         const thickness = this.t * this.knob.scale.z;
         const front = z + thickness;
         const d = Math.hypot(
-          Math.max(0, Math.abs(p.point.x) - this.touchSide / 2),
-          Math.max(0, Math.abs(p.point.y) - this.touchSide / 2),
-          Math.max(0, contactZ - front),
+          Math.max(0, Math.abs(p.point.x) - this.touchW / 2) * scale.x,
+          Math.max(0, Math.abs(p.point.y) - this.touchH / 2) * scale.y,
+          Math.max(0, contactZ - front) * scale.z,
         );
         hoverD = Math.min(hoverD, d);
         if (p.pinch && (this.grab?.id === p.id || (!this.grab && this.hoverBand.on))) {

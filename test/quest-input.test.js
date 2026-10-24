@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
-import { createTokens, Button, ZSlider, InputSystem } from '../src/index.js';
+import { createTokens, Button, ZSlider, InputSystem, PackagingPanel } from '../src/index.js';
 
 const T = createTokens(JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url))));
 const dt = 1 / 60;
@@ -110,4 +110,44 @@ test('Quest: hover chooses between a slider and an adjacent button', () => {
   const hand = rig(s, b); hand.step(0, 0, s.frontZ + 0.02);
   assert.equal(s.hoverBand.on, true);
   assert.equal(b.hovered, false);
+});
+
+test('Quest: Catalog corner does not press ahead of its rendered crown', () => {
+  const panel = new PackagingPanel(T, { distance: 0.6, items: [{ label: 'Chair' }] });
+  const row = panel.levels[0].rows[0];
+  row.bz = 0.006;
+  // At this corner, the rendered 14.4 mm radius puts the 6 mm crown at
+  // z = 0.348 mm. The old 9 mm input radius incorrectly put it at 3.568 mm.
+  const feed = z => {
+    row.feed({ kind: 'poke', id: 'finger', point: new THREE.Vector3(0.063, 0.0098, z) });
+    row.update(0);
+  };
+  feed(0.01); feed(0.001);
+  assert.equal(row.press.pressed, false, '1 mm is still ahead of the visible corner');
+  feed(0.0003);
+  assert.equal(row.press.pressed, true, '0.3 mm crosses the visible corner');
+});
+
+test('Quest: scaled sliders preserve physical hover distances', () => {
+  for (const scale of [0.5, 1.5]) {
+    const s = new ZSlider(T, { value: 0.5 }); s.scale.setScalar(scale); s.update(dt);
+    const feed = gap => {
+      const front = s.knobZ + s.t * s.knob.scale.z;
+      s.feed({ kind: 'poke', id: 'finger', point: new THREE.Vector3(0, 0, front + gap / scale) });
+      s.update(dt);
+    };
+    feed(0.12); assert.equal(s.hoverBand.on, false, '120 mm does not enter the 100 mm band');
+    feed(0.09); assert.equal(s.hoverBand.on, true);
+    feed(0.15); assert.equal(s.hoverBand.on, false);
+  }
+});
+
+test('Quest: scaled small sliders retain the 22 mm fingertip floor', () => {
+  for (const scale of [0.5, 1.5]) {
+    const s = new ZSlider(T, { distance: 0.1, value: 0.5 }); s.scale.setScalar(scale); s.update(dt);
+    s.feed({ kind: 'poke', id: 'finger', point: new THREE.Vector3(0.01 / scale, 0, s.frontZ - 0.0002 / scale) });
+    s.update(dt);
+    assert.ok(s.value < 0.5, 'a finger 10 mm off centre can push the small knob');
+    assert.equal(s.side, 0.006, 'visible dimensions stay unchanged');
+  }
 });

@@ -136,6 +136,8 @@ export class PackagingPanel extends THREE.Group {
         distance: dist,
         disabled: tooDeep,
       });
+      // The rendered pillow and direct contact use the same concentric corner.
+      row.embossRadius = Math.min(row.h / 2, row.r * (D.radius.window - D.rowInset) / D.radius.row);
       row.position.set(0, listTop - rowH / 2 - i * rowH, panel.t);
       row.addEventListener('select', () => {
         // Only the front level's list acts (a row of a level that has since
@@ -269,7 +271,7 @@ export class PackagingPanel extends THREE.Group {
         // Emboss: the window itself swells under the row (no lens, no shadow).
         // Corners concentric with the window's (window radius minus the row
         // inset), so the bubble follows the window's shape.
-        driveBubbles(m, l.rows, r => Math.min(r.h / 2, r.r * (DEFAULTS.radius.window - DEFAULTS.rowInset) / DEFAULTS.radius.row));
+        driveBubbles(m, l.rows);
         setContactShadow(m, 1);
       } else if (lifted) {
         setContactShadow(m, 1, {

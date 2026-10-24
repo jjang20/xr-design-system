@@ -99,7 +99,7 @@ computing gzip size...
 ../site/assets/inter-latin-500-normal-BL9OpVg8.woff   31.28 kB
 ../site/assets/inter-latin-700-normal-BLAVimhd.woff   31.32 kB
 ../site/assets/main-BQV4Wa_G.css                       1.31 kB │ gzip:   0.64 kB
-../site/assets/main-wBykuMYR.js                        4.91 kB │ gzip:   2.35 kB
-../site/assets/bench-Cq-du3F1.js                      11.22 kB │ gzip:   4.80 kB
-../site/assets/catalog-data-_2P-KElM.js              886.52 kB │ gzip: 253.77 kB
-✓ built in 1.72s
+../site/assets/main-Bm-th3lV.js                        4.91 kB │ gzip:   2.35 kB
+../site/assets/bench-CWscMTZL.js                      11.22 kB │ gzip:   4.80 kB
+../site/assets/catalog-data-CZpDWa_a.js              886.77 kB │ gzip: 253.81 kB
+✓ built in 1.20s

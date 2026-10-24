@@ -62,6 +62,7 @@ export class Button extends Interactable {
     if (o.shape === 'circle') this.w = this.h = Math.min(this.w, this.h);
     this.r = o.shape === 'circle' || o.shape === 'capsule' ? Math.min(this.w, this.h) / 2
       : dmm(o.radius ?? DEFAULTS.radius.control);
+    this.embossRadius = Math.min(this.h / 2, this.r);
     // An app tile is a glass globe: as deep as it is wide.
     this.globe = this.variant === 'tile';
     if (this.globe) this.t = this.w;
@@ -296,7 +297,7 @@ export class Button extends Interactable {
   // during a press so its own dent/recovery cannot move the trigger.
   surfaceZ(p) {
     if (this.emboss) {
-      const r = Math.min(this.h / 2, this.r);
+      const r = this.embossRadius;
       const qx = Math.abs(p.x) - this.w / 2 + r, qy = Math.abs(p.y) - this.h / 2 + r;
       const d = Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
       const ramp = DEFAULTS.look.emboss.ramp * this.k / 1000;
