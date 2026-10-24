@@ -60,6 +60,10 @@ export class PackagingPanel extends THREE.Group {
     };
     this.reducedMotion = o.reducedMotion ?? null;
     this.stack = new PackagingStack();
+    this.palmProbes = [];
+    this.palmPrevious = new Map();
+    this.palmPush = null;
+    this.palmBlocked = null;
     this.open({ label: o.title, subtitle: o.subtitle, items: o.items }, null);
   }
 
@@ -71,10 +75,92 @@ export class PackagingPanel extends THREE.Group {
   get reduced() { return this.reducedMotion ?? prefersReducedMotion(); }
   // Nothing is moving, closing levels included.
   get settled() { return this.stack.all.every(l => l.settled); }
+  get palmOwner() { return this.palmPush?.id; }
+
+  // The hand stays in this component's stable space while the child layer
+  // moves. Measuring against the moving child would feed its own motion
+  // back into the gesture and make the surface slip through the palm.
+  palmSample(probe, level = this.levels.at(-1), pose = level?.cur) {
+    if (!level || !pose) return null;
+    const p = this.worldToLocal(probe.point.clone());
+    const scale = this.getWorldScale(new THREE.Vector3());
+    const normal = new THREE.Vector3(0, 0, 1).transformDirection(this.matrixWorld);
+    const front = pose.z + level.panel.t * Math.min(pose.sx, pose.sy);
+    return { point: p, scaleZ: Math.abs(scale.z),
+      gap: (p.z - front) * Math.abs(scale.z) - probe.radius - DEFAULTS.handInput.pressOffset,
+      inside: Math.abs(p.x - pose.x) <= level.size.W * pose.sx / 2 && Math.abs(p.y - pose.y) <= level.size.H * pose.sy / 2,
+      facing: probe.normal.dot(normal) < -DEFAULTS.handInput.palmAlignment };
+  }
+
+  palmDistance(probe) {
+    if (this.active <= 0) return Infinity; // Catalog itself stays open
+    const s = this.palmSample(probe);
+    return s?.inside && s.facing ? Math.max(0, s.gap) : Infinity;
+  }
+
+  feedPalm(probe) { this.palmProbes.push(probe); }
+
+  updatePalm(dt) {
+    const probes = this.palmProbes;
+    this.palmProbes = [];
+    const current = new Map();
+    const level = this.levels.at(-1);
+    if (this.active <= 0) { this.palmPrevious.clear(); return; }
+    const P = DEFAULTS.handInput;
+    if (this.palmBlocked != null) {
+      const p = probes.find(p => p.id === this.palmBlocked);
+      const s = p && this.palmSample(p);
+      if (!s || s.gap > P.palmRearmDistance) this.palmBlocked = null;
+      else { this.palmPrevious.clear(); return; }
+    }
+    if (!this.palmPush) {
+      for (const p of probes) {
+        const s = this.palmSample(p);
+        if (!s?.inside || !s.facing) continue;
+        current.set(p.id, s.gap);
+        // A hand first appearing behind the layer must withdraw before it
+        // can push. Another hand cannot supply that approach history.
+        if (s.gap <= 0 && this.palmPrevious.get(p.id) > 0) {
+          this.palmPush = { id: p.id, level, pose: { ...level.cur }, scaleZ: s.scaleZ,
+            contactZ: s.point.z - s.gap / s.scaleZ, depth: 0 };
+          this.applyInputGates();
+          break;
+        }
+      }
+    }
+    this.palmPrevious = current;
+    const push = this.palmPush;
+    if (!push) return;
+    const probe = probes.find(p => p.id === push.id);
+    const sample = probe && this.palmSample(probe, push.level, push.pose);
+    if (!sample?.inside || !sample.facing || sample.point.z > push.contactZ + this.T.get('input.poke.distance.release') / push.scaleZ) {
+      this.palmPush = null;
+      this.palmPrevious.clear();
+      this.retarget(); // tracking loss/withdrawal returns, never selects
+      return;
+    }
+    const depth = Math.max(0, (push.contactZ - sample.point.z) * push.scaleZ);
+    const l = push.level;
+    Object.assign(l.cur, push.pose, { z: push.pose.z - depth / push.scaleZ });
+    l.vel.z = dt > 0 ? -(depth - push.depth) / push.scaleZ / dt : 0;
+    push.depth = depth;
+    l.settled = false;
+    if (depth >= P.palmCloseTravel) {
+      // Keep the pushed pose/velocity, then continue away while fading.
+      // Reduced motion keeps the final hand-driven pose and only fades.
+      l.pushExit = { ...l.cur, z: l.cur.z - P.palmExitTravel / push.scaleZ };
+      this.palmPush = null;
+      this.palmBlocked = push.id;
+      this.palmPrevious.clear();
+      this.back(this.active - 1);
+    }
+  }
 
   setMode(mode) {
     if (!PACKAGING_MODES.includes(mode)) throw new Error(`Unknown packaging mode ${mode}`);
     this.mode = mode;
+    this.palmPush = null;
+    this.palmPrevious.clear();
     this.retarget();
   }
 
@@ -174,6 +260,7 @@ export class PackagingPanel extends THREE.Group {
 
   // Open a child level out of `sourceRow` (null for the root).
   open(item, sourceRow) {
+    if (this.palmPush) return;
     const level = this.buildLevel(item, this.active + 1);
     // Start the child inside the row it comes out of, and close back into it.
     if (sourceRow) {
@@ -199,6 +286,7 @@ export class PackagingPanel extends THREE.Group {
 
   // Go back so that `toLevel` is in front again.
   back(toLevel = this.active - 1) {
+    if (this.palmPush) return;
     if (!this.stack.popTo(toLevel).length) return;
     this.retarget();
     this.dispatchEvent({ type: 'back', level: toLevel });
@@ -206,19 +294,24 @@ export class PackagingPanel extends THREE.Group {
 
   retarget() {
     this.stack.retarget(this.pose, this.mode, { reduced: this.reduced });
+    this.applyInputGates();
+  }
+
+  applyInputGates() {
     // Only the front level's rows take input; receded panels act as "back".
     for (const l of this.stack.all) {
-      l.rows.forEach(r => { r.enabled = l.rowsEnabled; });
-      l.panel.enabled = l.panelEnabled;
+      l.rows.forEach(r => { r.enabled = l.rowsEnabled && !this.palmPush; });
+      l.panel.enabled = l.panelEnabled && !this.palmPush;
     }
   }
 
   update(dt) {
     const reduced = this.reduced;
+    this.updatePalm(dt);
     for (const l of this.stack.all) {
       l.panel.update(dt);
       l.rows.forEach(r => r.update(dt));
-      l.settled = stepPackagingLevel(l, this.omega, dt, reduced);
+      if (this.palmPush?.level !== l) l.settled = stepPackagingLevel(l, this.omega, dt, reduced);
       const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));

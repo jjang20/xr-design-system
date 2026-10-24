@@ -52,7 +52,21 @@ export const DEFAULTS = {
   // Proposed: anchor.follow.threshold.
   followThreshold: 20, // deg
   // Body-lock distance of the dock. Proposed: anchor.distance.
-  dockDistance: 0.55, // m
+  dockDistance: 0.4, // m; closer body-lock reach after Quest feedback, 2026-10-24
+
+  // Provisional Quest input tuning in physical metres. Applies to tracked
+  // hands, not controller grips. Promote after the next headset acceptance.
+  handInput: {
+    pressOffset: 0.01, // start the press 10 mm before fingertip surface contact
+    fingertipRadius: 0.008, // fallback when tracking supplies no usable radius
+    palmRadius: 0.012,
+    palmReach: 0.08,
+    palmCloseTravel: 0.05,
+    palmExitTravel: 0.03,
+    palmRearmDistance: 0.04,
+    palmAlignment: 0.7,
+    fingerExtension: 1.35,
+  },
 
   // Appearance. Proposed: a look.* token group once tested in MR.
   look: {

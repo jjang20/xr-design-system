@@ -145,7 +145,7 @@ export class DockIcon extends Interactable {
       const r = best.point.distanceTo(this.centre);
       inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
       // Only a pinch that began on this app presses it (captured).
-      penetration = best.kind === 'poke' ? this.touchRadius - r + (best.radius ?? 0) / scale : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
+      penetration = best.kind === 'poke' ? this.touchRadius - r + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / scale : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;

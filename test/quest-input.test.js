@@ -74,7 +74,7 @@ test('Quest: physical fingertip radius and release distance survive component sc
   for (const scale of [0.5, 1.5]) {
     const b = new Button(T); b.scale.setScalar(scale);
     const hand = rig(b), contact = b.t * scale + hand.tip.jointRadius;
-    hand.step(0, 0, contact + 0.01);
+    hand.step(0, 0, contact + 0.03); // approach from outside the new 10 mm press offset
     hand.step(0, 0, contact - 0.001);
     assert.equal(b.press.pressed, true);
     hand.step(0, 0, contact + 0.0015);

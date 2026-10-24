@@ -69,7 +69,7 @@ export class PackagingStack {
       l.panelEnabled = i < active;
     });
     for (const l of this.closing) {
-      l.to = { ...(reduced || !l.from ? l.cur : l.from), opacity: 0, dim: 0, back: 0 };
+      l.to = { ...(reduced ? l.cur : l.pushExit ?? l.from ?? l.cur), opacity: 0, dim: 0, back: 0 };
       l.rowsEnabled = l.panelEnabled = false;
     }
   }

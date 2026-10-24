@@ -51,7 +51,8 @@ export class PressModel {
     else this.springBack(dt, target);
 
     if (this.pressed) {
-      this.deepest = Math.max(this.deepest, target);
+      // Release follows physical retreat even after visual travel is capped.
+      this.deepest = Math.max(this.deepest, penetration);
       if (!inside) {
         this.pressed = false;
         event = 'cancel';

@@ -72,6 +72,8 @@ A thick object that compresses toward its back face when poked.
 
 Disabled buttons are always `rigid`: they barely give, which reads as "not now". Events: `press`, `release`, `select`, `cancel` (finger slid off).
 
+Quest calibration (2026-10-24 follow-up): tracked hands start pressed 10 mm ahead of the fingertip's surface contact, including the tracked joint radius. This provisional allowance is `DEFAULTS.handInput.pressOffset`; controller grips and rays retain their existing behavior. Release still requires 3 mm physical retreat, even when the material's visible compression is already capped.
+
 ## Z-Slider
 
 A knob that moves along Z instead of X. At the base it reads 0%; pulling it outward, away from the base, increases the value to 100% at full extension (Quest feedback, 2026-10-24).
@@ -105,6 +107,8 @@ A list whose rows open into a child panel that grows out of the row, instead of 
 
 Rows use the bubble language (see Decisions): on hover the window glass swells into a pillow under the row; on press a dent gives way where the press lands and lights from inside.
 
+**Palm push to close.** Face an open palm toward a child layer and push the full layer away. It follows the hand directly; after 50 mm it moves away and fades, returning to the parent. Before that threshold, withdrawing or losing tracking restores it. The palm gesture suppresses row selection and retains its owner. One push closes one child; withdraw before another push. The root Catalog remains open. Under reduced motion the hand still controls displacement, but the automated exit only fades at the final pushed pose. These hand-recognition and distance settings are provisional pending Quest recheck.
+
 ![Catalog row in bubble hover: the window glass swells into a pillow under Sofas](images/catalog-hover.png)
 *Captured 2026-10-20 from the demo, 2560 × 1600.*
 
@@ -119,6 +123,8 @@ An ornament of actions under a window: one glass bar whose buttons are places wh
 *Captured 2026-10-20 from the demo, 2560 × 1600.*
 
 ## Dock
+
+Default body-lock distance is now **40 cm** (previously 55 cm), following Quest feedback. The existing 25° angle, delayed follow and placement sizing remain; `o.distance` still overrides the default.
 
 The app launcher, body-locked 25° below your view. Each app is a small object drawn the way Mac OS X icons are, standing on a curved plate of solid glass bubble. A finger near one forms a clear bubble round it, and the bubble can be pressed like the list bubble (Jihoon, 2026-10-21, from his reference image of a classic Mac dock with a subtle bubble). Pinch an end of the plate and pull to make every app bigger; the plate's length otherwise follows the apps, so adding one lengthens it by itself.
 
