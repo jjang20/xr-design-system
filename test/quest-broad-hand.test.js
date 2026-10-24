@@ -96,3 +96,12 @@ test('Q24: one push closes one child; real retreat rearms; Catalog persists',()=
  close();assert.equal(r.p.active,1);for(let i=0;i<150;i++)r.step();movePalm(r,-.075);assert.equal(r.p.active,1,'held hand cannot cascade');
  movePalm(r,.1);close();assert.equal(r.p.active,0);for(let i=0;i<150;i++)r.step();movePalm(r,.1);close();assert.equal(r.p.active,0);assert.deepEqual(back,[1,0]);
 });
+
+for(const jump of [.07,.1])test('A distal-patch change of '+jump+' before capture cannot become closing travel when the palm centre never moved',()=>{
+ const r=rig(panel());movePalm(r,.04);const centre=rawCentre(r).clone(),before=r.p.palmSamples(r.input.palmOf(r.src)).map(s=>({key:s.key,gap:s.gap}));
+ for(const f of fingers)r.src.hand.joints[f+'-finger-tip'].position.z=-jump;
+ r.scene.updateMatrixWorld(true);const after=r.p.palmSamples(r.input.palmOf(r.src)).map(s=>({key:s.key,gap:s.gap}));
+ const translation=centre.distanceTo(rawCentre(r));r.step();console.log(JSON.stringify({jump,before,after,palmTranslation:translation,active:r.p.active,diagnostic:r.p.palmDiagnostic}));
+ assert.equal(r.p.active,1,'patch relocation without centre translation must not close a layer');
+ assert.ok(!r.p.palmPush || r.p.palmPush.depth===0, 'the acquisition frame cannot invent visible travel');
+});

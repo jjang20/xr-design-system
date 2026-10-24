@@ -143,11 +143,13 @@ export class PackagingPanel extends THREE.Group {
         for (const s of samples) {
           if (!s.inside || s.alignment < P.palmHoldAlignment) continue;
           const key = `${p.id}:${s.key}`, previous = this.palmPrevious.get(key);
+          const contactPoint = this.localToWorld(s.point.clone());
           const outsideAge = s.gap > 0 ? 0 : (previous?.outsideAge ?? Infinity) + dt;
-          current.set(key, { gap: s.gap, point: p.point.clone(), outsideAge });
+          current.set(key, { gap: s.gap, point: p.point.clone(), contactPoint, outsideAge });
           this.palmDiagnostic = { id: p.id, patch: s.key, gap: s.gap, alignment: s.alignment,
             state: !s.facing ? 'angle-history' : s.gap <= 0 && !previous ? 'approach-required' : 'approaching' };
-          if (previous && p.point.distanceTo(previous.point) > P.palmMaxStep + 1e-6) {
+          if (previous && Math.max(p.point.distanceTo(previous.point),
+            contactPoint.distanceTo(previous.contactPoint)) > P.palmMaxStep + 1e-6) {
             this.blockPalm(p); current.clear(); break;
           }
           if (s.facing && s.gap <= 0 && previous && outsideAge <= P.palmTrackingGrace) {
@@ -155,9 +157,12 @@ export class PackagingPanel extends THREE.Group {
             // Finger articulation cannot turn a changed contact estimator
             // into closing travel; translation is measured in stable space.
             const tracked = this.worldToLocal(p.point.clone());
+            const previousCentre = this.worldToLocal(previous.point.clone());
+            const observedTravel = Math.max(0, (previousCentre.z - tracked.z) * s.scaleZ);
+            const initialDepth = Math.min(Math.max(0, -s.gap), observedTravel);
             this.palmPush = { id: p.id, patchKey: s.key, level, pose: { ...level.cur }, scaleZ: s.scaleZ,
               parents: this.levels.slice(0, -1).map(l => ({ level: l, z: l.cur.z })),
-              contactZ: tracked.z - s.gap / s.scaleZ, depth: 0, missing: 0 };
+              contactZ: tracked.z + initialDepth / s.scaleZ, depth: 0, missing: 0 };
             this.applyInputGates(); break;
           }
         }
