@@ -14,7 +14,7 @@ for(const reducedMotion of [false,true])for(const scale of [1,1.5,2])test(`R6: o
  const frontGap=(front.cur.z-middle.cur.z)*scale,oldGap=(middle.cur.z-old.cur.z)*scale;
  assert.ok(oldGap>old.panel.t*scale,'solid sheets must not intersect');assert.ok(oldGap<frontGap*.85,'older interval must be visibly tighter');
  assert.ok(Math.abs(frontGap-p.pose.recedeZ*scale)<1e-5,'nearest gap remains the existing distance');
- assert.ok(old.rearOpacity<=.1&&middle.rearOpacity>=.25&&middle.rearOpacity<=.3);
+ assert.ok(old.rearOpacity/middle.rearOpacity<.45&&middle.rearOpacity>=.25&&middle.rearOpacity<=.3,'stronger relative depth fade must retain a visible rear sheet');
  assert.equal(DEFAULTS.windowManipulation.rearTitleOpacity,1);
  for(let i=0;i<2;i++){
   const rear=p.levels[i],ahead=p.levels[i+1];

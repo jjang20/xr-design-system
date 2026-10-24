@@ -61,7 +61,7 @@ export const DEFAULTS = {
     maxReach: 0.72, deadzone: 0.15, followRate: 6 },
   windowManipulation: { scaleRange: [0.9, 2.2], cornerSize: 32, dragSlop: 0.006,
     moveWidth: 28, moveHeight: 64, handleGap: 8, heldOpacity: 0.9,
-    rearOpacity: 0.28, olderOpacity: 0.08, rearTitleOpacity: 1 },
+    rearOpacity: 0.30, olderOpacity: 0.12, rearTitleOpacity: 1 },
 
   // Provisional Quest input tuning in physical metres. Applies to tracked
   // hands, not controller grips. Promote after the next headset acceptance.
