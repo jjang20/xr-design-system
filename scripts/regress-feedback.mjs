@@ -182,11 +182,14 @@ try {
   const deepPage=await open('component=packaging&layout=quest');
   result.traces.deepChild=await deepPage.evaluate(async()=>{
     const c=window.contour,r=window.replay,p=c.panel;
+    // Make the oldest plate genuinely exposed below BOTH children.
+    // Three Sofas rows extend below Catalog and naturally occlude that ROI.
+    p.levels[0].item.items[0].items=p.levels[0].item.items[0].items.slice(0,2);
     p.levels[0].item.items[0].items[1].items=[{label:'Only child'}];p.levels[0].rows[0].dispatchEvent({type:'select'});c.tick(150);p.levels[1].rows[1].dispatchEvent({type:'select'});c.tick(150);
     const url=performance.getEntriesByType('resource').map(r=>r.name).find(u=>u.includes('/src/core/look.js'));
     (await import(url)).setBackdrop(null);c.scene.background=null;
     const rear=p.levels[0],front=p.levels[2],gl=c.renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
-    const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=front.cur.y-front.size.H*front.cur.sy/2;
+    const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=Math.min(...p.levels.slice(1).map(l=>l.cur.y-l.size.H*l.cur.sy/2));
     const project=(x,y)=>p.localToWorld(new r.THREE.Vector3(x,y,rear.cur.z)).project(c.camera);
     const lo=project(-rear.size.W*rear.cur.sx/2,bottom+.003),hi=project(rear.size.W*rear.cur.sx/2,frontBottom-.006);
     // Compare the same pixels, not independent maxima: faint rear text
