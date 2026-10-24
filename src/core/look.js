@@ -417,6 +417,7 @@ const GLASS_FRAG = /* glsl */`
     vec3 col = uTint;
     float alpha = uSolidOpacity;
     vec3 refl = vec3(0.0);
+    float tm = 0.0;
     #ifdef ENVMAP_TYPE_CUBE_UV
       vec3 Tdir = refract(V, N, 1.0 / uIor);
       vec3 bg = textureCubeUV(envMap, uEnvRot * Tdir, mix(uBlur, uBlur * 0.3, rim01)).rgb * uEnvIntensity;
@@ -434,11 +435,12 @@ const GLASS_FRAG = /* glsl */`
       col = bg * mix(uAlbedo, uClearAlbedo, uClear * bub) * exp(-uAbsorb * uThick * path);
       // Tinted glass (accent colour): the glass itself is coloured, so the
       // room shows through it in that colour (Jihoon, 2026-10-20).
-      float tm = 0.0;
       if (uTintParam.z > 0.0) {
         tm = 1.0 - smoothstep(-uTintParam.y, uTintParam.y, sdRoundRect(vLocal.xy - uTintRect.xy, uTintRect.zw, uTintParam.x));
         col = mix(col, bg * uTintColor * exp(-uAbsorb * uThick / cosR), tm * uTintParam.z);
       }
+    #endif
+      // Contact lighting also runs with no environment in mixed reality.
       // Adaptive scrim: over a bright room darken just enough to keep white
       // text legible, up to color.scrim.opacity.maximum. The rim carries no text, so
       // it keeps the room's light.
@@ -488,6 +490,7 @@ const GLASS_FRAG = /* glsl */`
       // In tinted glass the light takes the glass's colour.
       vec3 tintHue = uTintColor / max(max(uTintColor.r, uTintColor.g), uTintColor.b);
       col += mix(uGlowColor, mix(uGlowColor, tintHue, 0.7), tm * uTintParam.z) * glow.z * uGlowCore;
+    #ifdef ENVMAP_TYPE_CUBE_UV
       // A dent is a concave mirror: kept soft, so it doesn't focus the
       // room's lights into a sharp shape (it read as a smudge).
       float dm = vFront > 0.5 && anyBulge() ? dentMask(vLocal.xy) : 0.0;

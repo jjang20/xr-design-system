@@ -214,3 +214,38 @@ test('Captured ray resizing keeps the plate pressed across its new bounds',()=>{
  assert.equal(d.grip.held?.id,'xr0');assert.equal(d.shelf.press.pressed,true);
  assert.ok(d.shelf.press.depth>.002);assert.ok(d.size>1);
 });
+
+
+test('Continuous approach to the central handle never gives icon3 a press',()=>{
+ const r=rig(.4,3),h=r.dock.handle;
+ const frame=gap=>{r.tip.position.copy(h.localToWorld(new THREE.Vector3(0,0,h.t+gap)));r.scene.updateMatrixWorld(true);r.input.update();r.dock.update(dt,r.camera,r.input.handPoints);};
+ for(const gap of [.12,.08,.06,.04,.025,.017,.012]) frame(gap);
+ r.input.xr[0].selecting=true;frame(.012);
+ assert.equal(r.dock.rail.held?.id,'xr0');
+ assert.equal(r.dock.icons.some(i=>i.press.pressed),false);
+ assert.deepEqual(r.events,[]);
+});
+
+test('Dock icon release waits for surface separation; lateral exit and loss cancel',()=>{
+ for(const ending of ['out','side','loss']) {
+  const r=rig(.4,3);
+  for(const gap of [.12,.08,.04,.017,.004,-.004])for(let n=0;n<12;n++)r.move(gap);
+  r.move(0);assert.equal(r.events.includes('select'),false,'4mm retreat still overlaps fingertip sphere');
+  if(ending==='out')r.move(.04);
+  else if(ending==='side'){
+   r.tip.position.copy(r.icon.localToWorld(r.icon.centre.clone().add(new THREE.Vector3(r.icon.touchRadius*1.3,0,0))));
+   r.scene.updateMatrixWorld(true);r.input.update();r.dock.update(dt,r.camera,r.input.handPoints);
+  } else {r.input.xr[0].connected=false;r.input.update();r.dock.update(dt,r.camera);}
+  assert.equal(r.events.filter(e=>e==='select').length,ending==='out'?1:0);
+ }
+});
+
+test('Scaled row holds selection while finger still overlaps its contact crown',()=>{
+ const r=palmRig(),row=r.p.levels[1].rows[0];r.p.scale.setScalar(1.5);r.scene.updateMatrixWorld(true);
+ const events=[];row.addEventListener('select',()=>events.push('select'));
+ const feed=gap=>{const scale=row.getWorldScale(new THREE.Vector3()).z;row.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,row.surfaceZ(new THREE.Vector3())+gap/scale),radius:.008,pressOffset:.01});r.p.update(dt);};
+ for(let n=0;n<30;n++)feed(.05);
+ for(const gap of [.017,.004,-.004,0])feed(gap);
+ assert.equal(events.length,0);
+ feed(.04);assert.equal(events.length,1);
+});

@@ -33,7 +33,7 @@ export class PressModel {
   //   (negative = in front; -Infinity = a ray that isn't pressing; null = no finger).
   // inside: whether the finger is within the face outline.
   // Returns 'press', 'release', 'cancel' or null.
-  update(dt, penetration, inside) {
+  update(dt, penetration, inside, separation = null) {
     let event = null;
     // Only a finger arriving from the front can start a press, not one that
     // first appears already behind the face (reaching in from the back or side).
@@ -44,6 +44,7 @@ export class PressModel {
     if (!this.pressed && inside && penetration >= 0 && fromFront) {
       this.pressed = true;
       this.deepest = 0;
+      this.contacted = separation === null || separation <= 0;
       event = 'press';
     }
     const target = this.pressed ? clamp(penetration, 0, this.maxDepth) : 0;
@@ -51,14 +52,15 @@ export class PressModel {
     else this.springBack(dt, target);
 
     if (this.pressed) {
+      this.contacted ||= separation !== null && separation <= 0;
       // Release follows physical retreat even after visual travel is capped.
       this.deepest = Math.max(this.deepest, penetration);
       if (!inside) {
         this.pressed = false;
         event = 'cancel';
-      } else if (penetration < this.deepest - this.release) {
+      } else if (penetration < this.deepest - this.release && (separation === null || separation > 0)) {
         this.pressed = false;
-        event = 'release';
+        event = this.contacted ? 'release' : 'cancel';
       }
     }
     return event;

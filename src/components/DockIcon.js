@@ -140,17 +140,24 @@ export class DockIcon extends Interactable {
     this.hovered = best?.kind === 'ray' ? true : this.hoverBand.update(best ? this.distanceToSkin : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a
     // ray press pushes it all the way.
-    let penetration = null, inside = false;
+    let penetration = null, inside = false, separation = null;
     if (best && this.enabled) {
       const r = best.point.distanceTo(this.centre);
       inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
+      if (best.kind === 'poke') {
+        separation = r - this.rb - (best.radius ?? 0) / scale;
+        if (this.press.pressed && this.pressDirection) {
+          const delta = best.point.clone().sub(this.centre), axial = delta.dot(this.pressDirection);
+          inside &&= axial > 0 && delta.lengthSq() - axial * axial <= this.touchRadius ** 2;
+        }
+      }
       // Only a pinch that began on this app presses it (captured).
       penetration = best.kind === 'poke' ? this.touchRadius - r + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / scale : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;
-    const ev = this.press.update(dt, penetration, inside);
-    if (ev === 'press') { this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
+    const ev = this.press.update(dt, penetration, inside, separation);
+    if (ev === 'press') { this.pressDirection = this.spot.clone(); this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
     if (ev === 'release') { this.dispatchEvent({ type: 'release' }); this.dispatchEvent({ type: 'select' }); }
     if (ev === 'cancel') this.dispatchEvent({ type: 'cancel' });
 

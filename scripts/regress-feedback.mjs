@@ -78,10 +78,25 @@ try {
     return { changed, maxDelta };
   });
   check('contact glow changes actual pixels', result.traces.glowPixels.changed > 100 && result.traces.glowPixels.maxDelta > 10);
+  result.traces.mrGlowPixels = await page.evaluate(async () => {
+    const c=window.contour, mat=c.panel.levels[0].panel.skin;
+    const url=performance.getEntriesByType('resource').map(r=>r.name).find(u=>u.includes('/src/core/look.js'));
+    const look=await import(url);
+    if(look.backdropUniforms().envMap!==mat.uniforms.envMap)throw new Error('Backdrop module identity mismatch');
+    look.setBackdrop(null);c.scene.background=null;
+    const u=mat.uniforms.uBulgeGlow.value,values=u.map(v=>v.y),gl=c.renderer.getContext();
+    const pixels=()=>{c.renderer.render(c.scene,c.camera);const p=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,p);return p;};
+    const on=pixels();u.forEach(v=>v.y=0);const off=pixels();u.forEach((v,i)=>v.y=values[i]);
+    let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=4){const d=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(d>2)changed++;maxDelta=Math.max(maxDelta,d);}
+    return {changed,maxDelta,hasEnv:!!mat.defines.ENVMAP_TYPE_CUBE_UV};
+  });
+  check('MR no-env contact glow changes actual pixels',!result.traces.mrGlowPixels.hasEnv && result.traces.mrGlowPixels.changed>100 && result.traces.mrGlowPixels.maxDelta>10);
+  await capture(page,'02-row-contact-mr');
+
   result.traces.click = await page.evaluate(() => {
     const c = window.contour, p = c.panel, r = window.replay, build = p.buildLevel.bind(p); let buildMs;
     p.buildLevel = (...args) => { const start = performance.now(), level = build(...args); buildMs = performance.now() - start; return level; };
-    r.move(.04); r.src.connected = false;
+    r.move(.004); r.move(.04); r.src.connected = false;
     const frames = [];
     for (let i = 0; i < 15; i++) { const l = p.levels.at(-1); frames.push({ y: l.cur.y, scale: l.cur.sx, opacity: l.cur.opacity }); c.tick(1); }
     return { active: p.active, buildMs, frames };

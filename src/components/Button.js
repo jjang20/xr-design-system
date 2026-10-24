@@ -350,11 +350,12 @@ export class Button extends Interactable {
     if (!hoverProbe) this.hoverBand.update(Infinity);
 
     // Press: pokes press by depth; a ray press pushes all the way in.
-    let penetration = null, inside = false;
+    let penetration = null, inside = false, separation = null;
     if (best && this.enabled) {
       inside = best.canPress !== false && this.inside(best.point, best.kind === 'poke');
       if (best.kind === 'poke') {
         const front = this.press.pressed ? this.pokeFront : this.surfaceZ(best.point);
+        if (this.emboss) separation = best.point.z - front - (best.radius ?? 0) / Math.abs(this.getWorldScale(inputScale).z);
         penetration = front - best.point.z + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / Math.abs(this.getWorldScale(inputScale).z);
       }
       // A ray has no depth: press goes all the way in, and letting go is a
@@ -363,7 +364,7 @@ export class Button extends Interactable {
       else penetration = best.pressed && best.captured ? this.press.maxDepth : -Infinity;
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;
-    const ev = this.press.update(dt, penetration, inside);
+    const ev = this.press.update(dt, penetration, inside, separation);
     if (ev === 'press') {
       this.pressOwner = best.id;
       this.pokeFront = this.surfaceZ(best.point);

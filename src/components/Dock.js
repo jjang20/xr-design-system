@@ -147,16 +147,18 @@ export class Dock extends THREE.Group {
       const appDistance = icon.pokeDistance.bind(icon);
       icon.pokeDistance = point => {
         const onPlate = this.shelf.worldToLocal(icon.localToWorld(point.clone()));
-        return this.plateSample(onPlate).inside ? Infinity : appDistance(point);
+        const onHandle = this.handle.worldToLocal(icon.localToWorld(point.clone()));
+        const handleLane = this.handle.inside(onHandle, true) && onHandle.z >= -this.handle.t && onHandle.z <= this.handle.t + 0.025;
+        return handleLane || this.plateSample(onPlate).inside ? Infinity : appDistance(point);
       };
     }
     // Dedicated position handle below the plate; the ends still resize.
     this.handle = new Button(T, { width: DEFAULTS.dockRail.handleWidth, height: DEFAULTS.dockRail.handleHeight,
       radius: DEFAULTS.dockRail.handleHeight / 2, distance: dist, density: 'soft', thickness: 'regular' });
-    this.handle.position.set(0, -this.side * 0.95, 0);
+    this.handle.position.set(0, -this.side * 1.7, 0);
     // Only a hand aimed at the handle's touch face may acquire it. Its
     // broad lateral hover must not intercept an app's frontward approach.
-    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t
+    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t && point.z <= this.handle.t + 0.025
       ? this.handle.faceDistance(point) : Infinity;
     this.add(this.handle);
     this.rail = new DockRail(this.handle, this.eccentricity);
@@ -541,7 +543,7 @@ export class Dock extends THREE.Group {
     this.layout();
     // Magnify from the nearest hand, measured to each icon's rest position.
     const inv = new THREE.Matrix4().copy(this.level.matrixWorld).invert();
-    const local = this.gripping ? [] : hands.map(h => h.clone().applyMatrix4(inv));
+    const local = this.gripping || placing ? [] : hands.map(h => h.clone().applyMatrix4(inv));
     // Once a finger is close enough to form an app's bubble, the app holds
     // its size: a finger nearer than that, or pressing in, counts as at that
     // distance (the press makes the app give way, never swell).
@@ -566,7 +568,7 @@ export class Dock extends THREE.Group {
     // so a finger between two never lights both.
     // (Apps not yet whole on the plate take no hands.)
     const near = this.icons.map((icon, i) => this.presence[i] >= 1 ? icon.sense() : (icon.consumeProbes(), icon.best = null, Infinity));
-    const nearest = this.gripping ? -1 : nearestApp(this.icons, near);
+    const nearest = this.gripping || placing ? -1 : nearestApp(this.icons, near);
     this.icons.forEach((icon, i) => { icon.exclusive = i === nearest; icon.update(dt); });
     this.layout();
     this.lightPress();
