@@ -24,15 +24,17 @@ The first four tests in `test/quest-input.test.js` failed on the baseline: adjac
 
 `scripts/regress-quest.mjs` renders the real Z-Slider glow into a transparent WebGL target. Before the fix, centre and corner alpha were 255 even with no rings lit. After the fix they are 0 at 0/3/5 lit rings; the lit ring maximum alpha and brightness remain 148. See [before](validation/quest-input-2026-10-24/red/result.json) and [after](validation/quest-input-2026-10-24/green/result.json). The paired composite images were inspected: the opaque black square is gone and concentric amber rings remain. This isolates the material defect; it is not a Quest passthrough capture.
 
-Validation uses Node 22.23.4 and Chrome with SwiftShader. Final full-suite, build and independent-review results will be recorded here before preview publication.
+Validation uses Node 22.23.4 and Chrome with SwiftShader. At code commit `cbf4efc`: **67/67 tests** (61 component/runtime + 6 Arena), **12/12 browser regressions**, **4/4 glow compositing checks**, token drift check and production build pass. [Test log](validation/quest-input-2026-10-24/test.log), [browser log](validation/quest-input-2026-10-24/browser.log), [build log](validation/quest-input-2026-10-24/build.log).
+
+The first full run caught three controller/ray ownership regressions introduced while resetting new fingertip approach history. Restricting that reset to poke probes restored the existing tests; [initial test log](validation/quest-input-2026-10-24/initial-full-test.log) and [initial browser log](validation/quest-input-2026-10-24/initial-browser.log) are retained. Independent review then found the Catalog corner-radius mismatch and inherited scale-dependent slider reach. Three additional tests failed before their corrections and pass afterward; [review red log](validation/quest-input-2026-10-24/review-red.log). Both independent review axes closed at `cbf4efc`, with no remaining findings in scope; see [review record](quest-input-review-2026-10-24.md).
 
 ## Motion and accessibility review
 
-The slider remains directly coupled to hand displacement with its grab offset preserved. No duration, easing or spring values change. Existing reduced-motion behavior, physical target floor, disabled feedback and cancellation semantics are retained. The frozen press-contact reference avoids release driven by the component's own dent animation. Verdict: ready for automated regression and independent review; physical comfort and tracking stability require the user's Quest recheck.
+The slider remains directly coupled to hand displacement with its grab offset preserved. No duration, easing or spring values change. Existing reduced-motion behavior, physical target floor, disabled feedback and cancellation semantics are retained; slider scaling now preserves physical reach too. The frozen press-contact reference avoids release driven by the component's own dent animation. Verdict: automated regressions and independent review pass; physical comfort and tracking stability require the user's Quest recheck.
 
 ## Boundaries and next two steps
 
 No token changes, Figma changes, room-planner features or remote merge are included. Root is the only implementation writer; independent reviewers remain read-only.
 
-1. Pass full tests/build/browser regressions and both review axes; fix any confirmed regression locally.
-2. Serve the verified commit at the existing Quest HTTPS address. The user refreshes and rechecks the four reports; record that feedback separately from browser test results before making a merge recommendation.
+1. Serve the verified code at the existing Quest HTTPS address; the user refreshes and rechecks the four reports. Root owns the preview and records the result. Review findings and automated checks are closed.
+2. If the Quest recheck passes, prepare PR #5's update and merge recommendation. Follow repository authorization for remote operations; local tests do not imply remote merge or full headset acceptance.
