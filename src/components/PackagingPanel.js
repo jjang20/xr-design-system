@@ -22,7 +22,7 @@ import { markComponent } from '../core/Interactable.js';
 import { clamp } from '../core/easing.js';
 import { prefersReducedMotion } from '../core/spring.js';
 import { DEFAULTS } from '../core/defaults.js';
-import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, setBulge } from '../core/look.js';
+import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, setBulge, glassSlabGeometry } from '../core/look.js';
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
@@ -130,10 +130,14 @@ export class PackagingPanel extends THREE.Group {
       for (const p of probes) {
         const s = this.palmSample(p);
         if (!s?.inside || !s.facing) continue;
-        current.set(p.id, s.gap);
+        const previous = this.palmPrevious.get(p.id);
+        current.set(p.id, { gap: s.gap, point: p.point.clone() });
+        if (previous && p.point.distanceTo(previous.point) > P.palmMaxStep + 1e-6) {
+          this.blockPalm(p); current.delete(p.id); continue;
+        }
         // A hand first appearing behind the layer must withdraw before it
         // can push. Another hand cannot supply that approach history.
-        if (s.gap <= 0 && this.palmPrevious.get(p.id) > 0) {
+        if (s.gap <= 0 && previous?.gap > 0) {
           this.palmPush = { id: p.id, level, pose: { ...level.cur }, scaleZ: s.scaleZ,
             parents: this.levels.slice(0, -1).map(l => ({ level: l, z: l.cur.z })),
             contactZ: s.point.z - s.gap / s.scaleZ, depth: 0, missing: 0 };
@@ -167,7 +171,8 @@ export class PackagingPanel extends THREE.Group {
       this.retarget(); return;
     }
     const l = push.level;
-    Object.assign(l.cur, push.pose, { z: push.pose.z - depth / push.scaleZ });
+    const { x, y, sx, sy } = push.pose;
+    Object.assign(l.cur, { x, y, sx, sy, z: push.pose.z - depth / push.scaleZ });
     // Keep ancestors behind the pushed child, including tighter layouts.
     // Otherwise the child vanishes behind its parent before the threshold.
     for (const p of push.parents) p.level.cur.z = p.z - depth / push.scaleZ;
@@ -197,10 +202,9 @@ export class PackagingPanel extends THREE.Group {
     this.retarget();
   }
 
-  buildLevel(item, levelIndex) {
-    const T = this.T, dist = this.distance;
+  levelLayout(item) {
+    const T = this.T, dist = this.distance, D = DEFAULTS;
     const dmm = v => (v / 1000) * T.effectiveDistance(dist);
-    const D = DEFAULTS;
     const W = dmm(D.panelWidth);
     const rowH = dmm(D.rowHeight);
     const titleH = dmm(D.type.title.size * 1.2);
@@ -208,6 +212,23 @@ export class PackagingPanel extends THREE.Group {
     const headerH = titleH + subH + dmm(D.headerGap);
     const items = item.items ?? [];
     const H = dmm(D.panelPadTop + D.panelPadBottom) + headerH + items.length * rowH;
+    return { W, H, rowH, titleH, headerH, dmm, items };
+  }
+
+  // Opt in during scene preparation, before input/rendering starts. Warm
+  // static catalog window shapes so a click never runs tessellation.
+  prepareGeometry() {
+    const visit = (item, depth) => {
+      const { W, H, dmm } = this.levelLayout(item);
+      glassSlabGeometry(W, H, this.T.get('material.thickness.regular'), dmm(DEFAULTS.radius.window), { tessellate: .002 }).dispose();
+      if (depth < this.maxDepth) for (const child of item.items ?? []) if (child.items?.length) visit(child, depth + 1);
+    };
+    visit(this.levels[0].item, 0);
+  }
+
+  buildLevel(item, levelIndex) {
+    const T = this.T, dist = this.distance, D = DEFAULTS;
+    const { W, H, rowH, titleH, headerH, dmm, items } = this.levelLayout(item);
 
     const group = new THREE.Group();
     // The window is glass and rigid: structural, it barely gives. Once it
@@ -347,7 +368,10 @@ export class PackagingPanel extends THREE.Group {
       l.palmGlow = contact || (l.palmGlow ?? 0) * Math.exp(-dt / 0.08);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
       l.rows.forEach(r => r.update(dt));
-      if (!this.palmPush) l.settled = stepPackagingLevel(l, this.omega, dt, reduced);
+      const push = this.palmPush;
+      const held = push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
+        : push?.parents.some(p => p.level === l) ? ['z'] : [];
+      l.settled = stepPackagingLevel(l, this.omega, dt, reduced, held);
     }
     if (!reduced) for (const child of this.closing) {
       // Hold depth order through the visible exit. Recover ancestors once

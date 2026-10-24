@@ -26,6 +26,7 @@ Baseline: `b0efff2de1860e5d2f39dc65b17db250f3c6b627`. This is the user's input/l
 - Row glow followed spring dent depth, so first-frame shallow contact was weak. Contact light is now independent of spring travel, with the same existing material glow path.
 - Palm candidates behind a window could swallow unrelated input. Single missing/alignment frames reset the gesture; pointing fingers could resemble palms. These are bounded/filtered, with explicit ownership and grace.
 - A pushed child could cross its parent before closing. Ancestors follow during the direct gesture to preserve separation.
+- Browser measurement found 291 ms synchronous child construction on click. The demo prewarms window tessellation during scene setup; a bounded 16-shape cache supplies independent geometry clones. Runtime materials and typography stay unchanged. Desktop timing is not a Quest frame-rate claim.
 
 ## Motion review changes
 
@@ -34,6 +35,7 @@ Baseline: `b0efff2de1860e5d2f39dc65b17db250f3c6b627`. This is the user's input/l
 | Glow waited for substantial dent travel | Contact lights immediately; deformation follows existing physical response | Shallow and quick presses remain visible |
 | One bad tracking frame snapped the pushed layer back | Freeze briefly; reacquire without unseen travel | Preserve gesture continuity without false dismissal |
 | Child could pass behind its parent during Push | Preserve separation while directly pushed | Keep the whole layer visible until close |
+| First child construction blocked click response | Prepare static window topology before interaction | Start the existing open motion without click-time tessellation |
 | No user placement control | Direct angular handle drag with retained placement | Keep the Dock out of the user's view without changing reach |
 
 ## Verification and next two steps

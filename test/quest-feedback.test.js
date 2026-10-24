@@ -78,6 +78,35 @@ test('One frame of palm orientation noise does not break a held push',()=>{
  r.move(-.04);assert.equal(r.p.active,0);
 });
 
+test('A tracking jump on first palm contact cannot dismiss a layer',()=>{
+ const r=palmRig();r.move(.08);r.move(-.04);
+ assert.equal(r.p.active,1,'120mm frame movement cannot become a 70mm deliberate push');
+ assert.equal(r.p.palmOwner,undefined);
+});
+
+test('Pushing an opening child does not freeze its fade or an unrelated exit',()=>{
+ const {p}=palmRig(),old=p.levels[1];
+ p.back(0);p.open(p.levels[0].item.items[0],p.levels[0].rows[0]);
+ const child=p.levels[1],normal=new THREE.Vector3(0,0,-1);
+ const frame=z=>{p.feedPalm({id:'fresh',normal,radius:.012,point:new THREE.Vector3(0,child.cur.y,z)});p.update(dt);};
+ const front=()=>child.cur.z+child.panel.t*Math.min(child.cur.sx,child.cur.sy)+.022;
+ frame(front()+.06);const contact=front()-.01;frame(contact);
+ assert.equal(p.palmOwner,'fresh');
+ for(let i=0;i<60;i++)frame(contact);
+ assert.ok(child.cur.opacity>.99,'opening fade must complete during a held push');
+ assert.ok(old.cur.opacity<.01,'unrelated closing layer must finish fading');
+ assert.equal(p.closing.length,0);
+});
+
+test('Prepared window geometry stays independent during overlapping navigation',()=>{
+ const {p}=palmRig();p.prepareGeometry();const first=p.levels[1].panel.body.geometry;
+ p.back(0);p.open(p.levels[0].item.items[0],p.levels[0].rows[0]);
+ const second=p.levels[1].panel.body.geometry;
+ assert.notEqual(first,second);assert.deepEqual(first.attributes.position.array,second.attributes.position.array);
+ const x=second.attributes.position.getX(0);first.attributes.position.setX(0,x+1);first.dispose();
+ assert.equal(second.attributes.position.getX(0),x,'one closing mesh cannot mutate the newly opened window');
+});
+
 test('A brief tracking dropout freezes push without counting unseen movement',()=>{
  const r=palmRig();r.move(.08);r.move(.025);r.move(.005);const child=r.p.levels[1],z=child.cur.z;
  r.src.hand.visible=false;r.step();assert.equal(child.cur.z,z);

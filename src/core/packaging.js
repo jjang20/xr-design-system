@@ -84,9 +84,12 @@ export const PACKAGING_KEYS = [...TRANSFORM, 'opacity', 'dim', 'back'];
 // was thrown). Reduced motion: the level does not travel or grow; it is
 // where it belongs at once and only fades (opacity, dim, back), so depth
 // still reads without the movement.
-export function stepPackagingLevel(l, omega, dt, reduced = false) {
+export function stepPackagingLevel(l, omega, dt, reduced = false, held = []) {
   let moving = false;
   for (const k of PACKAGING_KEYS) {
+    // A direct gesture owns only these transform channels. Opacity and
+    // unrelated transitions continue even when the hand holds still.
+    if (held.includes(k)) { moving = true; continue; }
     if (reduced && TRANSFORM.includes(k)) {
       l.cur[k] = l.to[k]; l.vel[k] = 0;
       continue;

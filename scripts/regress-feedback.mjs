@@ -88,6 +88,7 @@ try {
   });
   const click = result.traces.click;
   check('finger release opens with visible transform and fade', click.active === 1 && click.frames[0].opacity < click.frames[14].opacity && Math.abs(click.frames[0].y - click.frames[14].y) > .001);
+  check('prepared child creation stays below 50 ms on this desktop run', click.buildMs < 50);
   await capture(page, '03-child-open'); await page.close();
 
   const dockPage = await open('part=dock&visible=7');

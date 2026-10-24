@@ -197,7 +197,13 @@ export function setBackdropIntensity(v) { backdrop.uEnvIntensity.value = v; }
 // and the rounded edge, so reflections slide along it without facets.
 // `tessellate` (m) splits the faces finely enough for the front to swell
 // into an embossed bubble (see setBulge).
+// Window tessellation is expensive and independent of input. Keep bounded
+// CPU templates; callers own clones and may safely transform/dispose them.
+const slabTemplates = new Map();
 export function glassSlabGeometry(w, h, t, r, { tessellate = 0 } = {}) {
+  // dmm round trips may differ below a trillionth of a metre.
+  const key = tessellate ? [w, h, t, r, tessellate].map(v => v.toFixed(12)).join() : null;
+  if (key && slabTemplates.has(key)) return slabTemplates.get(key).clone();
   const b = Math.min(t / 2, r * 0.8, Math.min(w, h) * 0.25);
   const shape = roundedRectShape(w - b * 2, h - b * 2, Math.max(0.0001, r - b));
   let g = new THREE.ExtrudeGeometry(shape, {
@@ -211,6 +217,14 @@ export function glassSlabGeometry(w, h, t, r, { tessellate = 0 } = {}) {
   if (tessellate) g = new TessellateModifier(tessellate, 12).modify(g);
   g = mergeVertices(g, 1e-7);
   g.computeVertexNormals();
+  if (key) {
+    if (slabTemplates.size >= 16) {
+      const oldest = slabTemplates.keys().next().value;
+      slabTemplates.get(oldest).dispose(); slabTemplates.delete(oldest);
+    }
+    slabTemplates.set(key, g);
+    return g.clone();
+  }
   return g;
 }
 

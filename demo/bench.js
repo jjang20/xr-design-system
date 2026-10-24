@@ -123,6 +123,7 @@ camera.updateProjectionMatrix();
 const input = new InputSystem({ T, renderer, camera, scene });
 // ?state=hover on the Dock: a hand point at Scan, so it magnifies.
 const hands = [];
+panel?.prepareGeometry();
 const timer = new THREE.Timer();
 // A fingertip held at a Dock app (window.contour.touch), fed to the apps as
 // a poke each frame, as the InputSystem does in a headset; also the hand

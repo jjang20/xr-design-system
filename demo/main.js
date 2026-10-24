@@ -51,6 +51,7 @@ const catalog = place(new PackagingPanel(T, {
   layerSpacing: previousLayout ? 1 : DEFAULTS.windowPreview.layerSpacing / windowScale,
 }), -0.02, 1.62, -0.68);
 catalog.scale.setScalar(windowScale);
+catalog.prepareGeometry();
 catalog.addEventListener('open', e => say(`Opened ${e.item.label}`));
 catalog.addEventListener('back', () => say('Back'));
 catalog.addEventListener('select', e => say(`${e.item.label} selected`));
