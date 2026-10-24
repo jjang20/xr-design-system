@@ -105,7 +105,7 @@ test('Prepared window geometry stays independent during overlapping navigation',
  assert.notEqual(first,second);assert.deepEqual(first.attributes.position.array,second.attributes.position.array);
  const x=second.attributes.position.getX(0);first.attributes.position.setX(0,x+1);first.dispose();
  assert.equal(second.attributes.position.getX(0),x,'one closing mesh cannot mutate the newly opened window');
- const [row0,row1]=p.levels[0].rows,firstRow=row0.body.geometry,secondRow=row1.body.geometry;
+ const firstRow=p.levels[0].rows[0].body.geometry,secondRow=p.levels[1].rows[0].body.geometry;
  assert.notEqual(firstRow,secondRow);const rowX=secondRow.attributes.position.getX(0);
  firstRow.attributes.position.setX(0,rowX+1);firstRow.dispose();
  assert.equal(secondRow.attributes.position.getX(0),rowX,'reused row bevels must also be independently owned');
