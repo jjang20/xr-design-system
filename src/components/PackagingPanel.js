@@ -457,13 +457,23 @@ export class PackagingPanel extends THREE.Group {
     // The level in front of depth d: the open one, or one closing back into
     // it (the most visible).
     const inFront = d => all.filter(u => u.depth === d + 1).sort((a, b) => b.cur.opacity - a.cur.opacity)[0];
+    const foremost = [...all].sort((a, b) => b.depth - a.depth || b.cur.opacity - a.cur.opacity)[0];
     all.forEach(l => {
       const m = l.panel.body.material, p = l.cur, i = l.depth;
       const next = inFront(i);
+      if (foremost && foremost.depth > i) {
+        const c = foremost.cur, k = c.sx / p.sx;
+        m.uniforms.uCoverRect.value.set((c.x - p.x) / p.sx, (c.y - p.y) / p.sy,
+          foremost.size.W / 2 * k, foremost.size.H / 2 * c.sy / p.sy);
+        m.uniforms.uCoverRadius.value = foremost.panel.r * k;
+        m.uniforms.uRearMask.value.z = (c.z - p.z + foremost.panel.t * c.sx) / p.sx;
+      } else {
+        m.uniforms.uCoverRect.value.set(0, 0, 0, 0);
+        m.uniforms.uCoverRadius.value = 0;
+      }
       if (next) {
         const c = next.cur;
         const k = c.sx / p.sx;
-        m.uniforms.uRearMask.value.z = (c.z - p.z + next.panel.t * c.sx) / p.sx;
         setContactShadow(m, 0, {
           x: (c.x - p.x) / p.sx, y: (c.y - p.y) / p.sy,
           hw: next.size.W / 2 * k, hh: next.size.H / 2 * k,

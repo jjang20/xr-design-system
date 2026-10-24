@@ -6,12 +6,12 @@ import { DEFAULTS } from './defaults.js';
 export class WindowControls {
   constructor(panel) { this.panel = panel; this.held = null; }
 
-  cancel() {
+  cancel({ keepProbes = false } = {}) {
     if (this.held) {
       const h = this.held.handle;
       h.grab = null;
       h.press.update(0, null, false);
-      h.probes = [];
+      if (!keepProbes) h.probes = [];
     }
     this.held = null;
   }
@@ -31,7 +31,9 @@ export class WindowControls {
       }
     }
     if (!probe || !holding(probe)) {
-      if (this.held?.moved || !probe) this.cancel();
+      // A released drag cancels selection, not the current proximity sample.
+      // Keep hover visible until the source actually leaves or is lost.
+      if (this.held?.moved || !probe) this.cancel({ keepProbes: !!probe });
       else if (this.held) { this.held.handle.grab = null; this.held = null; }
       return;
     }

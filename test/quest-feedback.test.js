@@ -350,3 +350,29 @@ test('Window resize controls hide their visuals until hover and keep a separate 
  assert.equal(h.affordance.visible,true);assert.equal(h.body.visible,true);p.update(dt);assert.equal(h.affordance.visible,false);assert.equal(h.body.visible,false);
  assert.equal(h.icon,undefined);
 });
+
+test('Releasing a moved window control preserves current hover without navigating',()=>{
+ for(const kind of ['poke','ray']) {
+  const r=palmRig(),p=r.p,h=p.levels[1].corners[1];
+  const feed=(point,hold)=>{p.updateMatrixWorld(true);h.feed({kind,id:'owner',point:h.worldToLocal(point.clone()),radius:.008,pinch:hold,pressed:hold,captured:hold});p.update(dt);};
+  const start=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
+  feed(start,true);feed(start.clone().add(new THREE.Vector3(.04,0,0)),true);
+  assert.ok(p.controls.held?.moved);
+  const at=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));feed(at,false);
+  assert.equal(p.controls.held,null);assert.equal(h.hovered,true);assert.equal(h.affordance.visible,true);
+  assert.equal(p.active,1);p.update(dt);assert.equal(h.affordance.visible,false);
+ }
+});
+
+test('All ancestor sheet masks follow the frontmost variable-height window',()=>{
+ const r=palmRig(),p=r.p;
+ p.open({label:'Short child',items:[{label:'One'}]},null);
+ for(let i=0;i<180;i++)p.update(dt);
+ const front=p.levels.at(-1);
+ for(const rear of p.levels.slice(0,-1)) {
+  const u=rear.panel.skin.uniforms,c=front.cur,b=rear.cur;
+  assert.ok(u.uCoverRect,'sheet coverage is independent of the immediate child contact shadow');
+  assert.ok(Math.abs(u.uCoverRect.value.w-front.size.H/2*c.sy/b.sy)<1e-8);
+  assert.ok(Math.abs(u.uRearMask.value.z-(c.z-b.z+front.panel.t*c.sx)/b.sx)<1e-8);
+ }
+});

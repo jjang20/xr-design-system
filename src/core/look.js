@@ -358,7 +358,9 @@ const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   ${BULGE_GLSL}
-  uniform vec3 uRearMask; // title lower edge, rear amount, child front plane
+  uniform vec3 uRearMask; // title lower edge, rear amount, foremost front plane
+  uniform vec4 uCoverRect; // foremost window centre xy, half size zw
+  uniform float uCoverRadius;
   uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
@@ -560,11 +562,12 @@ const GLASS_FRAG = /* glsl */`
     col += uGlowColor * uContactGlow * bev * 0.35;
 
     // A short child cannot geometrically cover its taller parent. Keep
-    // the exposed header and faint glass directly behind the child only.
-    vec4 child = uShadowRect[0];
+    // each exposed header and faint glass behind the foremost window only.
+    // An intermediate sheet may itself be clipped by a shorter descendant.
+    vec4 child = uCoverRect;
     vec3 toEye = vec3(dot(-V, vAxisX), dot(-V, vAxisY), dot(-V, vAxisZ));
     vec2 childHit = vLocal.xy + toEye.xy * (uRearMask.z - vLocal.z) / max(toEye.z, 0.001);
-    float covered = toEye.z > 0.0 ? step(sdRoundRect(childHit - child.xy, child.zw, uShadowParam[0].x), 0.0) : 0.0;
+    float covered = toEye.z > 0.0 ? step(sdRoundRect(childHit - child.xy, child.zw, uCoverRadius), 0.0) : 0.0;
     float retained = max(step(uRearMask.x, vLocal.y), covered);
     alpha *= mix(1.0, retained, uRearMask.y);
     if (alpha * uOpacity * uFade < 0.001) discard;
@@ -605,6 +608,8 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uContactGlow: { value: 0 },
       uRearMask: { value: new THREE.Vector3() },
+      uCoverRect: { value: new THREE.Vector4() },
+      uCoverRadius: { value: 0 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },

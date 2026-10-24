@@ -107,7 +107,7 @@ try {
   await capture(page, '03-child-open');
   result.traces.windowControls = await page.evaluate(() => {
     const c=window.contour,r=window.replay,p=c.panel;
-    for(let i=0;i<150;i++)c.tick(1);
+    c.tick(150);
     const child=p.levels.at(-1),h=child.panel;
     const start=h.localToWorld(new r.THREE.Vector3(0,h.h/2-child.size.titleBand/2,h.t+.012));
     r.src.connected=true;r.src.selecting=false;r.step(start);r.src.selecting=true;r.step(start);
@@ -160,6 +160,27 @@ try {
   });
   check('oblique rear mask uses the child plane instead of a flat projection',result.traces.shortAngle.changed>20&&result.traces.shortAngle.childPlane>0);
   await capture(shortPage,'09-short-child-angle-mr');await shortPage.close();
+
+  const deepPage=await open('component=packaging&layout=quest');
+  result.traces.deepChild=await deepPage.evaluate(async()=>{
+    const c=window.contour,r=window.replay,p=c.panel;
+    p.levels[0].item.items[0].items[1].items=[{label:'Only child'}];p.levels[0].rows[0].dispatchEvent({type:'select'});c.tick(150);p.levels[1].rows[1].dispatchEvent({type:'select'});c.tick(150);
+    const url=performance.getEntriesByType('resource').map(r=>r.name).find(u=>u.includes('/src/core/look.js'));
+    (await import(url)).setBackdrop(null);c.scene.background=null;
+    const rear=p.levels[0],front=p.levels[2],gl=c.renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
+    const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=front.cur.y-front.size.H*front.cur.sy/2;
+    const project=(x,y)=>p.localToWorld(new r.THREE.Vector3(x,y,rear.cur.z)).project(c.camera);
+    const lo=project(-rear.size.W*rear.cur.sx/2,bottom+.003),hi=project(rear.size.W*rear.cur.sx/2,frontBottom-.006);
+    const regionMax=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);let max=0;for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;max=Math.max(max,data[i],data[i+1],data[i+2]);}return max;};
+    const maskedMax=regionMax(),mask=rear.panel.skin.uniforms.uRearMask.value; const save=rear.panel.skin.uniforms.uOpacity.value;rear.panel.skin.uniforms.uOpacity.value=0;const rootHiddenMax=regionMax();rear.panel.skin.uniforms.uOpacity.value=save;
+    mask.y=0;const unmaskedMax=regionMax();mask.y=1;
+    return {maskedMax,unmaskedMax,rootHiddenMax,bodyExtension:(frontBottom-bottom)*p.scale.y,
+      controlsHidden:front.corners.every(h=>!h.affordance.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
+  });
+  const deep=result.traces.deepChild;
+  check('three-layer variable heights leave no ancestor sheet below the foremost child',deep.maskedMax<=1 && deep.unmaskedMax>=3);
+
+  await capture(deepPage,'10-deep-child-mr');await deepPage.close();
 
   const dockPage = await open('part=dock&visible=7');
   await capture(dockPage, '04-dock-handle');
