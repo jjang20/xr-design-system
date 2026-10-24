@@ -59,7 +59,7 @@ export const DEFAULTS = {
     radiusRange: [0.25, 0.5], heightRange: [-0.5, -0.18], angleLimit: Math.PI * 0.42,
     maxReach: 0.72, deadzone: 0.15, followRate: 6 },
   windowManipulation: { scaleRange: [0.9, 2.2], cornerSize: 32, dragSlop: 0.006,
-    rearOpacity: 0.24, rearTitleOpacity: 0.92 },
+    rearOpacity: 0.24, rearTitleOpacity: 1 },
 
   // Provisional Quest input tuning in physical metres. Applies to tracked
   // hands, not controller grips. Promote after the next headset acceptance.
@@ -80,6 +80,7 @@ export const DEFAULTS = {
     palmTrackingGrace: 0.08, // freeze briefly; never integrate unseen motion
     palmMaxStep: 0.08, // reject a tracking teleport instead of dismissing
     platePressDepth: 0.003,
+    plateHoldDent: 0.002, // R5 trial: local physical dent during above-skin capture
     plateDentRadius: 0.018,
   },
 
@@ -139,7 +140,8 @@ export const DEFAULTS = {
       plate: { reflect: 1.6, edgeDark: 0.15, color: [1, 1, 1], attColor: [0.92, 0.91, 0.9], attDist: 0.012, rough: 0.03, coat: 1, coatRough: 0.02 }, // clear glass, as in the lookdev: the room shows through in its own colour and the rim catches the light (judge round 4: the greyed, frosted plate read as stone)
       label: { reflect: 2, edgeDark: 0, saturation: 0.15, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked neutral grey so white text reads on it (visionOS vibrancy); Jihoon chose neutral grey on 2026-10-21 (judges in rounds 4 to 7 read the room-coloured one as a taupe tag); no dark rim
       tile: { rough: 0.12, roomDistort: 1, roomBlur: 0.22, roomLift: 0.5, specSharp: 0.01, rimSpec: 0, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; the room is seen bent as a real ball bends it (roomDistort 1) and blurred (roomBlur), its shade lifted halfway toward its average light (roomLift), sharp enough that the window reads upside down in it (judge round 6: "nothing visible through them"), so it reads as soft light and shade, not a dark band (judge round 5 read one as dirt), while the glyph keeps the stronger magnification (distort); specSharp: a hot point inside the soft key highlight, as on a polished marble (judge round 6); rimSpec 0: the rim light lights the globe's edge but adds no second hotspot (judge round 4: two or three highlight blobs per globe); neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
-      shelf: { color: [0.74, 0.76, 0.8], attColor: [0.74, 0.76, 0.8], attDist: 0.19, rough: 0.02, coat: 1 },
+      shelf: { color: [0.98, 0.99, 1], attColor: [0.98, 0.99, 1], attDist: 0.19, rough: 0.02, coat: 1,
+        passthroughAlpha: 0.08 }, // R5 trial: transparent bubble skin, also without an HDR room
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
     // lensLift; 'emboss' inflates the window's skin into a bubble under the
@@ -164,7 +166,7 @@ export const DEFAULTS = {
       // blooms out from the press point, and the bubble's edge lights up as a
       // ring. The ring carries the state change (no text sits on it); the
       // bloom under the text stays under the legibility cap (maxLum).
-      glow: { contact: 0.8, falloff: 40, bloomRadius: 25, ring: 0.45, // immediate contact light, independent of the dent spring
+      glow: { contact: 0.8, falloff: 40, bloomRadius: 25, ring: 0.45, rowRing: 0.18, // R5: soften only the row outline; keep icon/core light
         core: 0.5, coreRadius: 8, // the glow gathers at the press point (Jihoon: the press, not the whole bubble, glows)
         bloom: 0.06, color: [1, 0.97, 0.92] }, // mm: ring fades by 1/e every falloff from the press point, bloom radius; ring and bloom strength
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
@@ -264,10 +266,11 @@ export const DEFAULTS = {
     // this fraction of its size, never from nothing (Emil Kowalski). lift:
     // how far the object rises toward the bubble's middle. The press dent
     // and glow are the list bubble's (emboss), its shadow and glow x these.
-    dockBubble: { size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
+    dockBubble: { contactDent: 0.08, size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
     // Text shadow under text on glass: off. Text earns contrast from weight
     // and the glass tone (visionOS vibrancy), not a CSS-style halo. Set
     // { blur, offset, opacity } (x the text size) to try one again.
+    palmGlow: { width: 0.012, strength: 0.28 }, // R5 trial: local metres; soft inner band, no outline
     textShadow: null,
     separator: 0.08, // hairline between rows: white opacity
   },

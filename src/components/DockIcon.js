@@ -148,7 +148,12 @@ export class DockIcon extends Interactable {
         separation = r - this.rb - (best.radius ?? 0) / scale;
         if (this.press.pressed && this.pressDirection) {
           const delta = best.point.clone().sub(this.centre), axial = delta.dot(this.pressDirection);
-          inside &&= axial > 0 && delta.lengthSq() - axial * axial <= this.touchRadius ** 2;
+          // Keep the contacting fingertip sphere, not only its centre,
+          // inside the front silhouette while touching. Once separated,
+          // restore the item boundary so a sideways exit cannot select.
+          // Crossing behind the original contact hemisphere cancels too.
+          const contactRadius = this.touchRadius + (separation <= 0 ? (best.radius ?? 0) / scale : 0);
+          inside &&= axial > 0 && delta.lengthSq() - axial * axial <= contactRadius ** 2;
         }
       }
       // Only a pinch that began on this app presses it (captured).
@@ -174,7 +179,12 @@ export class DockIcon extends Interactable {
     // 1° (35 mm at 2 m), and the dent must not wander with it.
     if (this.press.amount > 0.01 && !this.dent.x) this.dentAt.copy(this.spot);
     if (this.press.amount > 0.01 && this.pressKind === 'poke') this.dentAt.lerp(this.spot, 1 - Math.exp(-dt * 18)).normalize();
-    springTo(this.dent, on ? this.dentMax * this.press.amount : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
+    // The early acquisition allowance is for feedback/ownership, not
+    // physical deformation. Leave travel available after skin contact.
+    let physicalDepth = this.dentMax * this.press.amount;
+    if (best?.kind === 'poke') physicalDepth = this.press.pressed
+      ? Math.min(this.dentMax, this.dentMax * B.contactDent + Math.max(0, -separation)) : 0;
+    springTo(this.dent, on ? physicalDepth : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     if (Math.abs(this.dent.x) < 1e-6 && Math.abs(this.dent.v) < 1e-5) this.dent.x = this.dent.v = 0;
 
     // Draw it. The bubble grows from a little smaller, never from nothing.
@@ -196,7 +206,7 @@ export class DockIcon extends Interactable {
     // with the skin: it moves back from the finger and shrinks a touch.
     const lift = Math.max(0, this.rb - this.objectHeight / 2) * B.lift;
     this.holder.position.set(0, lift * g, 0).addScaledVector(this.dentAt, -Math.max(0, this.dent.x) * B.push);
-    this.holder.scale.setScalar(1 - B.pressScale * this.press.amount);
+    this.holder.scale.setScalar(1 - B.pressScale * Math.max(0, Math.min(1, this.dent.x / this.dentMax)));
     this.nameTag.visible = this.hover > 0.01;
     this.nameText.fillOpacity = this.hover;
     this.nameGlass.uniforms.uOpacity.value = this.hover;

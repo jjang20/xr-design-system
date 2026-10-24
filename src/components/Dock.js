@@ -111,6 +111,7 @@ export class Dock extends THREE.Group {
     this.sizing = { x: 1, v: 0, target: 1 };
     this.size = 1;
     this.grip = { hover: { x: 0, v: 0 }, side: 1, at: new THREE.Vector3(), held: null, history: [] };
+    this.plateDent = { x: 0, v: 0 };
     this.gripBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
     this.thick = (P.edge + P.crown + P.under) / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.neck = 1;
@@ -362,9 +363,8 @@ export class Dock extends THREE.Group {
     // lengthens and fattens as it shortens, as a bubble keeps its volume.
     this.neck = (this.plateLength(c, z) / this.length) ** P.neck;
     const swell = P.swell * Math.max(0, this.grip.hover.x);
-    const amount = this.shelf.press.amount;
     const scale = Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y);
-    const dent = amount > 0 ? { point: this.grip.at, depth: this.shelf.press.depth / scale, radius: DEFAULTS.handInput.plateDentRadius / scale } : null;
+    const dent = this.plateDent.x > 0 ? { point: this.grip.at, depth: this.plateDent.x / scale, radius: DEFAULTS.handInput.plateDentRadius / scale } : null;
     this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0], dent });
   }
 
@@ -483,6 +483,10 @@ export class Dock extends THREE.Group {
     }
     springTo(grip.hover, grip.held ? 1 : hovered ? P.glow.hover / P.glow.grab : 0, 0.15, 1, dt);
     this.shelf.grab = grip.held;
+    // Pinch/ray capture can start above the skin. Its held feedback must
+    // still dent the actual geometry; physical pressing can deepen it.
+    springTo(this.plateDent, Math.max(press.depth, grip.held ? DEFAULTS.handInput.plateHoldDent : 0),
+      DEFAULTS.look.emboss.dent.response, prefersReducedMotion() ? 1 : DEFAULTS.look.emboss.dent.damping, dt);
     // An end merely being nearby cannot take another icon's input. The
     // input system now ranks this handle alongside the actual app skins.
     this.gripping = !!grip.held || press.pressed;

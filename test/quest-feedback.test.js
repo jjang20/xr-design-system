@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
 import { createTokens, Dock, InputSystem, PackagingPanel } from '../src/index.js';
 import { DEFAULTS } from '../src/core/defaults.js';
+import { DockIcon } from '../src/components/DockIcon.js';
 const T = createTokens(JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url)))), dt=1/60;
 const apps=['house','ruler','scan','image','settings','notes','clock'].map(icon=>({icon,label:icon}));
 function rig(distance, index){
@@ -16,12 +17,58 @@ function rig(distance, index){
 
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+test('Early Dock icon acquisition leaves physical travel for visible pressure',()=>{
+ const icon=new DockIcon(T,apps[0],.4),radius=.008;
+ const feed=separation=>{icon.feed({kind:'poke',id:'finger',point:icon.centre.clone().add(new THREE.Vector3(0,0,icon.rb+radius+separation)),radius,pressOffset:.01});icon.sense();icon.update(dt);};
+ feed(.06);for(let i=0;i<40;i++)feed(.002);
+ assert.equal(icon.press.pressed,true,'early contact feedback must remain');
+ const early=icon.dent.x;assert.ok(icon.skin.uGlow.value>0);
+ for(let i=0;i<40;i++)feed(-.003);
+ assert.ok(icon.dent.x>early+.002,'actual 3mm pressure must deepen the skin, not stay saturated');
+ assert.ok(icon.dent.x<icon.dentMax);
+});
+
+test('Dock icon rubbing follows a finite fingertip until it leaves the front side',()=>{
+ const icon=new DockIcon(T,apps[0],.4),radius=.008,events=[];
+ for(const event of ['select','cancel'])icon.addEventListener(event,()=>events.push(event));
+ const feed=(angle,separation)=>{icon.feed({kind:'poke',id:'finger',point:icon.centre.clone().add(new THREE.Vector3(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(icon.rb+radius+separation)),radius,pressOffset:.01});icon.sense();icon.update(dt);};
+ feed(0,.06);feed(0,-.002);assert.equal(icon.press.pressed,true);
+ for(let deg=1;deg<=70;deg++)feed(deg*Math.PI/180,-.002);
+ assert.equal(icon.press.pressed,true,'the finger sphere is still touching the front hemisphere');
+ assert.ok(icon.dentAt.x>.8,'local dent must follow the rubbing finger');
+ feed(Math.PI/2+.01,-.002);
+ assert.equal(icon.press.pressed,false);assert.deepEqual(events,['cancel']);
+});
+
+test('Dock icon sideways separation cancels instead of selecting',()=>{
+ const icon=new DockIcon(T,apps[0],.4),radius=.008,events=[];
+ for(const event of ['select','cancel'])icon.addEventListener(event,()=>events.push(event));
+ const feed=(x,z)=>{icon.feed({kind:'poke',id:'finger',point:icon.centre.clone().add(new THREE.Vector3(x,0,z)),radius,pressOffset:.01});icon.sense();icon.update(dt);};
+ feed(0,icon.rb+radius+.06);feed(0,icon.rb+radius-.002);
+ feed(.020,icon.rb+radius-.002); // no retreat in the original front direction
+ assert.equal(icon.press.pressed,false);assert.deepEqual(events,['cancel']);
+});
+
 test('Every Dock icon remains pressable at both 55 and 40 cm',()=>{
  for(const distance of [.55,.4]) for(const index of [0,1,2,3,4,5,6]) {
   const r=rig(distance,index);
   for(const gap of [.14,.10,.08,.06,.04,.025,.017]) for(let n=0;n<20;n++) r.move(gap);
   assert.equal(r.icon.press.pressed,true,`${distance}m icon ${index} is suppressed; gripping=${r.dock.gripping}`);
  }
+});
+
+test('Holding a Dock plate end above the skin still makes a local dent',()=>{
+ const r=rig(.4,3),d=r.dock,src=r.input.xr[0];
+ const s=d.length/2-d.pad/2,[x,z]=d.arc(s,0);
+ const frame=()=>{r.tip.position.copy(d.shelf.localToWorld(new THREE.Vector3(x,.025,z)));r.scene.updateMatrixWorld(true);r.input.update();d.update(dt,r.camera,r.input.handPoints);};
+ frame();src.selecting=true;for(let i=0;i<30;i++)frame();
+ assert.equal(d.grip.held?.id,'xr0');
+ const shape=d.shelfShape,pressed=shape.geometry.attributes.position.array.slice();
+ const swell=DEFAULTS.look.dockPlate.swell*Math.max(0,d.grip.hover.x);
+ shape.fit(d.length,d.arcR,{neck:d.neck,size:d.size,swell:[0,swell]});
+ const restored=shape.geometry.attributes.position.array;
+ let dent=0;for(let i=1;i<pressed.length;i+=3)dent=Math.max(dent,restored[i]-pressed[i]);
+ assert.ok(dent>.001,'capture feedback must deform the plate even without surface penetration');
 });
 test('Dock plate fingertip contact dents without selecting an end icon',()=>{
  const r=rig(.4,3), {dock,input,scene,camera,tip}=r;
@@ -364,15 +411,12 @@ test('Releasing a moved window control preserves current hover without navigatin
  }
 });
 
-test('All ancestor sheet masks follow the frontmost variable-height window',()=>{
+test('Every exposed rear title keeps its full opacity while sheets fade',()=>{
  const r=palmRig(),p=r.p;
  p.open({label:'Short child',items:[{label:'One'}]},null);
  for(let i=0;i<180;i++)p.update(dt);
- const front=p.levels.at(-1);
  for(const rear of p.levels.slice(0,-1)) {
-  const u=rear.panel.skin.uniforms,c=front.cur,b=rear.cur;
-  assert.ok(u.uCoverRect,'sheet coverage is independent of the immediate child contact shadow');
-  assert.ok(Math.abs(u.uCoverRect.value.w-front.size.H/2*c.sy/b.sy)<1e-8);
-  assert.ok(Math.abs(u.uRearMask.value.z-(c.z-b.z+front.panel.t*c.sx)/b.sx)<1e-8);
+  assert.ok(Math.abs(rear.title.fillOpacity-1)<1e-8);
+  assert.ok(rear.panel.skin.uniforms.uOpacity.value<1);
  }
 });

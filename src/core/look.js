@@ -358,9 +358,8 @@ const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   ${BULGE_GLSL}
-  uniform vec3 uRearMask; // title lower edge, rear amount, foremost front plane
-  uniform vec4 uCoverRect; // foremost window centre xy, half size zw
-  uniform float uCoverRadius;
+  uniform vec3 uContactExtent; // full plate half width/height and corner radius
+  uniform float uContactWidth, uContactStrength;
   uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
@@ -557,19 +556,11 @@ const GLASS_FRAG = /* glsl */`
     // Hover (receded levels are pressable): a soft light under the pointer.
     float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
     col += vec3(1.0) * sp * sp * uHover * 0.025;
-    // A whole-window palm contact lights its shoulder immediately. The
-    // edge carries the signal; text remains on the capped glass face.
-    col += uGlowColor * uContactGlow * bev * 0.35;
-
-    // A short child cannot geometrically cover its taller parent. Keep
-    // each exposed header and faint glass behind the foremost window only.
-    // An intermediate sheet may itself be clipped by a shorter descendant.
-    vec4 child = uCoverRect;
-    vec3 toEye = vec3(dot(-V, vAxisX), dot(-V, vAxisY), dot(-V, vAxisZ));
-    vec2 childHit = vLocal.xy + toEye.xy * (uRearMask.z - vLocal.z) / max(toEye.z, 0.001);
-    float covered = toEye.z > 0.0 ? step(sdRoundRect(childHit - child.xy, child.zw, uCoverRadius), 0.0) : 0.0;
-    float retained = max(step(uRearMask.x, vLocal.y), covered);
-    alpha *= mix(1.0, retained, uRearMask.y);
+    // R5: light spreads just inside the complete plate; it never cuts the
+    // sheet to a foreground silhouette or paints a bright outer outline.
+    float innerDepth = max(0.0, -sdRoundRect(vLocal.xy, uContactExtent.xy, uContactExtent.z));
+    float innerBand = (1.0 - exp(-innerDepth / 0.002)) * exp(-innerDepth / uContactWidth);
+    col += uGlowColor * uContactGlow * innerBand * uContactStrength * step(0.5, vFront);
     if (alpha * uOpacity * uFade < 0.001) discard;
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
@@ -578,7 +569,7 @@ const GLASS_FRAG = /* glsl */`
 
 // kind: 'window' (dark structural glass), 'lens' (light glass that lifts
 // out of a window on hover), 'bead' (icon badge).
-export function glassMaterial(T, { w, h, t, kind = 'window' }) {
+export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
   const G = L.glass, K = G[kind];
   const m = new THREE.ShaderMaterial({
     vertexShader: GLASS_VERT, fragmentShader: GLASS_FRAG,
@@ -607,9 +598,9 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uHover: { value: 0 },
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uContactGlow: { value: 0 },
-      uRearMask: { value: new THREE.Vector3() },
-      uCoverRect: { value: new THREE.Vector4() },
-      uCoverRadius: { value: 0 },
+      uContactExtent: { value: new THREE.Vector3(w / 2, h / 2, r) },
+      uContactWidth: { value: L.palmGlow.width },
+      uContactStrength: { value: L.palmGlow.strength },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
@@ -617,7 +608,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uBulgeDent: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uBulgeGlow: { value: [new THREE.Vector4(), new THREE.Vector4()] },
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
-      uGlowMix: { value: new THREE.Vector2(L.emboss.glow.ring, L.emboss.glow.bloom) },
+      uGlowMix: { value: new THREE.Vector2(L.emboss.glow.rowRing, L.emboss.glow.bloom) },
       uDentShade: { value: L.emboss.dent.shade },
       uBulgeScale: { value: 1 },
       uDentShadow: { value: L.emboss.dent.shadow },

@@ -102,6 +102,7 @@ const FRAG = /* glsl */`
   uniform float uBackMode, uBehind, uEdgeDark, uDistort, uReflect, uSat, uRimBlur;
   uniform vec3 uBall;   // a globe on screen: centre and radius, in viewport pixels
   uniform float uHasRoom;   // 1 when the room backdrop is known (not passthrough)
+  uniform float uPassthroughAlpha; // < 1: transparent skin when the real room cannot be sampled
   uniform float uRoomDistort, uRoomBlur, uRoomLift;
   uniform float uRimSpec;   // the rim light's highlight, x its full strength
   uniform float uSpecSharp; // a tight hot point inside the key highlight
@@ -398,7 +399,14 @@ const FRAG = /* glsl */`
     vec3 bg = texture2D(uGrab, (gl_FragCoord.xy - uViewport.xy) / uGrabSize).rgb;
     float op = uOpacity;
     if (uFadeLen > 0.0) op *= exp(-abs(dot(vWorld, uFadePlane.xyz) + uFadePlane.w) / uFadeLen);
-    gl_FragColor = vec4(mix(bg, outc, op), 1.0);
+    if (uHasRoom < 0.5 && uPassthroughAlpha < 1.0) {
+      // Passthrough pixels are absent from the grab texture. An opaque
+      // transmission result would replace the real room with black glass.
+      // Keep this preset's skin translucent; virtual content behind it is
+      // still composited normally by the renderer.
+      float alpha = clamp(uPassthroughAlpha + 0.35 * (F + Fc), 0.0, 0.65) * op;
+      gl_FragColor = vec4(outc, alpha);
+    } else gl_FragColor = vec4(mix(bg, outc, op), 1.0);
   }`;
 
 /**
@@ -442,6 +450,7 @@ export function refractiveGlass(kind, { thick, color, flatBack = false, globe = 
       uSpot: { value: new THREE.Vector2() },   // (Button sets it; unused)
       uCaustic: { value: P.caustic ?? 0 },
       uOpacity: { value: 1 }, uFadePlane: { value: new THREE.Vector4() }, uFadeLen: { value: 0 },
+      uPassthroughAlpha: { value: P.passthroughAlpha ?? 1 },
       uHover: { value: 0 }, uSheen: { value: 0 },
       uKeyDir: { value: new THREE.Vector3(...light.key.dir).normalize() },
       uKeyColor: { value: lin(light.key.color).multiplyScalar(light.key.intensity) },

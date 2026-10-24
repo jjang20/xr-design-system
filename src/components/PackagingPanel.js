@@ -435,7 +435,6 @@ export class PackagingPanel extends THREE.Group {
     }
     for (const l of this.stack.all) {
       const c = l.cur;
-      l.panel.skin.uniforms.uRearMask.value.set(l.size.H / 2 - l.size.titleBand, clamp(c.back, 0, 1), 0);
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1), DEFAULTS.windowManipulation.rearOpacity);
@@ -457,20 +456,9 @@ export class PackagingPanel extends THREE.Group {
     // The level in front of depth d: the open one, or one closing back into
     // it (the most visible).
     const inFront = d => all.filter(u => u.depth === d + 1).sort((a, b) => b.cur.opacity - a.cur.opacity)[0];
-    const foremost = [...all].sort((a, b) => b.depth - a.depth || b.cur.opacity - a.cur.opacity)[0];
     all.forEach(l => {
       const m = l.panel.body.material, p = l.cur, i = l.depth;
       const next = inFront(i);
-      if (foremost && foremost.depth > i) {
-        const c = foremost.cur, k = c.sx / p.sx;
-        m.uniforms.uCoverRect.value.set((c.x - p.x) / p.sx, (c.y - p.y) / p.sy,
-          foremost.size.W / 2 * k, foremost.size.H / 2 * c.sy / p.sy);
-        m.uniforms.uCoverRadius.value = foremost.panel.r * k;
-        m.uniforms.uRearMask.value.z = (c.z - p.z + foremost.panel.t * c.sx) / p.sx;
-      } else {
-        m.uniforms.uCoverRect.value.set(0, 0, 0, 0);
-        m.uniforms.uCoverRadius.value = 0;
-      }
       if (next) {
         const c = next.cur;
         const k = c.sx / p.sx;

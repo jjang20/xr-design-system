@@ -91,7 +91,7 @@ export class Button extends Interactable {
       : o.color ?? { primary: C.accent, window: C.window, tinted: C.control }[this.variant] ?? C.control;
     if (this.variant === 'glass') {
       // Finely split, so a hovered row can swell the glass (emboss style).
-      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r, { tessellate: 0.002 }), glassMaterial(T, { w: this.w, h: this.h, t: this.t }));
+      this.body = new THREE.Mesh(glassSlabGeometry(this.w, this.h, this.t, this.r, { tessellate: 0.002 }), glassMaterial(T, { w: this.w, h: this.h, t: this.t, r: this.r }));
       this.body.renderOrder = 1;
       this.skin = this.body.material;
     } else if (this.variant === 'bead') {
