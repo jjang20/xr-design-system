@@ -112,13 +112,18 @@ export class InputSystem {
     if (extended < 3) return null;
     // WebXR JointSpace -Y points out of the palm on either hand.
     const normal = new THREE.Vector3(0, -1, 0).transformDirection(joints.wrist.matrixWorld);
-    return { point: wrist.clone().lerp(middle, 0.5), normal, radius: DEFAULTS.handInput.palmRadius };
+    const centre = wrist.clone().lerp(middle, 0.5);
+    const index = point('index-finger-tip');
+    if (index && index.sub(centre).dot(normal) > DEFAULTS.handInput.palmTipLead) return null;
+    return { point: centre, normal, radius: DEFAULTS.handInput.palmRadius };
   }
 
   palmStep(src, targets) {
+    const owner = targets.find(t => t.palmOwner === src.id);
     const palm = this.palmOf(src);
-    if (!palm) return false;
-    let target = targets.find(t => t.palmOwner === src.id);
+    // A brief recognizer dropout cannot turn a held palm into a row click.
+    if (!palm) return !!owner;
+    let target = owner ?? targets.find(t => t.palmBlocked.has(src.id));
     if (!target) {
       let best = DEFAULTS.handInput.palmReach;
       for (const t of targets) {
@@ -128,7 +133,7 @@ export class InputSystem {
     }
     if (!target) return false;
     target.feedPalm({ ...palm, id: src.id });
-    return true; // an open-hand push must not also select a row
+    return !!owner || target.palmBlocks(palm);
   }
 
   update() {

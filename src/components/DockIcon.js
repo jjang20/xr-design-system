@@ -182,7 +182,8 @@ export class DockIcon extends Interactable {
     u.uDentSlope.value = Math.max(1e-3, Math.SQRT2 * Math.exp(-0.5) * Math.abs(this.dent.x / this.rb) / w);
     u.uLipWidth.value = B.lipWidth * this.k / 1000 / this.rb;   // mm, like the dent
     u.uCoreWidth.value = E.glow.coreRadius * this.k / 1000 / this.rb;
-    u.uGlow.value = this.dent.x > 0 ? Math.min(1, this.dent.x / this.dentMax) : 0;
+    u.uGlow.value = Math.max(this.dent.x > 0 ? Math.min(1, this.dent.x / this.dentMax) : 0,
+      this.press.pressed ? E.glow.contact : 0);
     u.uSquash.value = B.squash * this.dent.x / this.dentMax;
     // The object rises to the bubble's middle, and when pressed gives way
     // with the skin: it moves back from the finger and shrinks a touch.

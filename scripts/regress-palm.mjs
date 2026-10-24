@@ -8,7 +8,8 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const out = process.env.PALM_CHECK_OUT;
-const result = { checks: [], errors: [], traces: {} };
+const layout = process.env.PALM_CHECK_LAYOUT ?? 'previous';
+const result = { layout, checks: [], errors: [], traces: {} };
 const check = (name, pass) => result.checks.push({ name, pass });
 const server = await createServer({ configFile: path.join(root, 'vite.config.js'), logLevel: 'error', server: { host: '127.0.0.1' } });
 let browser;
@@ -18,7 +19,7 @@ try {
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   page.on('pageerror', e => result.errors.push(e.message));
-  await page.goto(server.resolvedUrls.local[0] + 'bench.html?manual&component=packaging&view=angle');
+  await page.goto(server.resolvedUrls.local[0] + `bench.html?manual&component=packaging&view=angle&layout=${layout}`);
   await page.waitForFunction(() => window.ready, null, { timeout: 180000 });
   await page.evaluate(async root => {
     const THREE = await import(`/@fs/${root}node_modules/three/build/three.module.js`);
@@ -39,7 +40,7 @@ try {
     }
     let front;
     const move = (gap, x = 0, y = 0) => {
-      src.hand.position.copy(p.localToWorld(new THREE.Vector3(x, y, front + 0.022 + gap)));
+      src.hand.position.copy(p.localToWorld(new THREE.Vector3(x, y, front + (0.022 + gap) / p.scale.z)));
       c.scene.updateMatrixWorld(true); input.update(); c.tick(1);
     };
     const open = () => {
@@ -65,7 +66,7 @@ try {
   result.traces.direct = await page.evaluate(() => {
     const { move, child } = window.palm, p = window.contour.panel;
     const rest = child.cur.z; move(0.06); move(-0.02);
-    return { rest, pushed: child.cur.z, active: p.active, owner: p.palmOwner };
+    return { rest: rest * p.scale.z, pushed: child.cur.z * p.scale.z, active: p.active, owner: p.palmOwner };
   });
   check('whole child follows a 20 mm palm push before dismissal', Math.abs(result.traces.direct.pushed - result.traces.direct.rest + 0.02) < 1e-6 && result.traces.direct.active === 1);
   await capture('02-child-pushed');
@@ -84,7 +85,7 @@ try {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   result.traces.reduced = await page.evaluate(() => {
     const c = window.contour, f = window.palm; f.open();
-    f.move(0.06); f.move(-0.02); const pushed = f.child.cur.z;
+    f.move(0.06); f.move(-0.02); const pushed = f.child.cur.z * c.panel.scale.z;
     f.move(-0.051); const start = { ...f.child.cur }; c.tick(10);
     return { reduced: c.panel.reduced, pushed, start, end: { ...f.child.cur } };
   });

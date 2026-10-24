@@ -187,6 +187,8 @@ test('Quest follow-up: second palm cannot take ownership or close after first lo
   frame([['second', -0.08], ['first', 0.005]]);
   assert.equal(p.palmOwner, 'first'); assert.equal(p.active, 1);
   frame([['second', -0.08]]);
+  // Brief loss freezes ownership; sustained loss safely cancels it.
+  for (let i = 0; i < 6; i++) frame([['second', -0.08]]);
   assert.equal(p.palmOwner, undefined); assert.equal(p.active, 1);
   frame([['second', -0.08]]); assert.equal(p.active, 1);
 });

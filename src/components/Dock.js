@@ -36,7 +36,8 @@
 // the plate lengthens by itself while the app forms at its end
 // (DEFAULTS.look.dockPlate).
 import * as THREE from 'three';
-import { Interactable, markComponent } from '../core/Interactable.js';
+import { Interactable, markComponent, pickProbe } from '../core/Interactable.js';
+import { PressModel } from '../core/PressModel.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { softTexture } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
@@ -44,6 +45,8 @@ import { springStep, springTo, prefersReducedMotion } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { objectEnvironment } from '../core/objects.js';
 import { DockIcon } from './DockIcon.js';
+import { Button } from './Button.js';
+import { DockRail } from '../core/DockRail.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -56,7 +59,7 @@ export class Dock extends THREE.Group {
    * @param {{label: string, icon?: string, color?: number, running?: boolean}[]} o.apps
    * @param {number} [o.visible] how many of the apps are in the Dock (default all; see showApps)
    * @param {number} [o.distance] body-lock distance in m
-   * @param {number} [o.eccentricity] angle below the eye, radians (default anchor.eccentricity.vertical)
+   * @param {number} [o.eccentricity] angle below the eye, radians (default dockRail.elevation)
    */
   constructor(T, o) {
     super();
@@ -64,7 +67,7 @@ export class Dock extends THREE.Group {
     this.T = T;
     if (T.get('anchor.mode') !== 'bodyLock') console.warn('Contour Dock only implements anchor.mode = bodyLock');
     const dist = this.distance = o.distance ?? DEFAULTS.dockDistance;
-    this.eccentricity = o.eccentricity ?? T.get('anchor.eccentricity.vertical');
+    this.eccentricity = o.eccentricity ?? DEFAULTS.dockRail.elevation;
     this.radius = T.viewSize('dock.magnify.radius', dist);
     this.maxScale = T.get('dock.magnify.scale.max');
     // Icon size follows the hand through a critically damped spring that
@@ -131,9 +134,32 @@ export class Dock extends THREE.Group {
     // hands itself (its ends are handles), so it is an Interactable.
     this.top = -this.side / 2;
     this.shelf = new Interactable();
+    this.shelf.pokeDistance = point => this.plateDistance(point);
+    this.shelf.press = new PressModel({ thickness: DEFAULTS.handInput.platePressDepth, pressRatio: 1,
+      recover: T.get('motion.recovery.soft.duration'), release: T.get('input.poke.distance.release') });
     this.shelf.rayPoint = (ray, out) => ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), out);
     this.shelf.position.y = this.top;
     this.level.add(this.shelf);
+    // Reserve the visible end pads for sizing. An outer app's proximity
+    // sphere otherwise captures a downward approach before the plate can
+    // see it, so it selects that app instead of pressing the plate.
+    for (const icon of this.icons) {
+      const appDistance = icon.pokeDistance.bind(icon);
+      icon.pokeDistance = point => {
+        const onPlate = this.shelf.worldToLocal(icon.localToWorld(point.clone()));
+        return this.plateSample(onPlate).inside ? Infinity : appDistance(point);
+      };
+    }
+    // Dedicated position handle below the plate; the ends still resize.
+    this.handle = new Button(T, { width: DEFAULTS.dockRail.handleWidth, height: DEFAULTS.dockRail.handleHeight,
+      radius: DEFAULTS.dockRail.handleHeight / 2, distance: dist, density: 'soft', thickness: 'regular' });
+    this.handle.position.set(0, -this.side * 0.95, 0);
+    // Only a hand aimed at the handle's touch face may acquire it. Its
+    // broad lateral hover must not intercept an app's frontward approach.
+    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t
+      ? this.handle.faceDistance(point) : Infinity;
+    this.add(this.handle);
+    this.rail = new DockRail(this.handle, this.eccentricity);
     this.restX = this.icons.map(() => 0);
     const mm = v => v / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
@@ -342,7 +368,23 @@ export class Dock extends THREE.Group {
     // lengthens and fattens as it shortens, as a bubble keeps its volume.
     this.neck = (this.plateLength(c, z) / this.length) ** P.neck;
     const swell = P.swell * Math.max(0, this.grip.hover.x);
-    this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0] });
+    const amount = this.shelf.press.amount;
+    const scale = Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y);
+    const dent = amount > 0 ? { point: this.grip.at, depth: this.shelf.press.depth / scale, radius: DEFAULTS.handInput.plateDentRadius / scale } : null;
+    this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0], dent });
+  }
+
+  plateSample(point) {
+    const [s, t] = this.arcCoords(point), half = this.length / 2;
+    const scale = this.neck * this.size, depth = this.shelfShape.depth / 2 * scale;
+    const inside = Math.abs(s) >= half - this.pad && Math.abs(s) <= half && Math.abs(t) <= depth;
+    const inset = Math.max(0, Math.min(depth - Math.abs(t), half - Math.abs(s)));
+    return { s, inside, front: this.shelfShape.top(inset / scale) * scale };
+  }
+
+  plateDistance(point) {
+    const sample = this.plateSample(point);
+    return sample.inside ? Math.max(0, point.y - sample.front) * Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y) : Infinity;
   }
 
   // App i at presence e (0 hidden, 1 whole): it forms as the plate opens
@@ -375,17 +417,33 @@ export class Dock extends THREE.Group {
   grabPlate(dt) {
     const P = DEFAULTS.look.dockPlate;
     const probes = this.shelf.consumeProbes();
-    const tip = this.length / 2, zone = this.pad, d = this.shelfShape.depth / 2 * this.neck * this.size;
+    const tip = this.length / 2;
     const grip = this.grip;
     let near = null, nearD = Infinity;
     for (const p of probes) {
-      const [s, t] = this.arcCoords(p.point);
+      const [s] = this.arcCoords(p.point);
       // Distance to the end: the stretch of plate past the last app.
-      const along = Math.max(0, tip - zone - Math.abs(s), Math.abs(s) - tip);
-      const dist = p.kind === 'ray' ? (along > 0 ? Infinity : 0) : Math.hypot(along, Math.max(0, Math.abs(t) - d), Math.max(0, p.point.y, -p.point.y - this.thick));
+      const sample = this.plateSample(p.point);
+      const dist = p.kind === 'ray' ? (sample.inside ? 0 : Infinity) : Math.max(0, this.plateDistance(p.point) - (p.radius ?? 0));
       if (dist < nearD) { nearD = dist; near = { p, s }; }
       if (grip.held?.id === p.id) grip.held.probe = { p, s };
     }
+    const press = this.shelf.press;
+    const { probe } = pickProbe(probes, p => p.kind === 'ray' ? (this.plateSample(p.point).inside ? 0 : Infinity) : this.plateDistance(p.point), press.pressed ? this.shelf.pressOwner : null);
+    const sample = probe && this.plateSample(probe.point);
+    const scale = Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y);
+    const front = press.pressed ? this.plateFront : sample?.front;
+    const penetration = !probe ? null : probe.kind === 'poke'
+      ? (front - probe.point.y) * scale + (probe.radius ?? 0) + (probe.pressOffset ?? 0)
+      : probe.pressed && probe.captured ? press.maxDepth : -Infinity;
+    if (!press.pressed && this.plateProbeId !== probe?.id) press.lastPenetration = null;
+    this.plateProbeId = probe?.id;
+    const resizeOwner = grip.held?.id === probe?.id && (probe?.pinch || probe?.captured);
+    const event = press.update(dt, penetration, !!sample?.inside || !!resizeOwner);
+    if (event === 'press') {
+      this.plateFront = sample.front; this.shelf.pressOwner = probe.id; this.shelf.pressKind = probe.kind;
+    }
+    if (probe && (press.pressed || grip.held)) grip.at.copy(probe.point);
     // Holding: the end follows the hand along the arc.
     if (grip.held) {
       const h = grip.held, still = h.probe && (h.probe.p.pinch || h.probe.p.captured);
@@ -430,13 +488,16 @@ export class Dock extends THREE.Group {
       if (grab) grip.held = { id: near.p.id, s0: near.s, half: tip, probe: null };
     }
     springTo(grip.hover, grip.held ? 1 : hovered ? P.glow.hover / P.glow.grab : 0, 0.15, 1, dt);
-    this.gripping = hovered;
+    this.shelf.grab = grip.held;
+    // An end merely being nearby cannot take another icon's input. The
+    // input system now ranks this handle alongside the actual app skins.
+    this.gripping = !!grip.held || press.pressed;
     // The glass lights where it is held, in the press glow's colour.
     const u = this.base.material.uniforms;
     this.shelf.updateMatrixWorld();
     const w = this.shelf.localToWorld(grip.at.clone());
     u.uTouch.value.set(w.x, w.y, w.z, this.pad * P.glow.radius);
-    u.uTouchGlow.value.setRGB(...DEFAULTS.look.emboss.glow.color).multiplyScalar(P.glow.grab * Math.max(0, grip.hover.x));
+    u.uTouchGlow.value.setRGB(...DEFAULTS.look.emboss.glow.color).multiplyScalar(P.glow.grab * Math.max(0, grip.hover.x, press.pressed ? 1 : press.amount));
   }
 
   /**
@@ -449,21 +510,25 @@ export class Dock extends THREE.Group {
     const headPos = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
     const headYaw = Math.atan2(-fwd.x, -fwd.z);
-    const yaw = this.follow.update(dt, headYaw);
-    const ecc = this.eccentricity; // negative = below eye level
+    const bodyYaw = this.follow.update(dt, headYaw);
+    const placing = this.rail.update(head, bodyYaw);
+    const yaw = bodyYaw + this.rail.yawOffset;
+    const ecc = this.eccentricity = this.rail.elevation;
     const target = [
       headPos.x - Math.sin(yaw) * Math.cos(ecc) * this.distance,
       headPos.y + Math.sin(ecc) * this.distance,
       headPos.z - Math.cos(yaw) * Math.cos(ecc) * this.distance,
     ];
     target.forEach((v, i) => {
-      if (!this.posStarted) this.pos[i].x = v;
-      springStep(this.pos[i], v, this.follow.omega, dt);
+      if (!this.posStarted || placing) { this.pos[i].x = v; this.pos[i].v = 0; }
+      else springStep(this.pos[i], v, this.follow.omega, dt);
     });
     this.posStarted = true;
     this.position.set(this.pos[0].x, this.pos[1].x, this.pos[2].x);
     this.rotation.set(ecc, yaw, 0);
+    this.level.rotation.x = -ecc;
     this.updateMatrixWorld();
+    this.handle.update(dt);
 
     // The plate's handles first: a hand on one is not reaching for an app.
     this.time = (this.time ?? 0) + dt;
@@ -595,8 +660,8 @@ class PlateGeometry {
     return this.top(Math.max(0, this.depth / 2 - Math.abs(t)));
   }
 
-  fit(w, R, { neck = 1, size = 1, swell = [0, 0] } = {}) {
-    const key = [w, R, neck, size, swell[0], swell[1]].join();
+  fit(w, R, { neck = 1, size = 1, swell = [0, 0], dent = null } = {}) {
+    const key = [w, R, neck, size, swell[0], swell[1], dent?.depth, dent?.point.x, dent?.point.z].join();
     if (this.fitKey === key) return;
     this.fitKey = key;
     const g = this.geometry, p = g.attributes.position.array, n = g.attributes.normal.array;
@@ -620,6 +685,14 @@ class PlateGeometry {
       const a = x / R, c = Math.cos(a), sn = Math.sin(a), r = R - z;
       p[i] = r * sn; p[i + 1] = y; p[i + 2] = R - r * c;
       n[i] = nx * c - nz * sn; n[i + 1] = ny; n[i + 2] = nx * sn + nz * c;
+      if (dent && ny > 0) {
+        const dx = p[i] - dent.point.x, dz = p[i + 2] - dent.point.z, rr = dent.radius ** 2;
+        const dip = dent.depth * Math.exp(-(dx * dx + dz * dz) / rr);
+        p[i + 1] -= dip;
+        n[i] -= 2 * dx * dip / rr; n[i + 2] -= 2 * dz * dip / rr;
+        const length = Math.hypot(n[i], n[i + 1], n[i + 2]);
+        n[i] /= length; n[i + 1] /= length; n[i + 2] /= length;
+      }
     }
     g.attributes.position.needsUpdate = g.attributes.normal.needsUpdate = true;
     g.computeBoundingBox();

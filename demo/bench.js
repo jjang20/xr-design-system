@@ -110,7 +110,10 @@ if (part === 'dock') {
   camera.fov = 11;
   camera.lookAt(slider.position);
 } else {
-  panel = new PackagingPanel(T, { title: 'Catalog', subtitle: 'Living room · 4 categories', items: catalogItems, distance: D });
+  // Opt in for the Quest layout comparison; historical arena framing stays stable.
+  const layout = q.get('layout') === 'quest' ? DEFAULTS.windowPreview : { scale: 1, layerSpacing: 1 };
+  panel = new PackagingPanel(T, { title: 'Catalog', subtitle: 'Living room · 4 categories', items: catalogItems, distance: D, layerSpacing: layout.layerSpacing / layout.scale });
+  panel.scale.setScalar(layout.scale);
   panel.position.set(Number(q.get('px') ?? 0), EYE, -D);
   panel.lookAt(0, EYE, 0);
   scene.add(panel);

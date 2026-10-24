@@ -347,7 +347,7 @@ const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   ${BULGE_GLSL}
-  uniform float uOpacity, uFade, uDim, uHover, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
+  uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo, uClearAlbedo;
@@ -540,6 +540,9 @@ const GLASS_FRAG = /* glsl */`
     // Hover (receded levels are pressable): a soft light under the pointer.
     float sp = 1.0 - smoothstep(0.0, uSpotRadius, length(vLocal.xy - uSpot));
     col += vec3(1.0) * sp * sp * uHover * 0.025;
+    // A whole-window palm contact lights its shoulder immediately. The
+    // edge carries the signal; text remains on the capped glass face.
+    col += uGlowColor * uContactGlow * bev * 0.35;
 
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
@@ -576,6 +579,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uDim: { value: 0 },
       uHover: { value: 0 },
       uFade: { value: kind === 'lens' ? 0 : 1 },
+      uContactGlow: { value: 0 },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },

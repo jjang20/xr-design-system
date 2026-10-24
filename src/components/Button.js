@@ -259,7 +259,8 @@ export class Button extends Interactable {
   // Press glow, 0 to 1: follows the dent in, fades as it springs back.
   get glow() {
     const E = DEFAULTS.look.emboss;
-    return this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.k / 1000), 0, 1) : 0;
+    const dent = this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.k / 1000), 0, 1) : 0;
+    return Math.max(dent, this.press.pressed && !this.disabled ? E.glow.contact : 0);
   }
 
   stepBulge(dt) {

@@ -8,10 +8,13 @@ import {
 } from '../src/index.js';
 import { loadBackdrop } from './backdrop.js';
 import { catalogItems } from './catalog-data.js';
+import { DEFAULTS } from '../src/core/defaults.js';
 
 const T = createTokens(tokenJson);
 const EYE = 1.6; // m, standing eye height for the desktop camera
 const D = 0.6; // m, placement distance the dmm sizes are computed for
+const previousLayout = new URLSearchParams(location.search).get('layout') === 'previous';
+const windowScale = previousLayout ? 1 : DEFAULTS.windowPreview.scale;
 
 // Renderer, scene, camera ----------------------------------------------------
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
@@ -45,7 +48,9 @@ const catalog = place(new PackagingPanel(T, {
   subtitle: 'Living room · 4 categories',
   items: catalogItems,
   distance: D,
+  layerSpacing: previousLayout ? 1 : DEFAULTS.windowPreview.layerSpacing / windowScale,
 }), -0.02, 1.62, -0.68);
+catalog.scale.setScalar(windowScale);
 catalog.addEventListener('open', e => say(`Opened ${e.item.label}`));
 catalog.addEventListener('back', () => say('Back'));
 catalog.addEventListener('select', e => say(`${e.item.label} selected`));
@@ -60,6 +65,8 @@ const tools = [
   { icon: 'trash-2', shape: 'circle', disabled: true, name: 'Delete' },
 ];
 const ornament = place(new Toolbar(T, { tools, distance: D }), -0.02, 1.455, -0.66);
+// Keep the ornament below the expanded window, preserving its old gap.
+ornament.position.y -= catalog.levels[0].size.H * (windowScale - 1) / 2;
 ornament.addEventListener('select', e => say(`${e.tool.label ?? e.tool.name}`));
 const toolButtons = [ornament];
 

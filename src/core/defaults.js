@@ -53,6 +53,7 @@ export const DEFAULTS = {
   followThreshold: 20, // deg
   // Body-lock distance of the dock. Proposed: anchor.distance.
   dockDistance: 0.4, // m; closer body-lock reach after Quest feedback, 2026-10-24
+  dockRail: { elevation: -Math.PI / 4, elevationRange: [-Math.PI * 0.44, Math.PI / 6], handleWidth: 90, handleHeight: 16 },
 
   // Provisional Quest input tuning in physical metres. Applies to tracked
   // hands, not controller grips. Promote after the next headset acceptance.
@@ -66,7 +67,18 @@ export const DEFAULTS = {
     palmRearmDistance: 0.04,
     palmAlignment: 0.7,
     fingerExtension: 1.35,
+    palmTipLead: 0.025, // a pointing index finger is not a flat palm
+    palmContactBand: 0.02,
+    palmBehindLimit: 0.08,
+    palmHoldAlignment: 0.35,
+    palmTrackingGrace: 0.08, // freeze briefly; never integrate unseen motion
+    palmMaxStep: 0.08, // reject a tracking teleport instead of dismissing
+    platePressDepth: 0.003,
+    plateDentRadius: 0.018,
   },
+
+  // Quest layout comparison; component defaults remain reusable.
+  windowPreview: { scale: 1.5, layerSpacing: 0.7 },
 
   // Appearance. Proposed: a look.* token group once tested in MR.
   look: {
@@ -146,7 +158,7 @@ export const DEFAULTS = {
       // blooms out from the press point, and the bubble's edge lights up as a
       // ring. The ring carries the state change (no text sits on it); the
       // bloom under the text stays under the legibility cap (maxLum).
-      glow: { falloff: 40, bloomRadius: 25, ring: 0.45, // ring: brightest stretch, nearest the finger
+      glow: { contact: 0.8, falloff: 40, bloomRadius: 25, ring: 0.45, // immediate contact light, independent of the dent spring
         core: 0.5, coreRadius: 8, // the glow gathers at the press point (Jihoon: the press, not the whole bubble, glows)
         bloom: 0.06, color: [1, 0.97, 0.92] }, // mm: ring fades by 1/e every falloff from the press point, bloom radius; ring and bloom strength
       response: 0.32, damping: 0.62, // s, ratio: inflates with a small settle
