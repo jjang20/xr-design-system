@@ -166,7 +166,7 @@ test('Scaled close preserves layer order until fade and never reverses its exit'
  assert.ok(Math.abs(parent.cur.z)<1e-5);assert.equal(r.p.closing.length,0);
 });
 
-test('Dock handle repositions on a fixed-radius sphere and keeps the released placement',()=>{
+test('Dock handle repositions on a bounded oval and keeps the released placement',()=>{
  const r=rig(.4,3),d=r.dock,src=r.input.xr[0];
  assert.ok(d.handle,'a dedicated positioning handle must exist');
  const frame=world=>{r.tip.position.copy(world);r.scene.updateMatrixWorld(true);r.input.update();d.update(dt,r.camera,r.input.handPoints);};
@@ -175,7 +175,7 @@ test('Dock handle repositions on a fixed-radius sphere and keeps the released pl
  assert.equal(d.rail.held?.id,'xr0');
  const start=d.position.clone();frame(at.clone().add(new THREE.Vector3(.12,-.12,0)));
  assert.ok(d.position.x>start.x+.04);assert.ok(d.position.y<start.y-.015);
- assert.ok(Math.abs(d.position.distanceTo(r.camera.position)-.4)<1e-8);
+ assert.ok(d.position.distanceTo(d.rail.anchor)<=DEFAULTS.dockRail.maxReach);
  const placed=d.position.clone();src.selecting=false;frame(at.clone().add(new THREE.Vector3(.12,-.12,0)));
  assert.equal(d.rail.held,null);
  for(let i=0;i<90;i++)d.update(dt,r.camera);
@@ -192,13 +192,13 @@ function rayRig() {
  return {...r,src,aim};
 }
 
-test('Controller ray can reposition and release the spherical Dock handle',()=>{
+test('Controller ray can reposition and release the Dock handle',()=>{
  const r=rayRig(),d=r.dock,h=d.handle,origin=r.camera.position.clone();
  const at=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
  r.aim(at,origin,false);r.aim(at,origin,true);const start=d.position.clone();
  r.aim(at.clone().add(new THREE.Vector3(.12,-.12,0)),origin,true);
  assert.ok(d.position.x>start.x+.04);assert.ok(d.position.y<start.y-.02);
- assert.ok(Math.abs(d.position.distanceTo(origin)-.4)<1e-8);
+ assert.ok(d.position.distanceTo(d.rail.anchor)<=DEFAULTS.dockRail.maxReach);
  r.aim(at,origin,false);assert.equal(d.rail.held,null);
 });
 
@@ -248,4 +248,57 @@ test('Scaled row holds selection while finger still overlaps its contact crown',
  for(const gap of [.017,.004,-.004,0])feed(gap);
  assert.equal(events.length,0);
  feed(.04);assert.equal(events.length,1);
+});
+
+
+test('Placed Dock ignores yaw and head height; only large horizontal movement follows',()=>{
+ const r=rig(.4,3),d=r.dock,start=d.position.clone(),q=d.quaternion.clone();
+ r.camera.rotation.y=1;r.camera.position.y-=.2;r.camera.position.x+=.05;r.scene.updateMatrixWorld(true);
+ for(let i=0;i<120;i++)d.update(dt,r.camera);
+ assert.ok(d.position.distanceTo(start)<.001);assert.ok(d.quaternion.angleTo(q)<.001);
+ r.camera.position.x+=.5;r.scene.updateMatrixWorld(true);
+ for(let i=0;i<180;i++)d.update(dt,r.camera);
+ assert.ok(d.position.x>start.x+.3);assert.ok(Math.abs(d.position.y-start.y)<1e-8);
+});
+
+test('Window overlap exposes each actual header despite variable heights; back only hits titles',()=>{
+ const r=palmRig(),p=r.p;
+ for(let i=0;i<120;i++)p.update(dt);
+ const [back,front]=p.levels;
+ const backTop=back.cur.y+back.size.H*back.cur.sy/2,frontTop=front.cur.y+front.size.H*front.cur.sy/2;
+ assert.ok(Math.abs(backTop-frontTop-back.size.titleBand*back.cur.sy)<1e-6);
+ assert.equal(back.panel.inside(new THREE.Vector3(0,0,back.panel.t)),false);
+ assert.ok(back.title.fillOpacity>.8);assert.ok(back.panel.skin.uniforms.uOpacity.value<.5);
+});
+
+
+test('Window title drag and corner resize capture whole stack for hand and ray',()=>{
+ for(const kind of ['poke','ray']) {
+  const r=palmRig(),p=r.p,h=p.levels[1].panel;
+  const start=h.localToWorld(new THREE.Vector3(0,h.h/2-p.levels[1].size.titleBand/2,h.t+.012));
+  const frame=(handle,point,hold)=>{p.updateMatrixWorld(true);handle.feed({kind,id:'owner',point:handle.worldToLocal(point.clone()),radius:.008,pinch:hold,pressed:hold,captured:hold});p.update(dt);};
+  frame(h,start,true);const initial=p.position.clone();frame(h,start.clone().add(new THREE.Vector3(.06,-.03,.02)),true);
+  assert.ok(p.position.distanceTo(initial.clone().add(new THREE.Vector3(.06,-.03,.02)))<1e-8);
+  assert.equal(p.levels.some(l=>l.rows.some(row=>row.enabled)),false);
+  assert.equal(p.palmDistance({point:start,normal:new THREE.Vector3(0,0,-1),radius:.012}),Infinity);
+  frame(h,start,false);assert.equal(p.controls.held,null);assert.equal(p.active,1,'drag release must not navigate back');
+  const corner=p.levels[1].corners[1],point=corner.getWorldPosition(new THREE.Vector3());
+  const size=p.scale.x;frame(corner,point,true);
+  const dir=point.clone().sub(p.getWorldPosition(new THREE.Vector3())).normalize();frame(corner,point.clone().addScaledVector(dir,.04),true);
+  assert.ok(p.scale.x>size);assert.equal(p.scale.x,p.scale.y);assert.equal(p.scale.x,p.scale.z);
+  p.update(dt);assert.equal(p.controls.held,null,'tracking loss ends capture without selection');assert.equal(p.active,1);
+ }
+});
+
+test('Dock distance and height manipulation preserves oval ratio and icon physical size',()=>{
+ const r=rig(.4,3),d=r.dock,h=d.handle;
+ const frame=point=>{r.tip.position.copy(point);r.scene.updateMatrixWorld(true);r.input.update();d.update(dt,r.camera,r.input.handPoints);};
+ const point=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
+ frame(point);r.input.xr[0].selecting=true;frame(point);
+ const side=d.side;frame(point.clone().add(new THREE.Vector3(.12,-.05,-.08)));
+ assert.ok(d.rail.radius>DEFAULTS.dockRail.radius);assert.ok(d.rail.height<DEFAULTS.dockRail.height);
+ assert.equal(d.side,side);assert.equal(d.size,1);assert.equal(d.icons.some(i=>i.hovered||i.press.pressed),false);
+ const off=d.rail.offset();assert.ok(Math.abs(Math.hypot(off.x/DEFAULTS.dockRail.aspect,off.z)-d.rail.radius)<1e-8);
+ d.resetPlacement();r.camera.position.set(1,1.2,2);r.scene.updateMatrixWorld(true);d.update(dt,r.camera);
+ assert.ok(d.rail.anchor.distanceTo(r.camera.position)<1e-8);assert.equal(d.rail.held,null);
 });

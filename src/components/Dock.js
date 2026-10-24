@@ -1,10 +1,9 @@
 // Contour Dock: the app launcher, body-locked below your view.
 //
-// Anchor (anchor.mode = bodyLock): like a bag strapped to your waist. It
-// stays put when you glance around, and follows when your body turns:
-// after anchor.follow.delay, with a critically damped spring (no wobble).
-// WebXR does not track the torso, so the body's direction is estimated from
-// a sustained head turn (see DEFAULTS.followThreshold).
+// Session placement: no head-yaw follow. The head supplies only an XZ
+// displacement estimate outside a deadzone; Y stays fixed in local-floor.
+// The lower handle moves along a horizontal oval and sets height/distance.
+// WebXR has no torso pose, so a large lean can also move this anchor.
 //
 // Magnify: icons grow as the hand approaches (dock.magnify.*), so targets get
 // bigger before you reach them (a Fitts's-law aid, not decoration). The size
@@ -76,13 +75,6 @@ export class Dock extends THREE.Group {
     // instead of popping them back in one frame.
     this.magnifyOmega = 4.74 / T.get('motion.enter.duration');
     this.gap = T.viewSize('spacing.gap.minimum', dist);
-    this.follow = new LazyFollow({
-      delay: T.get('anchor.follow.delay'),
-      omega: T.get('anchor.follow.frequency'),
-      threshold: (DEFAULTS.followThreshold * Math.PI) / 180,
-    });
-    this.pos = ['x', 'y', 'z'].map(() => ({ x: 0, v: 0 }));
-    this.posStarted = false;
     this.rotation.order = 'YXZ';
 
     // Everything sits in a level frame: the group is pitched to face the
@@ -148,7 +140,7 @@ export class Dock extends THREE.Group {
       icon.pokeDistance = point => {
         const onPlate = this.shelf.worldToLocal(icon.localToWorld(point.clone()));
         const onHandle = this.handle.worldToLocal(icon.localToWorld(point.clone()));
-        const handleLane = this.handle.inside(onHandle, true) && onHandle.z >= -this.handle.t && onHandle.z <= this.handle.t + 0.025;
+        const handleLane = this.handle.inside(onHandle, true) && onHandle.z >= -this.handle.t && onHandle.z <= this.handle.t + DEFAULTS.dockRail.handleReach;
         return handleLane || this.plateSample(onPlate).inside ? Infinity : appDistance(point);
       };
     }
@@ -158,10 +150,10 @@ export class Dock extends THREE.Group {
     this.handle.position.set(0, -this.side * 1.7, 0);
     // Only a hand aimed at the handle's touch face may acquire it. Its
     // broad lateral hover must not intercept an app's frontward approach.
-    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t && point.z <= this.handle.t + 0.025
+    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t && point.z <= this.handle.t + DEFAULTS.dockRail.handleReach
       ? this.handle.faceDistance(point) : Infinity;
     this.add(this.handle);
-    this.rail = new DockRail(this.handle, this.eccentricity);
+    this.rail = new DockRail(this.handle, o.eccentricity === undefined ? {} : { radius: Math.cos(o.eccentricity) * dist, height: Math.sin(o.eccentricity) * dist });
     this.restX = this.icons.map(() => 0);
     const mm = v => v / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
@@ -507,26 +499,17 @@ export class Dock extends THREE.Group {
    * @param {THREE.Object3D} head  the camera
    * @param {THREE.Vector3[]} hands  world points of fingertips / ray hits
    */
+  resetPlacement() {
+    this.rail.reset(); this.grip.held = this.shelf.grab = null;
+    for (const h of [this.handle, this.shelf, ...this.icons]) { h.probes = []; h.press.update(0, null, false); }
+  }
+
   update(dt, head, hands = []) {
-    // Body-lock with lazy follow.
-    const headPos = new THREE.Vector3().setFromMatrixPosition(head.matrixWorld);
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
-    const headYaw = Math.atan2(-fwd.x, -fwd.z);
-    const bodyYaw = this.follow.update(dt, headYaw);
-    const placing = this.rail.update(head, bodyYaw);
-    const yaw = bodyYaw + this.rail.yawOffset;
-    const ecc = this.eccentricity = this.rail.elevation;
-    const target = [
-      headPos.x - Math.sin(yaw) * Math.cos(ecc) * this.distance,
-      headPos.y + Math.sin(ecc) * this.distance,
-      headPos.z - Math.cos(yaw) * Math.cos(ecc) * this.distance,
-    ];
-    target.forEach((v, i) => {
-      if (!this.posStarted || placing) { this.pos[i].x = v; this.pos[i].v = 0; }
-      else springStep(this.pos[i], v, this.follow.omega, dt);
-    });
-    this.posStarted = true;
-    this.position.set(this.pos[0].x, this.pos[1].x, this.pos[2].x);
+    const placing = this.rail.update(head, dt);
+    const offset = this.rail.position.clone().sub(this.rail.anchor);
+    const yaw = Math.atan2(-offset.x, -offset.z);
+    const ecc = this.eccentricity = Math.atan2(offset.y, Math.hypot(offset.x, offset.z));
+    this.position.copy(this.rail.position);
     this.rotation.set(ecc, yaw, 0);
     this.level.rotation.x = -ecc;
     this.updateMatrixWorld();

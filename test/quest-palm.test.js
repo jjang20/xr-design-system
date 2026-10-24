@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import { DEFAULTS } from '../src/core/defaults.js';
 import { createTokens, Button, Dock, PackagingPanel, InputSystem } from '../src/index.js';
 
 const T = createTokens(JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url))));
@@ -46,11 +47,13 @@ test('Quest follow-up: tracked fingertip presses with 6 mm remaining before visi
   assert.ok(b.press.amount > 0, 'pressed has immediate visible depth before crossing the face');
 });
 
-test('Quest follow-up: Dock default is closer to the body', () => {
+test('Round 4: Dock trial placement is lower and farther than the accepted round-3 geometry', () => {
   const d = new Dock(T, { apps: [{ label: 'Home', icon: 'house' }] });
   const head = new THREE.PerspectiveCamera(); head.position.y = 1.6; head.updateMatrixWorld(true);
   d.update(dt, head);
-  assert.ok(Math.abs(d.position.distanceTo(head.position) - 0.4) < 1e-9);
+  assert.ok(d.position.distanceTo(head.position) > 0.4);
+  assert.ok(d.position.y < head.position.y - 0.4 / Math.sqrt(2));
+  assert.ok(d.position.distanceTo(head.position) <= DEFAULTS.dockRail.maxReach);
 });
 
 test('Quest follow-up: an open palm moves the full front layer and closes it', () => {

@@ -122,6 +122,8 @@ addEventListener('resize', () => {
 });
 
 // Enter XR: mixed reality if the device supports it, otherwise VR.
+let resetPlacement = false;
+const xrHead = new THREE.Object3D(); xrHead.matrixAutoUpdate = false;
 const xrButton = document.getElementById('xr');
 (async () => {
   const xr = navigator.xr;
@@ -135,13 +137,15 @@ const xrButton = document.getElementById('xr');
     const session = await xr.requestSession(mode, { requiredFeatures: ['local-floor'], optionalFeatures: ['hand-tracking'] });
     room.show(mode !== 'immersive-ar');
     await renderer.xr.setSession(session);
-    session.addEventListener('end', () => room.show(true));
+    resetPlacement = true;
+    renderer.xr.getReferenceSpace()?.addEventListener('reset', () => { resetPlacement = true; });
+    session.addEventListener('end', () => { room.show(true); dock.resetPlacement(); catalog.resetInteraction(); });
   };
 })();
 
 // Loop -------------------------------------------------------------------------
 const timer = new THREE.Timer();
-renderer.setAnimationLoop(time => {
+renderer.setAnimationLoop((time, frame) => {
   timer.update(time);
   const dt = Math.min(timer.getDelta(), 0.05);
   if (keys.has('ArrowLeft')) look.yaw += dt * 1.6;
@@ -150,17 +154,31 @@ renderer.setAnimationLoop(time => {
   scene.updateMatrixWorld();
   camera.updateMatrixWorld();
 
+  let head = camera;
+  const pose = frame?.getViewerPose(renderer.xr.getReferenceSpace());
+  if (pose) {
+    xrHead.matrix.fromArray(pose.transform.matrix); xrHead.updateMatrixWorld(true); head = xrHead;
+    if (resetPlacement) {
+      const origin = head.getWorldPosition(new THREE.Vector3());
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
+      const yaw = Math.atan2(-forward.x, -forward.z);
+      catalog.resetInteraction(); catalog.scale.setScalar(windowScale);
+      catalog.position.copy(new THREE.Vector3(-0.02, 0.02, -0.68).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(origin));
+      catalog.rotation.set(0, yaw, 0); dock.resetPlacement();
+      scene.updateMatrixWorld(true); resetPlacement = false;
+    }
+  }
   input.update();
   toolButtons.forEach(b => b.update(dt));
   slider.update(dt);
   catalog.update(dt);
-  dock.update(dt, camera, input.handPoints);
+  dock.update(dt, head, input.handPoints);
   renderer.render(scene, camera);
 });
 
 // Hooks for automated screenshots and checks (scripts/screenshot.mjs).
 window.contour = {
-  T, camera, panel: catalog, slider, dock, buttons: ornament.buttons, look,
+  T, input, camera, panel: catalog, slider, dock, buttons: ornament.buttons, look,
   screenOf(obj) {
     const v = obj.getWorldPosition(new THREE.Vector3()).project(camera);
     return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight };

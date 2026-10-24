@@ -26,6 +26,7 @@ import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, s
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
+import { WindowControls } from '../core/WindowControls.js';
 
 export { PACKAGING_MODES, packagingPose };
 
@@ -65,6 +66,8 @@ export class PackagingPanel extends THREE.Group {
     this.palmPrevious = new Map();
     this.palmPush = null;
     this.palmBlocked = new Map();
+    this.controls = new WindowControls(this);
+    this.palmDiagnostic = {};
     this.open({ label: o.title, subtitle: o.subtitle, items: o.items }, null);
   }
 
@@ -97,6 +100,7 @@ export class PackagingPanel extends THREE.Group {
   palmDistance(probe) {
     // The root consumes an overlapping palm too, so its fingertip cannot
     // accidentally select a row. updatePalm keeps the root nondismissable.
+    if (this.controls.held) return Infinity;
     const s = this.palmSample(probe);
     return s?.inside && s.facing && s.gap >= -DEFAULTS.handInput.palmBehindLimit ? Math.max(0, s.gap) : Infinity;
   }
@@ -125,12 +129,14 @@ export class PackagingPanel extends THREE.Group {
       if (blocked && p.point.clone().sub(blocked.point).dot(blocked.normal) > P.palmRearmDistance) this.palmBlocked.delete(p.id);
     }
     probes = probes.filter(p => !this.palmBlocked.has(p.id));
-    if (this.active <= 0) { this.palmPrevious.clear(); return; }
+    if (this.active <= 0 || this.controls.held) { this.palmPrevious.clear(); return; }
     if (!this.palmPush) {
       for (const p of probes) {
         const s = this.palmSample(p);
         if (!s?.inside || !s.facing) continue;
         const previous = this.palmPrevious.get(p.id);
+        this.palmDiagnostic = { id: p.id, gap: s.gap, alignment: s.alignment,
+          state: s.gap <= 0 && !previous ? 'approach-required' : 'approaching' };
         current.set(p.id, { gap: s.gap, point: p.point.clone() });
         if (previous && p.point.distanceTo(previous.point) > P.palmMaxStep + 1e-6) {
           this.blockPalm(p); current.delete(p.id); continue;
@@ -178,6 +184,7 @@ export class PackagingPanel extends THREE.Group {
     for (const p of push.parents) p.level.cur.z = p.z - depth / push.scaleZ;
     l.vel.z = dt > 0 ? -(depth - push.depth) / push.scaleZ / dt : 0;
     push.depth = depth;
+    this.palmDiagnostic = { id: push.id, state: 'pushing', depth, alignment: sample.alignment };
     l.settled = false;
     if (depth >= P.palmCloseTravel) {
       // Keep the pushed pose/velocity, then continue away while fading.
@@ -192,6 +199,16 @@ export class PackagingPanel extends THREE.Group {
       this.palmPrevious.clear();
       this.back(this.active - 1);
     }
+  }
+
+  resetInteraction() {
+    this.controls.cancel(); this.palmPush = null;
+    this.palmPrevious.clear(); this.palmBlocked.clear();
+    this.palmDiagnostic = {};
+    for (const l of this.stack.all) for (const h of [l.panel, ...l.rows, ...l.corners]) {
+      h.probes = []; h.press.update(0, null, false);
+    }
+    this.retarget();
   }
 
   setMode(mode) {
@@ -212,7 +229,7 @@ export class PackagingPanel extends THREE.Group {
     const headerH = titleH + subH + dmm(D.headerGap);
     const items = item.items ?? [];
     const H = dmm(D.panelPadTop + D.panelPadBottom) + headerH + items.length * rowH;
-    return { W, H, rowH, titleH, headerH, dmm, items };
+    return { W, H, rowH, titleH, headerH, titleBand: dmm(D.panelPadTop) + titleH + dmm(D.headerGap / 3), dmm, items };
   }
 
   // Opt in during scene preparation, before input/rendering starts. Warm
@@ -228,7 +245,7 @@ export class PackagingPanel extends THREE.Group {
 
   buildLevel(item, levelIndex) {
     const T = this.T, dist = this.distance, D = DEFAULTS;
-    const { W, H, rowH, titleH, headerH, dmm, items } = this.levelLayout(item);
+    const { W, H, rowH, titleH, headerH, titleBand, dmm, items } = this.levelLayout(item);
 
     const group = new THREE.Group();
     // The window is glass and rigid: structural, it barely gives. Once it
@@ -238,6 +255,22 @@ export class PackagingPanel extends THREE.Group {
       thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);
+    // Only the exposed title band navigates back or starts a move. The
+    // full glass body remains visual; it is never a hidden back target.
+    const titleHit = new THREE.Mesh(new THREE.PlaneGeometry(W, titleBand), new THREE.MeshBasicMaterial({ visible: false }));
+    titleHit.position.set(0, (H - titleBand) / 2, panel.t);
+    panel.add(titleHit); panel.hitMeshes = [titleHit]; panel.frontZ = panel.t;
+    panel.inside = point => Math.abs(point.x) <= W / 2 && point.y <= H / 2 && point.y >= H / 2 - titleBand;
+    panel.pokeDistance = point => panel.inside(point) ? Math.abs(point.z - panel.t) * Math.abs(panel.getWorldScale(new THREE.Vector3()).z) : Infinity;
+    panel.faceDistance = (point, radius = 0) => Math.max(0, panel.pokeDistance(point) - radius);
+    const corners = [-1, 1].map(side => {
+      const handle = new Button(T, { width: D.windowManipulation.cornerSize, height: D.windowManipulation.cornerSize,
+        radius: D.windowManipulation.cornerSize / 2, distance: dist, density: 'soft', icon: 'move-diagonal' });
+      handle.position.set(side * (W / 2 + handle.w / 2 + dmm(4)), -H / 2, panel.t);
+      handle.userData.resize = true;
+      handle.pokeDistance = point => handle.inside(point, true) ? handle.faceDistance(point) : Infinity;
+      group.add(handle); return handle;
+    });
     const front = panel.t + 0.0004;
     const left = -W / 2 + dmm(D.panelPadding);
 
@@ -245,6 +278,7 @@ export class PackagingPanel extends THREE.Group {
     let y = H / 2 - dmm(D.panelPadTop);
     const title = makeText(item.label, { style: 'title', size: dmm(D.type.title.size), anchorX: 'left' });
     title.anchorY = 'top';
+    title.userData.preserveTitle = true;
     title.position.set(left, y, front);
     group.add(title);
     y -= titleH;
@@ -304,17 +338,18 @@ export class PackagingPanel extends THREE.Group {
     });
 
     panel.addEventListener('select', () => {
+      if (this.controls.held) return;
       const idx = this.levels.indexOf(level);
       if (idx >= 0 && idx < this.active) this.back(idx);
     });
 
-    const level = { item, group, panel, rows, separators, size: { W, H } };
+    const level = { item, group, panel, title, corners, rows, separators, size: { W, H, titleBand } };
     return level;
   }
 
   // Open a child level out of `sourceRow` (null for the root).
   open(item, sourceRow) {
-    if (this.palmPush) return;
+    if (this.palmPush || this.controls.held) return;
     const level = this.buildLevel(item, this.active + 1);
     // Start the child inside the row it comes out of, and close back into it.
     if (sourceRow) {
@@ -340,7 +375,7 @@ export class PackagingPanel extends THREE.Group {
 
   // Go back so that `toLevel` is in front again.
   back(toLevel = this.active - 1) {
-    if (this.palmPush) return;
+    if (this.palmPush || this.controls.held) return;
     if (!this.stack.popTo(toLevel).length) return;
     this.retarget();
     this.dispatchEvent({ type: 'back', level: toLevel });
@@ -348,28 +383,38 @@ export class PackagingPanel extends THREE.Group {
 
   retarget() {
     this.stack.retarget(this.pose, this.mode, { reduced: this.reduced });
+    if (this.mode === 'compress') for (let i = this.active - 1; i >= 0; i--) {
+      const rear = this.levels[i], front = this.levels[i + 1];
+      rear.to.y = front.to.y + front.size.H * front.to.sy / 2
+        + rear.size.titleBand * rear.to.sy - rear.size.H * rear.to.sy / 2;
+    }
     this.applyInputGates();
   }
 
   applyInputGates() {
     // Only the front level's rows take input; receded panels act as "back".
     for (const l of this.stack.all) {
-      l.rows.forEach(r => { r.enabled = l.rowsEnabled && !this.palmPush; });
-      l.panel.enabled = l.panelEnabled && !this.palmPush;
+      const owner = this.controls.held?.handle;
+      l.rows.forEach(r => { r.enabled = l.rowsEnabled && !this.palmPush && !owner; });
+      l.panel.enabled = !l.closing && !this.palmPush && (!owner || owner === l.panel);
+      l.corners.forEach(h => { h.enabled = l === this.levels.at(-1) && !this.palmPush && (!owner || owner === h); });
     }
   }
 
   update(dt) {
     const reduced = this.reduced;
+    this.controls.update();
+    this.applyInputGates();
     this.updatePalm(dt);
     for (const l of this.stack.all) {
       l.panel.update(dt);
+      l.corners.forEach(h => h.update(dt));
       const contact = this.palmPush?.level === l ? 0.4 + 0.6 * Math.min(1, this.palmPush.depth / DEFAULTS.handInput.palmCloseTravel) : 0;
       l.palmGlow = contact || (l.palmGlow ?? 0) * Math.exp(-dt / 0.08);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
       l.rows.forEach(r => r.update(dt));
       const push = this.palmPush;
-      const held = push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
+      const held = this.controls.held || push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
         : push?.parents.some(p => p.level === l) ? ['z'] : [];
       l.settled = stepPackagingLevel(l, this.omega, dt, reduced, held);
     }
@@ -386,7 +431,8 @@ export class PackagingPanel extends THREE.Group {
       const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
-      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1));
+      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1), DEFAULTS.windowManipulation.rearOpacity);
+      l.corners.forEach(h => { h.visible = l === this.levels.at(-1) && !l.closing; });
     }
     this.updateLight();
     // Remove levels that finished closing.

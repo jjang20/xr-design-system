@@ -38,7 +38,8 @@ function assertGates(panel) {
   panel.levels.forEach((l, i) => {
     const front = i === panel.active;
     assert.ok(l.rows.every(r => r.enabled === front), `${l.item.label} rows enabled = ${front}`);
-    assert.equal(l.panel.enabled, !front, `${l.item.label} panel enabled`);
+    assert.equal(l.panel.enabled, true, `${l.item.label} title is a move/back target`);
+    assert.equal(l.panel.inside(new THREE.Vector3(0, 0, 0)), false, 'body is not a back target');
   });
   for (const l of panel.closing) {
     assert.ok(l.rows.every(r => !r.enabled), `closing ${l.item.label} rows take no input`);

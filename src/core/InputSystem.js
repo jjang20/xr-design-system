@@ -121,6 +121,9 @@ export class InputSystem {
   palmStep(src, targets) {
     const owner = targets.find(t => t.palmOwner === src.id);
     const palm = this.palmOf(src);
+    // Developer inspection only: never render recognizer details in the UI.
+    src.palmDiagnostic = { state: palm ? 'flat-palm' : 'not-flat-or-untracked',
+      samples: palm ? targets.map(t => { const s = t.palmSample(palm); return s && { gap: s.gap, inside: s.inside, alignment: s.alignment, facing: s.facing, manipulating: !!t.controls?.held }; }) : [] };
     // A brief recognizer dropout cannot turn a held palm into a row click.
     if (!palm) return !!owner;
     let target = owner ?? targets.find(t => t.palmBlocked.has(src.id));
@@ -131,7 +134,8 @@ export class InputSystem {
         if (d < best) { best = d; target = t; }
       }
     }
-    if (!target) return false;
+    if (!target) { src.palmDiagnostic.state = palm ? 'outside-or-angle-gate' : src.palmDiagnostic.state; return false; }
+    src.palmDiagnostic.state = owner ? 'captured' : 'candidate';
     target.feedPalm({ ...palm, id: src.id });
     return !!owner || target.palmBlocks(palm);
   }

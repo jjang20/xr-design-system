@@ -6,8 +6,9 @@
 // - Coming back up, the material springs back at its own pace: a full-depth
 //   recovery takes exactly motion.recovery duration, with an ease-out. A soft object
 //   lags behind a retreating finger; a rigid one keeps up.
-// - Release only after the finger retreats input.poke.distance.release from the
-//   deepest point reached (release hysteresis).
+// - Release requires retreat hysteresis. When a physical separation is
+//   supplied, a contact must also have occurred and the finger must leave
+//   the stable contact surface; early proximity alone cancels.
 import { clamp } from './easing.js';
 
 export class PressModel {

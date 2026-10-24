@@ -53,7 +53,13 @@ export const DEFAULTS = {
   followThreshold: 20, // deg
   // Body-lock distance of the dock. Proposed: anchor.distance.
   dockDistance: 0.4, // m; closer body-lock reach after Quest feedback, 2026-10-24
-  dockRail: { elevation: -Math.PI / 4, elevationRange: [-Math.PI * 0.44, Math.PI / 6], handleWidth: 90, handleHeight: 16 },
+  // Round-4 trial values; tune in Quest, not final design tokens.
+  dockRail: { elevation: -Math.PI / 4, handleWidth: 90, handleHeight: 16,
+    handleReach: 0.025, aspect: 1.5, radius: 0.4, height: -0.36,
+    radiusRange: [0.25, 0.5], heightRange: [-0.5, -0.18], angleLimit: Math.PI * 0.42,
+    maxReach: 0.72, deadzone: 0.15, followRate: 6 },
+  windowManipulation: { scaleRange: [0.9, 2.2], cornerSize: 32, dragSlop: 0.006,
+    rearOpacity: 0.24, rearTitleOpacity: 0.92 },
 
   // Provisional Quest input tuning in physical metres. Applies to tracked
   // hands, not controller grips. Promote after the next headset acceptance.
