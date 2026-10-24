@@ -135,7 +135,7 @@ export class DockIcon extends Interactable {
     const scale = this.inputScale;
     this.press.release = this.T.get('input.poke.distance.release') / scale;
     const best = this.exclusive ? this.best : null;
-    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = null;
+    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
     this.hovered = best?.kind === 'ray' ? true : this.hoverBand.update(best ? this.distanceToSkin : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a

@@ -37,7 +37,7 @@ try {
       P.levels[0].rows[1].dispatchEvent({ type: 'select' }); c.tick(2);
       const mid = { active: P.active, levels: P.levels.map(l => l.item.label), closing: P.closing.map(l => l.item.label) };
       // Gates: only the front level's rows and the panels behind it take input.
-      const gates = P.levels.every((l, i) => l.rows.every(r => r.enabled === (i === P.active)) && l.panel.enabled === (i < P.active))
+      const gates = P.levels.every((l, i) => l.rows.every(r => r.enabled === (i === P.active)) && l.panel.enabled && !l.panel.inside({ x: 0, y: 0 }))
         && P.closing.every(l => l.rows.every(r => !r.enabled) && !l.panel.enabled);
       let frames = 0;
       while (!P.settled && frames < 600) { c.tick(1); frames++; }

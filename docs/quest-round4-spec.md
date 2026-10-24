@@ -37,3 +37,5 @@ Frozen investigation: coordination docs/quest-round4-facts-2026-10-24.md and val
 Move Dock: pinch lower central bar; slide sideways, up/down, toward/away. Plate ends resize icons only. Move stack: pinch title; corner controls scale the stack. Rear title tap goes back; title drag never navigates. Session entry/reference-space reset initializes placement relative to the current viewer and resets capture, without persistence.
 
 Motion review uses apple-design and emil-design-eng (review-animations unavailable). Frequent interaction feedback is immediate and direct; springs remain for recovery and navigation. Reduced motion retains direct manipulation and substitutes stationary fade for automatic level travel. Accessibility checks cover physical touch targets, input alternatives and title visibility; variable real passthrough contrast and Quest reach comfort remain device checks.
+
+User refinement during review: window manipulation affordances remain hidden until finger hover/active manipulation; remove arrow icons. Keep the title text and window content visible. Hidden resize visuals retain independent input geometry, with ray-hover access for controller parity.

@@ -302,3 +302,51 @@ test('Dock distance and height manipulation preserves oval ratio and icon physic
  d.resetPlacement();r.camera.position.set(1,1.2,2);r.scene.updateMatrixWorld(true);d.update(dt,r.camera);
  assert.ok(d.rail.anchor.distanceTo(r.camera.position)<1e-8);assert.equal(d.rail.held,null);
 });
+
+
+test('Palm push uses transformed physical travel and late-valid diagnostics keep the root safe',()=>{
+ const r=palmRig(),p=r.p;p.position.set(.2,1.3,-.5);p.rotation.y=.6;p.scale.setScalar(2);p.updateMatrixWorld(true);
+ const child=p.levels[1],front=child.cur.z+child.panel.t*child.cur.sx;
+ const normal=new THREE.Vector3(0,0,-1).transformDirection(p.matrixWorld);
+ const feed=gap=>{p.updateMatrixWorld(true);p.feedPalm({id:'palm',normal,radius:.012,point:p.localToWorld(new THREE.Vector3(0,child.cur.y,front+(.022+gap)/2))});p.update(dt);};
+ feed(-.003);assert.equal(p.palmOwner,undefined);assert.equal(p.palmDiagnostic.state,'approach-required');
+ feed(.04);feed(-.005);assert.equal(p.palmOwner,'palm');feed(-.055);assert.equal(p.active,0);
+ for(let i=0;i<180;i++)p.update(dt);assert.equal(p.levels[0].item.label,'Catalog');
+ p.resetInteraction();assert.equal(p.controls.held,null);assert.equal(p.palmOwner,undefined);
+});
+
+
+test('Actual separation rearms repeated shallow taps without requiring the early-offset distance',()=>{
+ const p=new PackagingPanel(T,{title:'Catalog',items:[{label:'Chair'}]}),row=p.levels[0].rows[0],events=[];row.addEventListener('select',()=>events.push(1));
+ // A leaf avoids changing the stack while testing repeated input.
+ const feed=gap=>{row.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,front+gap),radius:.008,pressOffset:.01});row.update(dt);};
+ for(let i=0;i<90;i++){row.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,.05),radius:.008,pressOffset:.01});row.update(dt);}
+ const front=row.surfaceZ(new THREE.Vector3());
+ for(const gap of [.017,.004,.009])feed(gap);
+ assert.equal(events.length,1);for(let i=0;i<10;i++)feed(.009);assert.equal(row.press.pressed,false,'separated hold must not immediately repress');
+ for(const gap of [.004,.009])feed(gap);assert.equal(events.length,2);
+});
+
+test('Reference reset blocks held controller capture until release and a new press',()=>{
+ for(const target of ['dock','window']) {
+  const r=target==='dock'?rayRig():palmRig();
+  const p=r.dock??r.p,src=r.src??r.input.xr[0];src.hand.visible=false;src.grip.visible=false;
+  if(r.tip)r.tip.visible=false;else Object.values(src.hand.joints).forEach(j=>{j.visible=false;});
+  const h=r.dock?.handle??r.p.levels.at(-1).panel;
+  const at=()=>h.localToWorld(new THREE.Vector3(0,r.p?h.h/2-r.p.levels.at(-1).size.titleBand/2:0,h.t));
+  const frame=pressed=>{const point=at();src.selecting=pressed;src.ray.position.copy(point.clone().add(new THREE.Vector3(0,0,1)));src.ray.quaternion.identity();r.scene.updateMatrixWorld(true);r.input.update();if(r.dock)p.update(dt,r.camera,r.input.handPoints);else p.update(dt);};
+  frame(false);frame(true);assert.ok(r.dock?p.rail.held:p.controls.held);
+  r.input.reset();if(r.dock)p.resetPlacement();else p.resetInteraction();
+  frame(true);assert.equal(!!(r.dock?p.rail.held:p.controls.held),false);
+  frame(false);frame(true);assert.ok(r.dock?p.rail.held:p.controls.held);
+ }
+});
+
+
+test('Window resize controls hide their visuals until hover and keep a separate hit target',()=>{
+ const r=palmRig(),p=r.p,h=p.levels[1].corners[0];p.update(dt);
+ assert.equal(h.body.visible,false);assert.equal(h.visible,true);assert.notEqual(h.hitMeshes[0],h.body);
+ h.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,h.t+.03),radius:.008});p.update(dt);
+ assert.equal(h.body.visible,true);p.update(dt);assert.equal(h.body.visible,false);
+ assert.equal(h.icon,undefined);
+});

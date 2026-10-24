@@ -104,7 +104,49 @@ try {
   const click = result.traces.click;
   check('finger release opens with visible transform and fade', click.active === 1 && click.frames[0].opacity < click.frames[14].opacity && Math.abs(click.frames[0].y - click.frames[14].y) > .001);
   check('prepared child creation stays below 50 ms on this desktop run', click.buildMs < 50);
-  await capture(page, '03-child-open'); await page.close();
+  await capture(page, '03-child-open');
+  result.traces.windowControls = await page.evaluate(() => {
+    const c=window.contour,r=window.replay,p=c.panel;
+    for(let i=0;i<150;i++)c.tick(1);
+    const child=p.levels.at(-1),h=child.panel;
+    const start=h.localToWorld(new r.THREE.Vector3(0,h.h/2-child.size.titleBand/2,h.t+.012));
+    r.src.connected=true;r.src.selecting=false;r.step(start);r.src.selecting=true;r.step(start);
+    const before=p.position.clone();r.step(start.clone().add(new r.THREE.Vector3(.04,-.02,.01)));
+    const moved=p.position.clone().sub(before).toArray(), captured=!!p.controls.held;
+    r.src.selecting=false;r.step(start.clone().add(new r.THREE.Vector3(.04,-.02,.01)));
+    const corner=child.corners[1],at=corner.localToWorld(new r.THREE.Vector3(0,0,corner.t+.012));
+    r.step(at);r.src.selecting=true;r.step(at);
+    const oldScale=p.scale.x,dir=corner.getWorldPosition(new r.THREE.Vector3()).sub(p.getWorldPosition(new r.THREE.Vector3())).normalize();
+    r.step(at.clone().addScaledVector(dir,.04));const scale=p.scale.x;
+    r.src.connected=false;r.input.update();c.tick(1);
+    return {moved,captured,oldScale,scale,active:p.active,lostReleased:!p.controls.held,
+      layers:p.levels.map(l=>({title:l.item.label,top:l.cur.y+l.size.H*l.cur.sy/2,titleBand:l.size.titleBand*l.cur.sy,sheet:l.panel.skin.uniforms.uOpacity.value,titleOpacity:l.title.fillOpacity}))};
+  });
+  const wc=result.traces.windowControls;
+  check('real finger input moves and resizes the complete stack without navigating',wc.captured && Math.abs(wc.moved[0]-.04)<.001 && wc.scale>wc.oldScale && wc.active===1 && wc.lostReleased);
+  check('rear title remains readable above faint rear sheet',wc.layers[0].sheet<.5 && wc.layers[0].titleOpacity>.8 && Math.abs(wc.layers[0].top-wc.layers[1].top-wc.layers[0].titleBand)<.001);
+  await capture(page,'06-window-moved-resized-mr');await page.close();
+
+  const shortPage=await open('component=packaging&layout=quest');
+  result.traces.shortChild=await shortPage.evaluate(async()=>{
+    const c=window.contour,r=window.replay,p=c.panel;
+    p.levels[0].rows[3].dispatchEvent({type:'select'});c.tick(120);
+    const url=performance.getEntriesByType('resource').map(r=>r.name).find(u=>u.includes('/src/core/look.js'));
+    (await import(url)).setBackdrop(null);c.scene.background=null;
+    const [rear,front]=p.levels,gl=c.renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
+    const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=front.cur.y-front.size.H*front.cur.sy/2;
+    const project=(x,y)=>p.localToWorld(new r.THREE.Vector3(x,y,rear.cur.z)).project(c.camera);
+    const lo=project(-rear.size.W*rear.cur.sx/2,bottom+.003),hi=project(rear.size.W*rear.cur.sx/2,frontBottom-.006);
+    const regionMax=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);let max=0;for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;max=Math.max(max,data[i],data[i+1],data[i+2]);}return max;};
+    const maskedMax=regionMax(),mask=rear.panel.skin.uniforms.uRearMask.value;
+    mask.y=0;const unmaskedMax=regionMax();mask.y=1;
+    return {maskedMax,unmaskedMax,bodyExtension:(frontBottom-bottom)*p.scale.y,
+      controlsHidden:front.corners.every(h=>!h.body.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
+  });
+  const short=result.traces.shortChild;
+  check('short child clips the otherwise exposed rear body in actual MR pixels',short.bodyExtension>.05 && short.maskedMax<3 && short.unmaskedMax>10);
+  check('window controls are hidden until hover and title stays readable',short.controlsHidden&&short.titles[0]>.8);
+  await capture(shortPage,'08-short-child-mr');await shortPage.close();
 
   const dockPage = await open('part=dock&visible=7');
   await capture(dockPage, '04-dock-handle');
@@ -116,7 +158,21 @@ try {
     return { pressed: d.shelf.press.pressed, depth: d.shelf.press.depth, glow: d.base.material.uniforms.uTouchGlow.value.r, events };
   });
   check('real fingertip route presses plate without selecting an app', result.traces.plate.pressed && result.traces.plate.depth > .002 && !result.traces.plate.events.length);
-  await capture(dockPage, '05-plate-contact'); await dockPage.close();
+  await capture(dockPage, '05-plate-contact');
+  result.traces.rail=await dockPage.evaluate(()=>{
+    const c=window.contour,d=c.dock,r=window.replay,h=d.handle;
+    r.src.connected=false;r.input.update();c.tick(1);r.src.connected=true;
+    for(const gap of [.12,.08,.06,.04,.025,.017,.012])r.step(h.localToWorld(new r.THREE.Vector3(0,0,h.t+gap)));
+    const at=h.localToWorld(new r.THREE.Vector3(0,0,h.t+.012));r.src.selecting=true;r.step(at);
+    const start=d.position.clone(),side=d.side,captured=!!d.rail.held;
+    r.step(at.clone().add(new r.THREE.Vector3(.08,-.04,-.04)));
+    const moved=d.position.distanceTo(start),suppressed=d.icons.every(i=>!i.hovered&&!i.press.pressed);
+    r.src.selecting=false;r.step(at.clone().add(new r.THREE.Vector3(.08,-.04,-.04)));
+    return {captured,moved,suppressed,sideUnchanged:d.side===side,released:!d.rail.held};
+  });
+  const rail=result.traces.rail;
+  check('continuous handle approach captures, repositions and suppresses icons',rail.captured&&rail.moved>.03&&rail.suppressed&&rail.sideUnchanged&&rail.released);
+  await capture(dockPage,'07-dock-repositioned');await dockPage.close();
   check('no browser or shader errors', result.errors.length === 0);
   if (out) await writeFile(path.join(out, 'result.json'), JSON.stringify(result, null, 2) + '\n');
   console.log(JSON.stringify(result, null, 2));

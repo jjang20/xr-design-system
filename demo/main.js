@@ -139,7 +139,7 @@ const xrButton = document.getElementById('xr');
     await renderer.xr.setSession(session);
     resetPlacement = true;
     renderer.xr.getReferenceSpace()?.addEventListener('reset', () => { resetPlacement = true; });
-    session.addEventListener('end', () => { room.show(true); dock.resetPlacement(); catalog.resetInteraction(); });
+    session.addEventListener('end', () => { room.show(true); input.reset(); dock.resetPlacement(); catalog.resetInteraction(); });
   };
 })();
 
@@ -162,7 +162,7 @@ renderer.setAnimationLoop((time, frame) => {
       const origin = head.getWorldPosition(new THREE.Vector3());
       const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(head.getWorldQuaternion(new THREE.Quaternion()));
       const yaw = Math.atan2(-forward.x, -forward.z);
-      catalog.resetInteraction(); catalog.scale.setScalar(windowScale);
+      input.reset(); catalog.resetInteraction(); catalog.scale.setScalar(windowScale);
       catalog.position.copy(new THREE.Vector3(-0.02, 0.02, -0.68).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw).add(origin));
       catalog.rotation.set(0, yaw, 0); dock.resetPlacement();
       scene.updateMatrixWorld(true); resetPlacement = false;

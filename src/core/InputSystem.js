@@ -73,6 +73,18 @@ export class InputSystem {
     });
   }
 
+  // A held trigger/pinch belongs to the old reference space. Require its
+  // release before any new capture after session entry or recentering.
+  reset() {
+    this.handPoints = [];
+    for (const src of this.xr) {
+      src.state = {}; src.resetBlocked = src.selecting;
+      src.near.update(Infinity); src.line.visible = false;
+    }
+    this.mouse.state = {}; this.mouse.resetBlocked = this.mouse.pressed;
+    this.mouse.upPending = false; this.mouse.looking = false;
+  }
+
   collect() {
     const items = [], components = [], palms = [];
     this.scene.traverse(o => {
@@ -149,6 +161,10 @@ export class InputSystem {
       for (const src of this.xr) {
         src.line.visible = false;
         if (!src.connected) continue;
+        if (src.resetBlocked) {
+          if (src.selecting) continue;
+          src.resetBlocked = false;
+        }
         if (this.palmStep(src, palms)) { src.state = {}; continue; }
         const tip = this.tipOf(src);
         let dist = Infinity;
@@ -167,7 +183,10 @@ export class InputSystem {
           this.rayStep(src, new THREE.Ray(origin, dir), src.selecting, 0, items);
         }
       }
+    } else if (this.mouse.resetBlocked && this.mouse.pressed) {
+      this.mouse.seen = true;
     } else if (this.mouse.inside || this.mouse.pressed) {
+      this.mouse.resetBlocked = false;
       this.raycaster.setFromCamera(this.mouse.ndc, this.camera);
       const wheel = this.mouse.wheel;
       this.mouse.wheel = 0;

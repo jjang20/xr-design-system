@@ -19,6 +19,7 @@ export class PressModel {
     this.depth = 0;
     this.pressed = false;
     this.deepest = 0;
+    this.lastSeparation = null;
     this.lastPenetration = null; // null = no finger seen last frame
   }
 
@@ -38,11 +39,15 @@ export class PressModel {
     let event = null;
     // Only a finger arriving from the front can start a press, not one that
     // first appears already behind the face (reaching in from the back or side).
-    const fromFront = this.lastPenetration !== null && this.lastPenetration < 0;
+    if (!this.pressed && penetration < 0) this.rearmAtSurface = false;
+    const surfaceRearm = separation !== null && this.rearmAtSurface;
+    const fromFront = surfaceRearm ? this.lastSeparation !== null && this.lastSeparation > 0
+      : this.lastPenetration !== null && this.lastPenetration < 0;
+    this.lastSeparation = separation;
     this.lastPenetration = penetration;
     if (penetration === null) penetration = -Infinity;
 
-    if (!this.pressed && inside && penetration >= 0 && fromFront) {
+    if (!this.pressed && inside && penetration >= 0 && (!surfaceRearm || separation <= 0) && fromFront) {
       this.pressed = true;
       this.deepest = 0;
       this.contacted = separation === null || separation <= 0;
@@ -58,9 +63,11 @@ export class PressModel {
       this.deepest = Math.max(this.deepest, penetration);
       if (!inside) {
         this.pressed = false;
+        this.rearmAtSurface = true;
         event = 'cancel';
       } else if (penetration < this.deepest - this.release && (separation === null || separation > 0)) {
         this.pressed = false;
+        this.rearmAtSurface = true;
         event = this.contacted ? 'release' : 'cancel';
       }
     }

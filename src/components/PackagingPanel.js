@@ -265,9 +265,12 @@ export class PackagingPanel extends THREE.Group {
     panel.faceDistance = (point, radius = 0) => Math.max(0, panel.pokeDistance(point) - radius);
     const corners = [-1, 1].map(side => {
       const handle = new Button(T, { width: D.windowManipulation.cornerSize, height: D.windowManipulation.cornerSize,
-        radius: D.windowManipulation.cornerSize / 2, distance: dist, density: 'soft', icon: 'move-diagonal' });
+        radius: D.windowManipulation.cornerSize / 2, distance: dist, density: 'soft' });
       handle.position.set(side * (W / 2 + handle.w / 2 + dmm(4)), -H / 2, panel.t);
       handle.userData.resize = true;
+      const hit = new THREE.Mesh(handle.body.geometry, new THREE.MeshBasicMaterial({ visible: false }));
+      handle.add(hit); handle.hitMeshes = [hit];
+      handle.body.visible = false;
       handle.pokeDistance = point => handle.inside(point, true) ? handle.faceDistance(point) : Infinity;
       group.add(handle); return handle;
     });
@@ -429,10 +432,14 @@ export class PackagingPanel extends THREE.Group {
     }
     for (const l of this.stack.all) {
       const c = l.cur;
+      l.panel.skin.uniforms.uRearMask.value.set(l.size.H / 2 - l.size.titleBand, clamp(c.back, 0, 1));
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1), DEFAULTS.windowManipulation.rearOpacity);
-      l.corners.forEach(h => { h.visible = l === this.levels.at(-1) && !l.closing; });
+      l.corners.forEach(h => {
+        h.visible = l === this.levels.at(-1) && !l.closing;
+        h.body.visible = h.visible && (h.hovered || h.press.pressed || !!h.grab);
+      });
     }
     this.updateLight();
     // Remove levels that finished closing.

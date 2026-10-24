@@ -340,7 +340,7 @@ export class Button extends Interactable {
     const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point, p.radius);
     const owner = this.press.pressed ? this.pressOwner : null;
     const { probe: best } = pickProbe(candidates, distance, owner);
-    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = null;
+    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
     const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance, owner);

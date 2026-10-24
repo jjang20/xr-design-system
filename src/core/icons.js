@@ -13,7 +13,6 @@ import i_flower2 from 'lucide-static/icons/flower-2.svg?raw';
 import i_chevronRight from 'lucide-static/icons/chevron-right.svg?raw';
 import i_chevronLeft from 'lucide-static/icons/chevron-left.svg?raw';
 import i_rotate3d from 'lucide-static/icons/rotate-3d.svg?raw';
-import i_moveDiagonal from 'lucide-static/icons/move-diagonal.svg?raw';
 import i_move3d from 'lucide-static/icons/move-3d.svg?raw';
 import i_lock from 'lucide-static/icons/lock.svg?raw';
 import i_trash2 from 'lucide-static/icons/trash-2.svg?raw';
@@ -49,7 +48,6 @@ export const ICONS = {
   'chevron-left': i_chevronLeft,
   'rotate-3d': i_rotate3d,
   'move-3d': i_move3d,
-  'move-diagonal': i_moveDiagonal,
   'lock': i_lock,
   'trash-2': i_trash2,
   'plus': i_plus,
