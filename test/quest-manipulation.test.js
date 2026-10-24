@@ -97,3 +97,51 @@ test('Dock captured sphere keeps the first hand as owner',()=>{
  r.sources[0].src.connected=r.sources[1].src.connected=false;r.frame();assert.equal(d.rail.held,null);
  r.step('poke',1,r.point(h,.012),false);r.step('poke',1,r.point(h,.012),true);assert.equal(d.rail.held?.id,'xr1');
 });
+
+const hits=[];
+function hitReceipt(r,h,name){
+ const p=r.point(h,.012),axis=r.normal(h),origin=p.clone().addScaledVector(axis,.5),ray=new THREE.Raycaster(origin,axis.clone().negate());
+ r.scene.updateMatrixWorld(true);const found=ray.intersectObjects(h.hitMeshes,false);
+ assert.ok(found.length>0,name+' must hit actual geometry');
+ const local=h.worldToLocal(found[0].point.clone());
+ hits.push({name,geometry:h.hitMeshes[0].geometry.type,origin:origin.toArray(),direction:axis.clone().negate().toArray(),hit:found[0].point.toArray(),local:local.toArray(),frontZ:h.frontZ,scale:h.inputScale});
+}
+test('Explicit real ray geometry receipts for side, corner and Dock sphere',()=>{
+ const w=rig();hitReceipt(w,moves(w)[0],'side');hitReceipt(w,w.obj.levels.at(-1).corners[1],'corner');const d=rig('dock');hitReceipt(d,d.obj.handle,'dock');
+});
+function combined(){
+ const r=rig('dock'),d=r.obj,p=new PackagingPanel(T,{title:'Catalog',items:[{label:'Sofas',items:[{label:'Chair'},{label:'Table'}]}]});
+ p.scale.setScalar(1.5);p.levels[0].rows[0].dispatchEvent({type:'select'});r.scene.add(p);for(let i=0;i<120;i++)p.update(dt);r.scene.updateMatrixWorld(true);
+ const h=p.levels.at(-1).moves[0],target=r.point(d.handle,.012).add(new THREE.Vector3(-.08,0,0));p.position.add(target.sub(r.point(h,.012)));r.scene.updateMatrixWorld(true);
+ r.frame=()=>{r.scene.updateMatrixWorld(true);r.input.update();p.update(dt);d.update(dt,r.camera,r.input.handPoints);r.scene.updateMatrixWorld(true);};
+ r.step=(mode,n,pt,hold,axis)=>{r.put(mode,n,pt,hold,axis);r.frame();};r.p=p;r.d=d;r.h=h;return r;
+}
+function openPose(r,n,at,pinch){
+ const {src,tip}=r.sources[n];r.hand(n,at,pinch);const add=(name,x,y)=>{let j=src.hand.joints[name];if(!j){j=new THREE.Group();src.hand.joints[name]=j;src.hand.add(j);}j.visible=true;j.position.copy(at).add(new THREE.Vector3(x,y,0));return j;};
+ add('wrist',.025,-.14).rotation.x=Math.PI/2;
+ ['index','middle','ring','pinky'].forEach((f,i)=>{const x=[0,.017,.034,.05][i];add(f+'-finger-phalanx-proximal',x,-.07);if(f!=='index')add(f+'-finger-tip',x,0);});
+}
+for(const mode of ['poke','ray'])for(const owner of ['window','dock'])test('Cross component '+owner+' '+mode+' capture cannot transfer while crossing another handle',()=>{
+ const r=combined(),h=owner==='window'?r.h:r.d.handle,other=owner==='window'?r.d.handle:r.h,start=r.point(h,.012),axis=r.normal(h);
+ r.step(mode,0,start,false,axis);r.step(mode,0,start,true,axis);
+ assert.equal(owner==='window'?r.p.controls.held?.id:r.d.rail.held?.id,'xr0');
+ const end=r.point(other,.012);r.step(mode,0,end,true,axis);
+ assert.equal(owner==='window'?r.p.controls.held?.id:r.d.rail.held?.id,'xr0');
+ assert.equal(!!(owner==='window'?r.d.rail.held:r.p.controls.held),false);
+ assert.equal(r.p.palmOwner,undefined);assert.equal(r.p.active,1);assert.equal(r.events.length,0);
+});
+for(const owner of ['window','dock'])test('Open pose cannot preempt '+owner+' pinch capture or release frame',()=>{
+ const r=combined(),h=owner==='window'?r.h:r.d.handle,start=r.point(h,.012);
+ r.step('poke',0,start,false);r.step('poke',0,start,true);
+ openPose(r,0,start,true);r.frame();assert.equal(r.input.palmOf(r.sources[0].src),null);
+ assert.equal(owner==='window'?r.p.controls.held?.id:r.d.rail.held?.id,'xr0');assert.equal(r.p.palmOwner,undefined);
+ openPose(r,0,start,false);r.scene.updateMatrixWorld(true);assert.ok(r.input.palmOf(r.sources[0].src),'release fixture really looks open');r.frame();
+ assert.equal(r.p.palmOwner,undefined,'release frame remains owned');assert.equal(r.p.active,1);assert.equal(!!r.p.controls.held,false);assert.equal(!!r.d.rail.held,false);
+});
+for(const owner of ['window','dock'])test('Mixed ray and fingertip owners cannot steal the same '+owner+' handle or dent',()=>{
+ const r=combined(),h=owner==='window'?r.h:r.d.handle,start=r.point(h,.012),axis=r.normal(h);
+ r.step('poke',0,start,false);r.step('poke',0,start,true);const initial=h.spot.clone(),pos=(owner==='window'?r.p:r.d).position.clone();
+ r.ray(1,start,true,axis);r.frame();assert.equal(owner==='window'?r.p.controls.held?.id:r.d.rail.held?.id,'xr0');
+ r.ray(1,start.clone().add(new THREE.Vector3(.04,0,0)),true,axis);r.frame();
+ assert.equal(owner==='window'?r.p.controls.held?.id:r.d.rail.held?.id,'xr0');same(h.spot,initial,'dent remains owner position');same((owner==='window'?r.p:r.d).position,pos,'other source cannot move owner');
+});

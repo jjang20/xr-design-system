@@ -41,9 +41,11 @@ export class BubbleHandle extends Interactable {
   }
 
   get inputScale() { return Math.abs(this.getWorldScale(new THREE.Vector3()).x); }
-  inside(p) {
-    return this.rectangular ? Math.abs(p.x) <= this.w/2 && Math.abs(p.y) <= this.h/2
-      : p.x*p.x+p.y*p.y <= this.r*this.r;
+  inside(p, touch = false) {
+    const minimum = touch ? this.T.get('input.touch.size.minimum') / this.inputScale : 0;
+    const w = Math.max(this.w, minimum), h = Math.max(this.h, minimum);
+    return this.rectangular ? Math.abs(p.x) <= w / 2 && Math.abs(p.y) <= h / 2
+      : p.x * p.x + p.y * p.y <= w * w / 4;
   }
   surfaceZ() { return this.t; }
   faceDistance(p, radius = 0) {
@@ -51,7 +53,7 @@ export class BubbleHandle extends Interactable {
       : Math.abs(p.length()-this.r);
     return Math.max(0,d*this.inputScale-radius);
   }
-  pokeDistance(p) { return this.inside(p) || !this.rectangular ? this.faceDistance(p) : Infinity; }
+  pokeDistance(p) { return this.inside(p, true) || !this.rectangular ? this.faceDistance(p) : Infinity; }
 
   update(dt) {
     const D = DEFAULTS.look.emboss, scale = this.inputScale;
@@ -69,7 +71,7 @@ export class BubbleHandle extends Interactable {
       if (!this.press.pressed && this.probeId !== probe.id) this.press.lastPenetration = null;
       this.probeId = probe.id;
     }
-    const event = this.press.update(dt, penetration, !!probe && (!!this.grab || this.inside(probe.point)),
+    const event = this.press.update(dt, penetration, !!probe && (!!this.grab || this.inside(probe.point, probe.kind === 'poke')),
       probe?.kind === 'poke' ? separation : null);
     if (event === 'press') { this.pressOwner = probe.id; this.pressKind = probe.kind; }
     const held = !!this.grab;

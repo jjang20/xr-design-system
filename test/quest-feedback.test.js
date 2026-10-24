@@ -478,3 +478,14 @@ test('Q20: held side bubble has local feedback and stack opacity recovers on rel
  for(let i=0;i<90;i++)p.update(dt);
  assert.equal(h.affordance.visible,false);assert.ok(l.panel.skin.uniforms.uOpacity.value>.999);assert.ok(Math.abs(h.skin.uDent.value.w)<.001);
 });
+
+test('Smallest window scale preserves the 22mm fingertip target without entering the sheet body',()=>{
+ const {p}=palmRig();p.scale.setScalar(DEFAULTS.windowManipulation.scaleRange[0]);p.updateMatrixWorld(true);
+ const l=p.levels.at(-1),minimum=T.get('input.touch.size.minimum');
+ for(const h of [...l.moves,...l.corners]){
+  const scale=h.inputScale;
+  assert.ok(h.inside(new THREE.Vector3(minimum/scale/2-.00001,0,h.t),true));
+  const innerEdge=Math.abs(h.position.x)-Math.max(h.w,minimum/scale)/2;
+  assert.ok(innerEdge>l.size.W/2,'hidden touch floor must remain outside the sheet');
+ }
+});
