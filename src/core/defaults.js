@@ -61,7 +61,7 @@ export const DEFAULTS = {
     maxReach: 0.72, deadzone: 0.15, followRate: 6 },
   windowManipulation: { scaleRange: [0.9, 2.2], cornerSize: 32, dragSlop: 0.006,
     moveWidth: 28, moveHeight: 64, handleGap: 8, heldOpacity: 0.9,
-    rearOpacity: 0.32, olderOpacity: 0.16, rearTitleOpacity: 1 },
+    rearOpacity: 0.28, olderOpacity: 0.08, rearTitleOpacity: 1 },
 
   // Provisional Quest input tuning in physical metres. Applies to tracked
   // hands, not controller grips. Promote after the next headset acceptance.
@@ -88,7 +88,7 @@ export const DEFAULTS = {
   },
 
   // Quest layout comparison; component defaults remain reusable.
-  windowPreview: { scale: 1.5, layerSpacing: 0.7 },
+  windowPreview: { scale: 1.5, layerSpacing: 0.7, recedeRatio: 0.7 },
 
   // Appearance. Proposed: a look.* token group once tested in MR.
   look: {
@@ -263,7 +263,7 @@ export const DEFAULTS = {
     // a held end swells by this share. glow: the hold's light (x the press
     // glow), a hover's, its radius (x pad). reach: a pinch grabs within this
     // share of the hover distance (input.hover.distance.enter).
-    dockPlate: { edge: 5, crown: 3, under: 3, pad: 44, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.5 }, reach: 0.4 },
+    dockPlate: { edge: 5, crown: 3, under: 3, thicknessScale: 1.2, pad: 44, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.5 }, reach: 0.4 },
     // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
     // size: its diameter x the object's larger side (Jihoon's reference:
     // about 1.5; 1.42 holds the corners of a square). from: it grows from

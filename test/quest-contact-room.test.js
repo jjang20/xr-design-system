@@ -71,3 +71,25 @@ for(const invalidation of ['disabled','removed','other-source','radius-growth','
  else r.step('poke',0,iconPoint(r,icon,0,-.002));
  assert.equal(icon.press.pressed,false);assert.equal(r.events.length,0);
 });
+
+test('R6: entering the rear skin and passing through to the front cannot click',()=>{
+ const r=rig('dock'),icon=r.obj.icons[3];
+ for(const [angle,gap] of [[180,.03],[180,.011],[180,-.008],[0,.001]])r.step('poke',0,iconPoint(r,icon,angle,gap));
+ assert.equal(r.events.length,0);assert.equal(icon.press.pressed,false);
+ for(const gap of [.03,.015,.004,-.002,.009])r.step('poke',0,iconPoint(r,icon,0,gap));
+ assert.equal(r.events.length,1,'a subsequent real front approach must rearm');
+});
+
+for(const growth of ['radius','geometry'])test('R6: provisional feedback cannot turn stationary '+growth+' growth into a click',()=>{
+ const r=rig('dock'),icon=r.obj.icons[3];
+ for(const gap of [.03,.015,.004])r.step('poke',0,iconPoint(r,icon,0,gap));
+ assert.equal(icon.press.pressed,true);assert.equal(icon.press.contacted,false);
+ const fixed=r.sources[0].tip.position.clone(),oldScale=icon.scale.clone();
+ if(growth==='radius')r.sources[0].tip.jointRadius=.02;else icon.scale.multiplyScalar(2);
+ r.step('poke',0,fixed);
+ if(growth==='radius')r.sources[0].tip.jointRadius=.008;else icon.scale.copy(oldScale);
+ r.step('poke',0,fixed);
+ assert.equal(r.events.length,0);
+ for(const gap of [.03,.015,.004,-.002,.009])r.step('poke',0,iconPoint(r,icon,0,gap));
+ assert.equal(r.events.length,1,'returning to a real front approach must rearm');
+});

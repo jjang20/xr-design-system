@@ -120,7 +120,10 @@ export class DockIcon extends Interactable {
     const radius = this.rb * this.inputScale + fingertipRadius;
     return { centre, radius, separation: p.distanceTo(this.centre) * this.inputScale - radius };
   }
-  retainsPokeCapture(p, radius = 0) { return this.press.contacted || this.pokeContact(p, radius).separation <= 0; }
+  retainsPokeCapture(p, radius = 0, crossing) {
+    return this.press.contacted || p.z > this.centre.z && (crossing === undefined
+      ? this.pokeContact(p, radius).separation <= 0 : !!crossing);
+  }
 
   // A ray held on the bubble while pressed meets its sphere.
   rayPoint(localRay, out) {
@@ -155,6 +158,10 @@ export class DockIcon extends Interactable {
       inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
       if (best.kind === 'poke') {
         separation = r - this.rb - (best.radius ?? 0) / scale;
+        inside &&= best.point.z > this.centre.z;
+        // InputSystem supplies crossing evidence even for an already
+        // provisional press. Do not promote radius jitter to real contact.
+        if ((!this.press.pressed || !this.press.contacted) && separation <= 0 && best.surfaceCrossing === null) inside = false;
         // Routing may change during early proximity. A one-frame physical
         // crossing observed by InputSystem can arm this newly chosen skin;
         // first appearance behind it, gaps and jumps cannot.

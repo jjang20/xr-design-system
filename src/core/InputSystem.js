@@ -217,12 +217,20 @@ export class InputSystem {
       && previous.point.distanceTo(worldPoint) <= DEFAULTS.handInput.iconApproachMaxStep;
     const samples = new Map(probes.filter(({ item }) => item.pokeContact)
       .map(({ item, point }) => [item, item.pokeContact(point, radius)]));
+    const crossings = new Map(probes.map(({ item }) => {
+      const before = continuous && previous.samples.get(item), current = samples.get(item);
+      // Physical acquisition must cross the previously observed skin too:
+      // radius/geometry growth around a stationary tip is not a touch.
+      return [item, before?.separation > 0 && current?.separation <= 0
+        && worldPoint.distanceTo(before.centre) <= before.radius
+        ? { previousGap: before.separation } : null];
+    }));
     src.pokeHistory = { frame: this.frame, point: worldPoint.clone(), samples };
     // One fingertip has one proximity target, including hover. Captured
     // presses/grabs keep that target until release or tracking loss.
     let target = probes.find(({ item, point }) => item.pokeDistance &&
       ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id
-        && (item.retainsPokeCapture?.(point, radius) ?? true))
+        && (item.retainsPokeCapture?.(point, radius, crossings.get(item)) ?? true))
         || item.grab?.id === src.id))?.item;
     if (!target) {
       let nearest = Infinity;
@@ -234,14 +242,8 @@ export class InputSystem {
     // Special handles (the Dock shelf) retain their own arbitration.
     // Radius is in world metres; consumers convert it through their scale.
     for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
-      const before = continuous && previous.samples.get(item), current = samples.get(item);
-      // Cross both the previously observed skin and its current position.
-      // Growth, radius changes or a hidden/removed target cannot fabricate
-      // an approach from a stationary or newly tracked fingertip.
-      const surfaceCrossing = before?.separation > 0 && current?.separation <= 0
-        && worldPoint.distanceTo(before.centre) <= before.radius
-        ? { previousGap: before.separation } : null;
-      item.feed({ kind: 'poke', id: src.id, point, radius, pressOffset, pinch: src.selecting, surfaceCrossing });
+      item.feed({ kind: 'poke', id: src.id, point, radius, pressOffset, pinch: src.selecting,
+        surfaceCrossing: crossings.get(item) });
     }
   }
 

@@ -115,7 +115,7 @@ export class Dock extends THREE.Group {
     this.plateContactDent = { x: 0, v: 0 };
     this.plateDentAt = new THREE.Vector3();
     this.gripBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
-    this.thick = (P.edge + P.crown + P.under) / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
+    this.thick = (P.edge + P.crown + P.under) * P.thicknessScale / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.neck = 1;
     // Spacing: at least the gap token, and enough that a fully magnified
     // app's bubble clears its magnified neighbours' objects (the bubble is
@@ -158,7 +158,7 @@ export class Dock extends THREE.Group {
     this.rail = new DockRail(this.handle, { handleDrop: -this.handle.position.y,
       ...(o.eccentricity === undefined ? {} : { radius: Math.cos(o.eccentricity) * dist, height: Math.sin(o.eccentricity) * dist }) });
     this.restX = this.icons.map(() => 0);
-    const mm = v => v / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
+    const mm = v => v * P.thicknessScale / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
     // Refractive glass, so the mirrored objects below show through it.
     this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.thick }));
@@ -713,7 +713,7 @@ const rubberband = (over, dimension, k) => (over * dimension * k) / (dimension +
 // began on it.
 export function nearestApp(icons, near) {
   const held = icons.findIndex(icon => icon.press.pressed && (icon.pressKind !== 'poke'
-    || icon.best && icon.retainsPokeCapture(icon.best.point, icon.best.radius)));
+    || icon.best && icon.retainsPokeCapture(icon.best.point, icon.best.radius, icon.best.surfaceCrossing)));
   if (held >= 0) return held;
   let best = 0;
   for (let i = 1; i < near.length; i++) {

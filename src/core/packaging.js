@@ -10,7 +10,9 @@ export function packagingPose(p, mode, level, active) {
   const fade = d === 0 ? 1 : Math.max(p.opacityMin, p.opacityStart - (d - 1) * p.opacityStep);
   if (mode === 'replace') return { z: 0, y: 0, scale: 1, opacity: d === 0 ? 1 : 0 };
   if (mode === 'protrude') return { z: level * p.recedeZ, y: 0, scale: 1, opacity: fade };
-  return { z: -d * p.recedeZ, y: d * p.recedeY, scale: 1 - d * p.recedeScale, opacity: fade };
+  const ratio = p.recedeRatio ?? 1;
+  const depth = ratio === 1 ? d : (1 - ratio ** d) / (1 - ratio);
+  return { z: -depth * p.recedeZ, y: d * p.recedeY, scale: 1 - d * p.recedeScale, opacity: fade };
 }
 
 // The navigation stack behind a Packaging panel, apart from rendering.

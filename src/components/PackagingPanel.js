@@ -55,6 +55,7 @@ export class PackagingPanel extends THREE.Group {
     this.omega = (2 * Math.PI) / T.get('motion.expand.duration');
     this.pose = {
       recedeZ: T.get('packaging.parent.recede.z') * (o.layerSpacing ?? 1),
+      recedeRatio: DEFAULTS.windowPreview.recedeRatio,
       recedeY: T.get('packaging.parent.recede.y') * (o.layerSpacing ?? 1),
       recedeScale: T.get('packaging.parent.recede.scale'),
       opacityStart: T.get('packaging.parent.recede.opacity.start'),
