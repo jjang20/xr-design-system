@@ -1,0 +1,22 @@
+{
+  "auditSha256": "188b6c98e4406b3211e8a7b827f1c82f50b6bf92f41f26ce5185241a10d8196d",
+  "allRejected": true,
+  "cases": [
+    {
+      "case": "control-receipt-swapped",
+      "rejected": true,
+      "reason": "Control state/scenario identity mismatch"
+    },
+    {
+      "case": "empty-layer-images",
+      "rejected": true,
+      "reason": "Layer diagnostic image coverage incomplete"
+    },
+    {
+      "case": "missing-dock-code-pins",
+      "rejected": true,
+      "reason": "dock implementation inventory incomplete"
+    }
+  ],
+  "originalInputsUnchanged": true
+}

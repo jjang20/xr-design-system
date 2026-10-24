@@ -1,0 +1,391 @@
+{
+  "schemaVersion": 1,
+  "taskId": "XR05-R5-STATES-20261024-2330",
+  "kind": "Unadopted R5 material comparison preparation",
+  "status": "proposal-only; no candidate capture, render, product edit or adoption performed",
+  "goal": "Compare whether quieter surface texture, neutral room colour and controlled edge highlights make the current Catalog feel more like a coherent OS component. This first comparison isolates window material; it does not claim to finish shape, typography or interaction design.",
+  "sourceSha": "663c80c9d556eaa0e15c3ebdc1d1014a86dd526c",
+  "contractSha256": "ecd31c42b902136df2e6f3494911f111cc584c11c2b0126245393960cb8bddb3",
+  "inputDigest": "121431bf078a7e6b370c72afbdb99fc693a8f1ccdeb87e8a57790d29fa2046f8",
+  "sourceInputCount": 91,
+  "unitErrataSha256": "7fbe9dd9fe50e0e541d2bb61d0066cdcf1bf678bddb56277f22ff2ab88134873",
+  "unitContract": {
+    "executionContractPreserved": true,
+    "misnamedField": "r5.controls.heldLocalDentM",
+    "meaning": "1.5 mm in physical world space",
+    "correctFieldForEvidence": "physicalDentM",
+    "localFormula": "dentLocalM = physicalDentM / actual handle worldScale",
+    "examples": [
+      {
+        "worldScale": 1.5,
+        "physicalDentM": 0.0015,
+        "dentLocalM": 0.001
+      },
+      {
+        "worldScale": 1.425,
+        "physicalDentM": 0.0015,
+        "dentLocalM": 0.0010526315789473684
+      }
+    ]
+  },
+  "sourceVerification": {
+    "method": "Read and byte/SHA256 check against the R5 manifest; import current DEFAULTS and inspect glassMaterial/fragment consumers. No candidate applied.",
+    "files": [
+      {
+        "path": "src/core/defaults.js",
+        "bytes": 22519,
+        "sha256": "68e55f436ab9706f59f757fc980177be37a0ba4e2af7e830cf89f4bb9be846c1"
+      },
+      {
+        "path": "src/core/look.js",
+        "bytes": 41006,
+        "sha256": "0d56c90b9588ce0074f1feef18f817aa3ef0b2455a300065921b11993583032b"
+      },
+      {
+        "path": "src/core/bubble.js",
+        "bytes": 11025,
+        "sha256": "a20f6b47db3d4991cd099ae1268b7439fa1d3ee5e631bd1aa4506ebe76e51096"
+      },
+      {
+        "path": "demo/bench.js",
+        "bytes": 18272,
+        "sha256": "393b65806f87e4e3f29ca8957479243c03aca3dbb96fdbee304a5df0e34a10e0"
+      }
+    ],
+    "windowFieldToUniform": {
+      "albedo": "uAlbedo",
+      "maxLum": "uMaxLum",
+      "knee": "uKnee",
+      "sat": "uSat",
+      "rimClear": "uRimClear",
+      "rimLine": "uRimLine",
+      "shoulder": "uShoulder",
+      "edge": "uEdge",
+      "frost": "uFrost",
+      "grain": "uGrain",
+      "veil": "uVeil",
+      "key": "uKey"
+    },
+    "semantics": {
+      "albedo": "Linear RGB transmission colour; actual window shading also applies absorption and the legibility scrim.",
+      "maxLum": "Input to the adaptive luminance scrim, not a measured contrast guarantee.",
+      "knee": "Retained room luminance gradient above maxLum.",
+      "sat": "Fraction of room colour retained after luminance mixing.",
+      "rimClear": "Polished rim path blend.",
+      "rimLine": "Silhouette highlight multiplied by key.",
+      "shoulder": "Bevel highlight multiplied by key.",
+      "edge": "Grazing-angle colour darkening.",
+      "frost": "Fragment normal perturbation amplitude; does not alter CPU vertices.",
+      "grain": "Surface colour noise amplitude.",
+      "veil": "Milky veil colour contribution.",
+      "key": "Window specular, silhouette and bevel light multiplier."
+    }
+  },
+  "historicalReference": {
+    "path": "lookdev/normalized/r4/candidates.json",
+    "sha256": "d5eca3d87073279585bb0784c29c23dde22a025c79fc0a158703a1d117a4027c",
+    "sourceSha": "ad9e9c2e211674e02fc593315f98f8b4c38bc0f6",
+    "status": "Historical unadopted R4 proposals only. Window values are re-read against R5 before being proposed again; R4 images are not current R5 comparison evidence.",
+    "r5Difference": "R4 B changed shared look.glass.blur to 0.26. R5 keeps it at current 0.36 because glassMaterial shares this field with window, lens and icon bead materials. No historical adoption is inherited."
+  },
+  "scope": {
+    "allowedOverrideLeaves": [
+      "look.glass.window.albedo",
+      "look.glass.window.maxLum",
+      "look.glass.window.knee",
+      "look.glass.window.sat",
+      "look.glass.window.rimClear",
+      "look.glass.window.rimLine",
+      "look.glass.window.shoulder",
+      "look.glass.window.edge",
+      "look.glass.window.frost",
+      "look.glass.window.grain",
+      "look.glass.window.veil",
+      "look.glass.window.key"
+    ],
+    "applicationMethod": "A future isolated bench run may deep-merge the exact profile override with ?set= before construction. Verify actual producer ESM URLs, complete DEFAULTS equality to canonical plus allowlisted overrides, and live window shader uniforms. Do not mutate repository defaults or tokens.",
+    "forbiddenChanges": [
+      "look.glass shared blur/reflection/absorption/IOR/F0/frostScale/dimFloor",
+      "look.glass.bead and look.glass.lens",
+      "look.dockBubble, look.dockPlate, look.emboss and look.palmGlow",
+      "geometry, dimensions, corner positions, arrow geometry, font shaping, text metrics, icons, content, camera or environment",
+      "opacity hierarchy, title opacity, contact glow, input thresholds, motion or source/owner handling",
+      "product/preview source, shared tokens or generated files"
+    ],
+    "sharedBlurFixed": 0.36,
+    "rationale": "Only the window-specific fragment material varies. Icon beads, side/corner bubbles and input feedback remain the existing R5 controls, so adjacent visual changes cannot be mistaken for improvements to the window material."
+  },
+  "profiles": [
+    {
+      "id": "current",
+      "label": "Current · 현재 R5",
+      "intent": "Verified R5 control with no material override.",
+      "overrides": {},
+      "resolvedWindow": {
+        "albedo": [
+          0.72,
+          0.695,
+          0.66
+        ],
+        "maxLum": 0.13,
+        "knee": 0.3,
+        "sat": 0.6,
+        "rimClear": 1,
+        "rimLine": 0.15,
+        "shoulder": 0.08,
+        "edge": 0.15,
+        "frost": 0.03,
+        "grain": 0.04,
+        "veil": 0,
+        "key": 0.55
+      },
+      "adopted": false
+    },
+    {
+      "id": "neutral-frost",
+      "label": "A · 차분한 반투명",
+      "intent": "Reduce the warm room tint, visible grain and strong specular edge while retaining depth and the existing luminance scrim.",
+      "overrides": {
+        "look": {
+          "glass": {
+            "window": {
+              "albedo": [
+                0.65,
+                0.67,
+                0.7
+              ],
+              "maxLum": 0.13,
+              "knee": 0.22,
+              "sat": 0.15,
+              "rimClear": 1,
+              "rimLine": 0.08,
+              "shoulder": 0.045,
+              "edge": 0.09,
+              "frost": 0.012,
+              "grain": 0.012,
+              "veil": 0,
+              "key": 0.35
+            }
+          }
+        }
+      },
+      "resolvedWindow": {
+        "albedo": [
+          0.65,
+          0.67,
+          0.7
+        ],
+        "maxLum": 0.13,
+        "knee": 0.22,
+        "sat": 0.15,
+        "rimClear": 1,
+        "rimLine": 0.08,
+        "shoulder": 0.045,
+        "edge": 0.09,
+        "frost": 0.012,
+        "grain": 0.012,
+        "veil": 0,
+        "key": 0.35
+      },
+      "adopted": false,
+      "risksToInspect": [
+        "A flatter surface may weaken separation between overlapping windows.",
+        "Less highlight may make handles feel visually disconnected even though their shader is fixed."
+      ]
+    },
+    {
+      "id": "clear-edge",
+      "label": "B · 분명한 유리 경계",
+      "intent": "Keep a stronger room luminance gradient and polished edge than A, with a quieter surface than current. Shared transmission blur stays fixed.",
+      "overrides": {
+        "look": {
+          "glass": {
+            "window": {
+              "albedo": [
+                0.74,
+                0.75,
+                0.77
+              ],
+              "maxLum": 0.13,
+              "knee": 0.32,
+              "sat": 0.3,
+              "rimClear": 1,
+              "rimLine": 0.12,
+              "shoulder": 0.075,
+              "edge": 0.1,
+              "frost": 0.016,
+              "grain": 0.008,
+              "veil": 0,
+              "key": 0.45
+            }
+          }
+        }
+      },
+      "resolvedWindow": {
+        "albedo": [
+          0.74,
+          0.75,
+          0.77
+        ],
+        "maxLum": 0.13,
+        "knee": 0.32,
+        "sat": 0.3,
+        "rimClear": 1,
+        "rimLine": 0.12,
+        "shoulder": 0.075,
+        "edge": 0.1,
+        "frost": 0.016,
+        "grain": 0.008,
+        "veil": 0,
+        "key": 0.45
+      },
+      "adopted": false,
+      "risksToInspect": [
+        "Brighter albedo and retained room gradient may compete with secondary text.",
+        "Edge light can remain decorative or distracting; it is a candidate, not a measured readability improvement."
+      ]
+    }
+  ],
+  "recommendation": {
+    "firstToInspect": "neutral-frost",
+    "status": "Recommendation for comparison order only; user adoption pending.",
+    "reason": "Current R5 still shows strong room tint and surface grain in the verified Catalog capture. A directly tests whether reducing those effects improves the perceived finish while leaving geometry, text, icons and input intact. B preserves more material depth as a second direction. Retain current if both reduce legibility or hierarchy.",
+    "selectionChoices": [
+      "current",
+      "neutral-frost",
+      "clear-edge",
+      "no candidate accepted; report a concrete revision"
+    ],
+    "questionsForUser": [
+      "Which surface looks most like an everyday OS component?",
+      "Can you still read the title/body and distinguish the active window from its parents?",
+      "Does held feedback remain clear without the handle or border dominating?"
+    ]
+  },
+  "fixedConditions": {
+    "constructionDistanceM": 0.6,
+    "rootInitialScale": 1.5,
+    "rootInitialWindowMm": [
+      216,
+      246.15
+    ],
+    "anchorWorldM": [
+      0,
+      1.6,
+      -0.8
+    ],
+    "frontCameraUiM": [
+      0,
+      0,
+      0.8
+    ],
+    "fovYDegrees": 26,
+    "viewportPx": [
+      1600,
+      1000
+    ],
+    "dpr": 1,
+    "environment": "Pinned Lebombo HDR, yaw 1.6; unchanged original product tone mapping/exposure",
+    "sheetOpacityByDepthFromFront": [
+      1,
+      0.32,
+      0.16
+    ],
+    "titleOpacity": 1,
+    "heldStackOpacity": 0.9,
+    "heldPhysicalDentM": 0.0015,
+    "rowRing": 0.18,
+    "iconRing": 0.45,
+    "noLegacyHardRearMask": true,
+    "typeAndIcons": "Same pinned font/assets and actual shaped text metadata; no fallback, restyling or glyph replacement is permitted.",
+    "input": "Replay the exact verified source/owner fixtures and stable state; never substitute index press for pinch hold."
+  },
+  "boundedMatrix": {
+    "profiles": [
+      "current",
+      "neutral-frost",
+      "clear-edge"
+    ],
+    "maximumInitialImages": 12,
+    "conditions": [
+      {
+        "id": "root-rest-front",
+        "fixture": "Catalog root",
+        "state": "rest",
+        "view": "front",
+        "reason": "Judge the main material, label hierarchy, texture and polished outline."
+      },
+      {
+        "id": "root-side-held-front",
+        "fixture": "Catalog root",
+        "state": "side-held",
+        "view": "front",
+        "reason": "Confirm that the same 12 mm/6 mm actual movement, unchanged side bubble and held opacity still read clearly.",
+        "positionDeltaUiM": [
+          0.012,
+          0.006,
+          0
+        ]
+      },
+      {
+        "id": "lighting-front",
+        "fixture": "Catalog > Lighting",
+        "state": "settled navigation",
+        "view": "front",
+        "reason": "Compare a visible rear sheet and restored title using the accepted layer fixture."
+      },
+      {
+        "id": "modular-angle",
+        "fixture": "Catalog > Sofas > Modular",
+        "state": "settled navigation",
+        "view": "angle",
+        "reason": "Compare three-level depth and rear hierarchy at the accepted oblique camera.",
+        "cameraUiFormula": "[0.8*sin(0.6),0.06,0.8*cos(0.6)]"
+      }
+    ],
+    "layerCondition": "Use only the final audited R5 layer contract and its exact fixture, camera, diagnostic sampling and per-view N/A policy. Modular/front historical aggregate failure stays preserved. No Catalog or camera change to manufacture visible pixels. Missing final layer acceptance blocks the entire comparison matrix."
+  },
+  "executionGates": [
+    "This file authorizes no capture. The existing lookdev owner must explicitly dispatch the prepared bounded comparison after the following gates; current task remains plan-only.",
+    "Complete the final R5 evidence audit: controls 9+5, the accepted layer matrix and Dock/Push traces, image/file hashes, source/contract/code pins and unit errata. A partial current audit is insufficient.",
+    "Freeze profile values and new comparison code/settings hashes; read the final layer contract hash from the accepted audit. Missing or changed pins fail closed.",
+    "Compare canonical and candidate full DEFAULTS with an exact leaf allowlist. Read the actual producer ESM instance and window uniforms; shared glass, icon, bubble and glow settings must be identical.",
+    "Use fresh exclusive outputs. Verify the complete 91 input files before and after. No output reuse, repeated unknown-state dispatch, material fallback or implicit source promotion.",
+    "For each condition, establish identical current/A/B camera, real input trace and stable frames, root pose/scale, visible geometry/index buffers, input-driven vertex deformation parameters (dent/bulge), text shaping/font/glyph bounds, icon canvas alpha and fixed non-window uniforms. Only the allowlisted window fragment material and normal parameters may differ. Any other mismatch rejects that candidate capture.",
+    "Verify actual text/icon readiness, no browser/shader errors, original HDR/colour settings and output image size/hash. maxLum=0.13 is held constant but is not accepted as proof of text contrast.",
+    "Present same-condition images with neutral labels and current included; inspect actual-size details before user choice. Do not infer Quest performance, optical equivalence or design adoption from desktop images."
+  ],
+  "nextTwoSteps": [
+    {
+      "id": "prepare-verified-comparison",
+      "ownerRole": "existing XR lookdev owner with independent reviewers",
+      "scope": "Finish the current R5 audit and pin this proposal plus the accepted layer contract; prepare a bounded current/A/B capture runner and fixed-condition fingerprint checks.",
+      "dependencies": [
+        "final current R5 audit passes",
+        "unit errata read",
+        "final layer per-view/matrix evidence accepted"
+      ],
+      "validation": "Code review, source/profile allowlist checks, fail-closed unknown profile/state/output checks; no product code or token edit.",
+      "startCondition": "Existing owner dispatches implementation within approved comparison scope; this plan does not start capture."
+    },
+    {
+      "id": "capture-and-request-design-choice",
+      "ownerRole": "existing XR lookdev owner; existing design coordinator obtains user choice",
+      "scope": "After all gates, capture at most 12 actual WebGL comparison images, verify exact fixed-condition invariants and assemble a labeled comparison.",
+      "dependencies": [
+        "prepare-verified-comparison complete",
+        "explicit bounded capture dispatch",
+        "all execution gates satisfied"
+      ],
+      "validation": "Actual current/A/B image hashes and state invariants, independent image review, current vs A vs B selection with reasons.",
+      "startCondition": "No new rendering is authorized by this document. Product integration remains blocked until a concrete user selection and scope handoff."
+    }
+  ],
+  "limitations": [
+    "No new candidate image, renderer run, remote action or product change was performed for this plan.",
+    "R5 held BubbleHandle dent/squash has no supported normalized Blender evaluated-geometry export; browser-only comparison does not establish Blender or optical equivalence.",
+    "Synthetic XR source and select events do not validate thumb-index recognition, device tracking, Quest comfort or real-device performance.",
+    "R5 dimensions and numeric visual values remain trial values; current/A/B is not adoption.",
+    "Historical R4 strict calibration remains 2 PASS / 4 FAIL, unwaived and separate from R5 material comparison."
+  ]
+}
