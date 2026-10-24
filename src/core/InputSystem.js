@@ -191,6 +191,9 @@ export class InputSystem {
         const manipulating = items.some(item => item.grab?.id === src.id);
         if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         const tip = this.tipOf(src);
+        if (src.handSource && !tip && src.selecting) {
+          src.resetBlocked = true; src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue;
+        }
         const joints = src.hand.visible ? ['index-finger-tip','thumb-tip','middle-finger-tip','ring-finger-tip','pinky-finger-tip']
           .map(name => src.hand.joints?.[name]).filter(j => j?.visible) : [];
         const points = joints.map(j => j.getWorldPosition(new THREE.Vector3()));

@@ -45,3 +45,5 @@ Status: implementation and review in progress. Source: R6 a68f647 and user Q32â€
 - Only an actual pressed/held owner is excluded from secondary contact feedback. A surviving fingertip keeps its dent/Glow after the action owner is lost, without reacquiring an action inside the skin.
 - Plate approach evidence is per source and per consecutive frame. Candidate changes cannot erase another tip's observed approach or borrow it for first-seen/returned contacts. Numerical distance ties (1e-9) use capture then stable probe ID; this is not a physical input margin.
 - Shared glass runs only through the active bulge slots (maximum 12); secondary bubble contacts remain bounded at 9. This bounds work but is not Quest GPU performance acceptance.
+
+- Partial index loss during held pinch blocks reacquisition until release even when another fingertip remains near. Plate hover never moves an existing pressure owner's dent/Glow; explicit pinch can take the manipulation feedback.

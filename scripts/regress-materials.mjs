@@ -48,14 +48,22 @@ try {
     const x=Math.round((at.x+1)*640),y=Math.round((at.y+1)*400),pixel=new Uint8Array(4);
     const read=()=>{c.renderer.render(c.scene,c.camera);c.renderer.readRenderTargetPixels(target,x,y,1,1,pixel);return [...pixel];};
     const hdrPixel=read();look.setBackdrop(null);c.scene.background=null;c.renderer.setClearAlpha(0);
-    const visible=read();d.base.visible=false;const hidden=read();d.base.visible=true;
+    const visible=read();
+    const currentAlpha=d.base.material.uniforms.uPassthroughAlpha.value;
+    d.base.material.uniforms.uPassthroughAlpha.value=.28;const previousAlphaPixel=read();
+    d.base.material.uniforms.uPassthroughAlpha.value=currentAlpha;
+    d.base.visible=false;const hidden=read();d.base.visible=true;
     const hasRoom=d.base.material.uniforms.uHasRoom.value;
     c.scene.background=null;
     c.renderer.setRenderTarget(null);target.dispose();
-    return {visible,hidden,hdrPixel,hasRoom,position:[x,y]};
+    return {visible,hidden,hdrPixel,previousAlphaPixel,currentAlpha,hasRoom,position:[x,y]};
   });
   check('plate sample lies inside the render target',result.traces.plate.position[0]>=0&&result.traces.plate.position[0]<1280&&result.traces.plate.position[1]>=0&&result.traces.plate.position[1]<800);
-  check('passthrough plate keeps alpha translucent on its exposed end',result.traces.plate.visible[3]>0&&result.traces.plate.visible[3]<128&&result.traces.plate.hidden[3]===0);
+  // R7 explicitly strengthens opacity. Compare the same pixel with the old
+  // alpha setting; retain a translucent ceiling and the hidden control.
+  check('passthrough plate is stronger than the old alpha while staying translucent',
+    result.traces.plate.visible[3]>result.traces.plate.previousAlphaPixel[3]+10
+    &&result.traces.plate.visible[3]<=Math.ceil(.65*255)&&result.traces.plate.hidden[3]===0);
 
   check('opaque room background remains covered',result.traces.plate.hdrPixel[3]===255);
   await capture(page,'plate-mr');await page.close();

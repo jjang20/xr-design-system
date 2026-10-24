@@ -153,3 +153,23 @@ test('R7: explicit controller reconnect after hand loss retains ray click suppor
  r.ray(0,at,false);r.frame();r.ray(0,at,true);r.frame();r.ray(0,at,false);r.frame();
  assert.equal(r.events.length,1);
 });
+
+test('R7: index loss during pinch blocks recapture even while another tip stays near',()=>{
+ const r=rig('window'),l=r.obj.levels.at(-1),h=l.moves[0],src=r.sources[0].src;
+ r.hand(0,r.point(h,.012));r.frame();src.selecting=true;r.frame();assert.equal(r.obj.controls.held?.id,src.id);
+ const middle=new THREE.Group();middle.position.copy(r.sources[0].tip.position);middle.jointRadius=.008;src.hand.add(middle);src.hand.joints['middle-finger-tip']=middle;
+ r.sources[0].tip.visible=false;r.frame();assert.equal(r.obj.controls.held,null);
+ r.sources[0].tip.visible=true;r.frame();assert.equal(!!r.obj.controls.held,false,'restored index must not restart old pinch');
+ src.selecting=false;r.frame();src.selecting=true;r.frame();assert.equal(r.obj.controls.held?.id,src.id);
+});
+
+test('R7: plate primary dent stays at its actual owner when the other end also touches',()=>{
+ const r=rig('dock',{distance:Math.hypot(.28,.48),eccentricity:-Math.atan2(.28,.48)}),d=r.obj;
+ const point=(n,gap)=>{r.scene.updateMatrixWorld(true);const[x,z]=d.arc((n?1:-1)*(d.length/2-d.pad/2),0),p=new THREE.Vector3(x,0,z);p.y=d.plateSample(p).front+.008+gap;return d.shelf.localToWorld(p);};
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(1,point(1,gap));r.frame();}
+ assert.equal(d.shelf.pressOwner,'xr1');assert.ok(d.plateDentAt.x>0);
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(1,point(1,-.003));r.hand(0,point(0,gap));r.frame();}
+ assert.equal(d.shelf.pressOwner,'xr1');assert.ok(d.plateDentAt.x>0,'hover at opposite pad cannot move primary dent');
+ assert.ok(d.shelf.contactDents.some(c=>c.id==='xr0'&&c.x<0));
+ r.sources[0].src.selecting=true;r.frame();assert.equal(d.grip.held?.id,'xr0');assert.ok(d.plateDentAt.x<0,'explicit pinch transfers feedback to held owner');
+});

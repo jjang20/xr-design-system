@@ -469,6 +469,7 @@ export class Dock extends THREE.Group {
     else springTo(this.plateContactDent, physicalDepth, DEFAULTS.look.emboss.dent.response,
       prefersReducedMotion() ? 1 : DEFAULTS.look.emboss.dent.damping, dt);
     if (probe && (press.pressed || grip.held)) grip.at.copy(probe.point);
+    if (press.pressed && !grip.held) grip.side = Math.sign(sample.s) || 1;
     // Holding: the end follows the hand along the arc.
     if (grip.held) {
       const h = grip.held, still = h.probe && (h.probe.p.pinch || h.probe.p.captured);
@@ -507,9 +508,10 @@ export class Dock extends THREE.Group {
     // Hover: a hand near an end, or a ray on it.
     const hovered = grip.held ? true : this.gripBand.update(nearD);
     if (!grip.held && near && hovered) {
-      grip.side = Math.sign(near.s) || 1;
-      grip.at.copy(near.p.point);
       const grab = near.p.kind === 'poke' ? near.p.pinch && nearD <= this.gripBand.enter * P.reach : near.p.captured && nearD === 0;
+      // Hover cannot move another fingertip's active dent. An explicit
+      // pinch can transfer visual ownership to the newly held end.
+      if (grab || !press.pressed) { grip.side = Math.sign(near.s) || 1; grip.at.copy(near.p.point); }
       if (grab) grip.held = { id: near.p.id, s0: near.s, half: tip, probe: null };
     }
     springTo(grip.hover, grip.held ? 1 : hovered ? P.glow.hover / P.glow.grab : 0, 0.15, 1, dt);
