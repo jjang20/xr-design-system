@@ -30,6 +30,33 @@ Palm orientation follows the wrist joint's outward -Y direction in the [W3C WebX
 
 Root is the only writer. Existing Standards and Spec reviewers review read-only from this baseline. No token migration, Figma edit or room-planner feature work is included. Verification results and review closure are recorded below after execution.
 
+## Verification result — 2026-10-24
+
+Product implementation is `70766cb`; root-palm review closure is `8412cc2`. Node 22.23.4 was used. The following checks passed on that product code; the subsequent changes add the browser replay script and this evidence record only.
+
+| Check | Result |
+|---|---|
+| Token validation and generated output match | Pass; existing provisional press-travel advisories retained |
+| Runtime/component tests + Arena tests | 74 + 6 = 80 passed |
+| Production build | Pass |
+| Existing Chrome regressions | 12/12 passed |
+| Chrome palm replay and rendered motion | 6/6 passed; no page errors |
+| Diff whitespace | Pass |
+
+Evidence lives in the companion research workspace at `../xr-design-system/docs/validation/quest-palm-2026-10-24/`: initial failing tests, root-specific failing test, final test/build/browser logs, `result.json` motion traces and four WebGL captures. Run `CHROMIUM_PATH='<Chrome executable>' PALM_CHECK_OUT='<artifact directory>' npm run regress:palm` to repeat the browser checks.
+
+### Standards review
+
+`/root/review_standards` independently reviewed `38887d5...70766cb` and ran the original 12 palm tests: no P0/P1/P2 findings. It accepted candidate defaults, direct movement, physical release retreat, source ownership and reduced-motion behavior. Headset recognition and comfort remain unverified.
+
+### Spec review
+
+`/root/review_spec` found one P2: an open palm over the root Catalog fell through to fingertip input and opened a row. The added real-joint test failed before the fix (`active: 1` rather than `0`). `8412cc2` makes the root consume the gesture while keeping it nondismissable. The reviewer independently reran 13/13 palm tests and accepted the closure. No remaining issue in the reviewed scope.
+
+### Motion and render review
+
+Root inspected all four captures using the image viewer. The complete child moves in depth while its text, borders and rows stay together; dismissal reveals the parent and leaves no orphaned surface at rest. At the sampled 20 mm push the child moved exactly 20 mm. The 51 mm commit continues away while fading; inherited inward velocity produces about 7 mm overshoot beyond the exit target, largely hidden by the fade. Reduced motion leaves Z fixed at -51 mm while opacity falls. Verdict: pass for the tested browser gesture and motion contract. This is no visual shipping-bar approval, screenshot baseline comparison, MR compositing test or physical Quest acceptance.
+
 ## Next two steps
 
 1. Pass regression, build, browser motion checks and independent review; publish the verified local preview at the existing Quest address with the existing certificate.

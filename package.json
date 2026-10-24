@@ -14,6 +14,7 @@
     "bench": "node scripts/bench.mjs",
     "regress": "node scripts/regress.mjs",
     "regress:quest": "node scripts/regress-quest.mjs",
+    "regress:palm": "node scripts/regress-palm.mjs",
     "check": "node scripts/check-tokens.mjs && node scripts/build-tokens.mjs --check",
     "build:tokens": "node scripts/check-tokens.mjs && node scripts/build-tokens.mjs"
   },
