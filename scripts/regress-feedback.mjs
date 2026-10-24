@@ -116,14 +116,17 @@ try {
     r.src.selecting=false;r.step(start.clone().add(new r.THREE.Vector3(.04,-.02,.01)));
     const corner=child.corners[1],at=corner.localToWorld(new r.THREE.Vector3(0,0,corner.t+.012));
     r.step(at);r.src.selecting=true;r.step(at);
+    const hoverVisible=corner.affordance.visible;
     const oldScale=p.scale.x,dir=corner.getWorldPosition(new r.THREE.Vector3()).sub(p.getWorldPosition(new r.THREE.Vector3())).normalize();
-    r.step(at.clone().addScaledVector(dir,.04));const scale=p.scale.x;
+    r.step(at.clone().addScaledVector(dir,.04));const scale=p.scale.x,heldVisible=corner.affordance.visible;
+    r.src.selecting=false;r.step(at.clone().addScaledVector(dir,.04));const releasedHoverVisible=corner.affordance.visible;
     r.src.connected=false;r.input.update();c.tick(1);
-    return {moved,captured,oldScale,scale,active:p.active,lostReleased:!p.controls.held,
+    return {moved,captured,oldScale,scale,hoverVisible,heldVisible,releasedHoverVisible,restHidden:!corner.affordance.visible,active:p.active,lostReleased:!p.controls.held,
       layers:p.levels.map(l=>({title:l.item.label,top:l.cur.y+l.size.H*l.cur.sy/2,titleBand:l.size.titleBand*l.cur.sy,sheet:l.panel.skin.uniforms.uOpacity.value,titleOpacity:l.title.fillOpacity}))};
   });
   const wc=result.traces.windowControls;
   check('real finger input moves and resizes the complete stack without navigating',wc.captured && Math.abs(wc.moved[0]-.04)<.001 && wc.scale>wc.oldScale && wc.active===1 && wc.lostReleased);
+  check('controls reveal on real hover, stay visible during hold/released hover, then hide on loss',wc.hoverVisible&&wc.heldVisible&&wc.releasedHoverVisible&&wc.restHidden);
   check('rear title remains readable above faint rear sheet',wc.layers[0].sheet<.5 && wc.layers[0].titleOpacity>.8 && Math.abs(wc.layers[0].top-wc.layers[1].top-wc.layers[0].titleBand)<.001);
   await capture(page,'06-window-moved-resized-mr');await page.close();
 
@@ -141,12 +144,22 @@ try {
     const maskedMax=regionMax(),mask=rear.panel.skin.uniforms.uRearMask.value;
     mask.y=0;const unmaskedMax=regionMax();mask.y=1;
     return {maskedMax,unmaskedMax,bodyExtension:(frontBottom-bottom)*p.scale.y,
-      controlsHidden:front.corners.every(h=>!h.body.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
+      controlsHidden:front.corners.every(h=>!h.affordance.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
   });
   const short=result.traces.shortChild;
-  check('short child clips the otherwise exposed rear body in actual MR pixels',short.bodyExtension>.05 && short.maskedMax<3 && short.unmaskedMax>10);
+  check('short child clips the otherwise exposed rear body in actual MR pixels',short.bodyExtension>.05 && short.maskedMax<=1 && short.unmaskedMax>=5);
   check('window controls are hidden until hover and title stays readable',short.controlsHidden&&short.titles[0]>.8);
-  await capture(shortPage,'08-short-child-mr');await shortPage.close();
+  await capture(shortPage,'08-short-child-mr');
+  result.traces.shortAngle=await shortPage.evaluate(()=>{
+    const c=window.contour,r=window.replay,p=c.panel;c.camera.position.set(.5,1.6,0);c.camera.lookAt(p.getWorldPosition(new r.THREE.Vector3()));c.camera.updateMatrixWorld(true);
+    const rear=p.levels[0],u=rear.panel.skin.uniforms,gl=c.renderer.getContext(),w=gl.drawingBufferWidth,h=gl.drawingBufferHeight;
+    const read=()=>{c.renderer.render(c.scene,c.camera);const a=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,a);return a;};
+    const before=read(),mask=u.uRearMask.value,save=mask.z;mask.z=0;const flat=read();mask.z=save;
+    let changed=0;for(let i=0;i<before.length;i+=4)if(Math.max(...[0,1,2].map(k=>Math.abs(before[i+k]-flat[i+k])))>=2)changed++;
+    return {changed,childPlane:save};
+  });
+  check('oblique rear mask uses the child plane instead of a flat projection',result.traces.shortAngle.changed>20&&result.traces.shortAngle.childPlane>0);
+  await capture(shortPage,'09-short-child-angle-mr');await shortPage.close();
 
   const dockPage = await open('part=dock&visible=7');
   await capture(dockPage, '04-dock-handle');

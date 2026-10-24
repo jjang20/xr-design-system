@@ -268,6 +268,9 @@ export class PackagingPanel extends THREE.Group {
         radius: D.windowManipulation.cornerSize / 2, distance: dist, density: 'soft' });
       handle.position.set(side * (W / 2 + handle.w / 2 + dmm(4)), -H / 2, panel.t);
       handle.userData.resize = true;
+      const affordance = handle.affordance = new THREE.Group();
+      affordance.add(...handle.children); handle.add(affordance);
+      affordance.visible = false;
       const hit = new THREE.Mesh(handle.body.geometry, new THREE.MeshBasicMaterial({ visible: false }));
       handle.add(hit); handle.hitMeshes = [hit];
       handle.body.visible = false;
@@ -432,13 +435,13 @@ export class PackagingPanel extends THREE.Group {
     }
     for (const l of this.stack.all) {
       const c = l.cur;
-      l.panel.skin.uniforms.uRearMask.value.set(l.size.H / 2 - l.size.titleBand, clamp(c.back, 0, 1));
+      l.panel.skin.uniforms.uRearMask.value.set(l.size.H / 2 - l.size.titleBand, clamp(c.back, 0, 1), 0);
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1), DEFAULTS.windowManipulation.rearOpacity);
       l.corners.forEach(h => {
         h.visible = l === this.levels.at(-1) && !l.closing;
-        h.body.visible = h.visible && (h.hovered || h.press.pressed || !!h.grab);
+        h.affordance.visible = h.body.visible = h.visible && (h.hovered || h.press.pressed || !!h.grab);
       });
     }
     this.updateLight();
@@ -460,6 +463,7 @@ export class PackagingPanel extends THREE.Group {
       if (next) {
         const c = next.cur;
         const k = c.sx / p.sx;
+        m.uniforms.uRearMask.value.z = (c.z - p.z + next.panel.t * c.sx) / p.sx;
         setContactShadow(m, 0, {
           x: (c.x - p.x) / p.sx, y: (c.y - p.y) / p.sy,
           hw: next.size.W / 2 * k, hh: next.size.H / 2 * k,
@@ -502,7 +506,7 @@ export class PackagingPanel extends THREE.Group {
         const j = line.userData.between;
         const lift = r => r ? (r.emboss ? clamp(Math.abs(r.bulge) / r.lift, 0, 1) : r.hover) : 0;
         const near = Math.max(lift(l.rows[j - 1]), lift(l.rows[j]));
-        line.material.opacity = DEFAULTS.look.separator * (1 - near) * clamp(p.opacity, 0, 1) * (1 - p.dim);
+        line.material.opacity = DEFAULTS.look.separator * (1 - near) * clamp(p.opacity, 0, 1) * (1 - p.dim) * clamp(1 - p.back * 3, 0, 1);
       }
     });
   }

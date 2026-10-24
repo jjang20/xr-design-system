@@ -345,8 +345,8 @@ test('Reference reset blocks held controller capture until release and a new pre
 
 test('Window resize controls hide their visuals until hover and keep a separate hit target',()=>{
  const r=palmRig(),p=r.p,h=p.levels[1].corners[0];p.update(dt);
- assert.equal(h.body.visible,false);assert.equal(h.visible,true);assert.notEqual(h.hitMeshes[0],h.body);
+ assert.equal(h.affordance.visible,false);assert.equal(h.body.visible,false);assert.equal(h.visible,true);assert.notEqual(h.hitMeshes[0],h.body);
  h.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,h.t+.03),radius:.008});p.update(dt);
- assert.equal(h.body.visible,true);p.update(dt);assert.equal(h.body.visible,false);
+ assert.equal(h.affordance.visible,true);assert.equal(h.body.visible,true);p.update(dt);assert.equal(h.affordance.visible,false);assert.equal(h.body.visible,false);
  assert.equal(h.icon,undefined);
 });

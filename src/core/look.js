@@ -358,7 +358,7 @@ const GLASS_FRAG = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   ${BULGE_GLSL}
-  uniform vec2 uRearMask; // title lower edge, rear transition amount
+  uniform vec3 uRearMask; // title lower edge, rear amount, child front plane
   uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
@@ -562,7 +562,9 @@ const GLASS_FRAG = /* glsl */`
     // A short child cannot geometrically cover its taller parent. Keep
     // the exposed header and faint glass directly behind the child only.
     vec4 child = uShadowRect[0];
-    float covered = step(sdRoundRect(vLocal.xy - child.xy, child.zw, uShadowParam[0].x), 0.0);
+    vec3 toEye = vec3(dot(-V, vAxisX), dot(-V, vAxisY), dot(-V, vAxisZ));
+    vec2 childHit = vLocal.xy + toEye.xy * (uRearMask.z - vLocal.z) / max(toEye.z, 0.001);
+    float covered = toEye.z > 0.0 ? step(sdRoundRect(childHit - child.xy, child.zw, uShadowParam[0].x), 0.0) : 0.0;
     float retained = max(step(uRearMask.x, vLocal.y), covered);
     alpha *= mix(1.0, retained, uRearMask.y);
     if (alpha * uOpacity * uFade < 0.001) discard;
@@ -602,7 +604,7 @@ export function glassMaterial(T, { w, h, t, kind = 'window' }) {
       uHover: { value: 0 },
       uFade: { value: kind === 'lens' ? 0 : 1 },
       uContactGlow: { value: 0 },
-      uRearMask: { value: new THREE.Vector2() },
+      uRearMask: { value: new THREE.Vector3() },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
