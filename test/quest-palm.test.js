@@ -134,8 +134,8 @@ test('Quest follow-up: palm push uses world distance under rotation and scaling'
     const initial = p.levels[1].cur.z;
     move(0.06); move(-0.02);
     assert.ok(Math.abs((initial - p.levels[1].cur.z) * scale - 0.02) < 1e-6);
-    move(-0.049); assert.equal(p.active, 1);
-    move(-0.051); assert.equal(p.active, 0);
+    move(-DEFAULTS.handInput.palmCloseTravel + .001); assert.equal(p.active, 1);
+    move(-DEFAULTS.handInput.palmCloseTravel - .001); assert.equal(p.active, 0);
   }
 });
 

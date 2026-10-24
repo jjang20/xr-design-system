@@ -44,7 +44,7 @@ import { springStep, springTo, prefersReducedMotion } from '../core/spring.js';
 import { magnifyScale, LazyFollow } from '../core/follow.js';
 import { objectEnvironment } from '../core/objects.js';
 import { DockIcon } from './DockIcon.js';
-import { Button } from './Button.js';
+import { BubbleHandle } from './BubbleHandle.js';
 import { DockRail } from '../core/DockRail.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -141,21 +141,21 @@ export class Dock extends THREE.Group {
       const appDistance = icon.pokeDistance.bind(icon);
       icon.pokeDistance = point => {
         const onPlate = this.shelf.worldToLocal(icon.localToWorld(point.clone()));
-        const onHandle = this.handle.worldToLocal(icon.localToWorld(point.clone()));
-        const handleLane = this.handle.inside(onHandle, true) && onHandle.z >= -this.handle.t && onHandle.z <= this.handle.t + DEFAULTS.dockRail.handleReach;
-        return handleLane || this.plateSample(onPlate).inside ? Infinity : appDistance(point);
+        return this.plateSample(onPlate).inside ? Infinity : appDistance(point);
       };
     }
-    // Dedicated position handle below the plate; the ends still resize.
-    this.handle = new Button(T, { width: DEFAULTS.dockRail.handleWidth, height: DEFAULTS.dockRail.handleHeight,
-      radius: DEFAULTS.dockRail.handleHeight / 2, distance: dist, density: 'soft', thickness: 'regular' });
-    this.handle.position.set(0, -this.side * 1.7, 0);
-    // Only a hand aimed at the handle's touch face may acquire it. Its
-    // broad lateral hover must not intercept an app's frontward approach.
-    this.handle.pokeDistance = point => this.handle.inside(point, true) && point.z >= -this.handle.t && point.z <= this.handle.t + DEFAULTS.dockRail.handleReach
-      ? this.handle.faceDistance(point) : Infinity;
-    this.add(this.handle);
-    this.rail = new DockRail(this.handle, o.eccentricity === undefined ? {} : { radius: Math.cos(o.eccentricity) * dist, height: Math.sin(o.eccentricity) * dist });
+    // A fixed stem separates the sphere from the central app in world Y.
+    // It stays in the level frame as the plate pitches; no pendulum motion.
+    const H = DEFAULTS.dockRail;
+    this.handle = new BubbleHandle(T, { width: H.sphereSize, distance: dist });
+    this.handle.position.set(0, this.top - H.stemLength - this.handle.r, 0);
+    this.level.add(this.handle);
+    this.stem = new THREE.Mesh(new THREE.CylinderGeometry(H.stemRadius, H.stemRadius, H.stemLength, 12),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .28 }));
+    this.stem.position.set(0, this.top - H.stemLength / 2, 0);
+    this.level.add(this.stem);
+    this.rail = new DockRail(this.handle, { handleDrop: -this.handle.position.y,
+      ...(o.eccentricity === undefined ? {} : { radius: Math.cos(o.eccentricity) * dist, height: Math.sin(o.eccentricity) * dist }) });
     this.restX = this.icons.map(() => 0);
     const mm = v => v / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });

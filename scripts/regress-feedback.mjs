@@ -108,8 +108,8 @@ try {
   result.traces.windowControls = await page.evaluate(() => {
     const c=window.contour,r=window.replay,p=c.panel;
     c.tick(150);
-    const child=p.levels.at(-1),h=child.panel;
-    const start=h.localToWorld(new r.THREE.Vector3(0,h.h/2-child.size.titleBand/2,h.t+.012));
+    const child=p.levels.at(-1),h=child.moves[1];
+    const start=h.localToWorld(new r.THREE.Vector3(0,0,h.t+.012));
     r.src.connected=true;r.src.selecting=false;r.step(start);r.src.selecting=true;r.step(start);
     const before=p.position.clone();r.step(start.clone().add(new r.THREE.Vector3(.04,-.02,.01)));
     const moved=p.position.clone().sub(before).toArray(), captured=!!p.controls.held;

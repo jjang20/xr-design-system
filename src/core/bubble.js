@@ -30,6 +30,21 @@ const VERT = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vRadial;
   varying float vDent;
   void main() {
+    #ifdef PLANAR_BUBBLE
+    vec3 p = position;
+    vec3 q = p - uDent.xyz;
+    float e = exp(-dot(q, q) / (uDentWidth * uDentWidth));
+    float front = max(0.0, normal.z);
+    vec3 pos = p - vec3(0.0, 0.0, uDent.w * e * front);
+    vec3 n = normalize(normal - vec3(2.0 * uDent.w * e * q.xy / (uDentWidth * uDentWidth), 0.0) * front);
+    vDent = e;
+    vLocal = p;
+    vec4 w = modelMatrix * vec4(pos, 1.0);
+    vWorld = w.xyz;
+    vNormal = normalize(mat3(modelMatrix) * n);
+    vRadial = normalize(mat3(modelMatrix) * normal);
+    gl_Position = projectionMatrix * viewMatrix * w;
+    #else
     vec3 p = normalize(position);
     // The dent: the skin moves in along its normal by a bell curve of the
     // distance to the press point. Its normal is exact: the slope of the
@@ -55,6 +70,7 @@ const VERT = /* glsl */`
     vNormal = normalize(mat3(modelMatrix) * n);
     vRadial = normalize(mat3(modelMatrix) * p);   // the undented skin's normal
     gl_Position = projectionMatrix * viewMatrix * w;
+    #endif
   }`;
 
 const FRAG = /* glsl */`
@@ -149,7 +165,7 @@ const FRAG = /* glsl */`
  * set of uniforms. Scale the returned group by the bubble's radius.
  * @returns {THREE.Group & {uniforms: object}}
  */
-export function makeBubble() {
+export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false } = {}) {
   const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
   // The objects' key light: one light for the objects and the skin round
   // them. It is in front, so a dent, being hollow, catches its own highlight
@@ -184,11 +200,11 @@ export function makeBubble() {
     uRing: { value: E.glow.ring * B.glow },
     uGlowColor: { value: new THREE.Color(...E.glow.color) },
   };
-  const geometry = new THREE.SphereGeometry(1, 128, 96);
   const group = new THREE.Group();
   for (const side of [THREE.BackSide, THREE.FrontSide]) {
     const m = trackGlass(new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, uniforms, side,
+      defines: planar ? { PLANAR_BUBBLE: '' } : {},
       transparent: true, depthWrite: false, premultipliedAlpha: true,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     }));

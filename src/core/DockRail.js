@@ -5,8 +5,9 @@ import { DEFAULTS } from './defaults.js';
 // alter it after initialization. Only horizontal displacement beyond a
 // deadzone moves the anchor. A pinch owns all three placement dimensions.
 export class DockRail {
-  constructor(handle, { radius, height } = {}) {
+  constructor(handle, { radius, height, handleDrop = 0 } = {}) {
     this.handle = handle;
+    this.handleDrop = handleDrop;
     this.initial = { radius: radius ?? DEFAULTS.dockRail.radius, height: height ?? DEFAULTS.dockRail.height };
     this.reset();
   }
@@ -43,7 +44,7 @@ export class DockRail {
       const desired = this.held.offset.clone().add(delta);
       this.height = THREE.MathUtils.clamp(desired.y, ...D.heightRange);
       this.angle = THREE.MathUtils.clamp(Math.atan2(-desired.x / D.aspect, -desired.z), -D.angleLimit, D.angleLimit);
-      const reach = Math.sqrt(D.maxReach ** 2 - this.height ** 2)
+      const reach = Math.sqrt(D.maxReach ** 2 - (this.height - this.handleDrop) ** 2)
         / Math.hypot(D.aspect * Math.sin(this.angle), Math.cos(this.angle));
       this.radius = THREE.MathUtils.clamp(Math.hypot(desired.x / D.aspect, desired.z), D.radiusRange[0], Math.min(D.radiusRange[1], reach));
       h.grab = this.held;

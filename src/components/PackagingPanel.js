@@ -26,6 +26,7 @@ import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, s
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
+import { BubbleHandle } from './BubbleHandle.js';
 import { WindowControls } from '../core/WindowControls.js';
 
 export { PACKAGING_MODES, packagingPose };
@@ -97,16 +98,22 @@ export class PackagingPanel extends THREE.Group {
       facing: probe.normal.dot(normal) < -DEFAULTS.handInput.palmAlignment };
   }
 
+  palmSamples(probe, level = this.levels.at(-1), pose = level?.cur) {
+    return (probe.contacts ?? [{ key: 'palm', point: probe.point, radius: probe.radius }])
+      .map(contact => ({ ...this.palmSample({ ...probe, ...contact }, level, pose), key: contact.key }));
+  }
+
   palmDistance(probe) {
-    // The root consumes an overlapping palm too, so its fingertip cannot
-    // accidentally select a row. updatePalm keeps the root nondismissable.
     if (this.controls.held) return Infinity;
-    const s = this.palmSample(probe);
-    return s?.inside && s.facing && s.gap >= -DEFAULTS.handInput.palmBehindLimit ? Math.max(0, s.gap) : Infinity;
+    // Low-confidence samples retain observed approach, but cannot acquire.
+    return Math.min(Infinity, ...this.palmSamples(probe).filter(s => s.inside
+      && s.alignment >= DEFAULTS.handInput.palmHoldAlignment && s.gap >= -DEFAULTS.handInput.palmBehindLimit)
+      .map(s => Math.max(0, s.gap)));
   }
 
   palmBlocks(probe) {
-    return this.palmDistance(probe) <= DEFAULTS.handInput.palmContactBand;
+    return this.palmSamples(probe).some(s => s.inside && s.facing
+      && s.gap >= -DEFAULTS.handInput.palmBehindLimit && s.gap <= DEFAULTS.handInput.palmContactBand);
   }
 
   feedPalm(probe) { this.palmProbes.push(probe); }
@@ -132,31 +139,37 @@ export class PackagingPanel extends THREE.Group {
     if (this.active <= 0 || this.controls.held) { this.palmPrevious.clear(); return; }
     if (!this.palmPush) {
       for (const p of probes) {
-        const s = this.palmSample(p);
-        if (!s?.inside || !s.facing) continue;
-        const previous = this.palmPrevious.get(p.id);
-        this.palmDiagnostic = { id: p.id, gap: s.gap, alignment: s.alignment,
-          state: s.gap <= 0 && !previous ? 'approach-required' : 'approaching' };
-        current.set(p.id, { gap: s.gap, point: p.point.clone() });
-        if (previous && p.point.distanceTo(previous.point) > P.palmMaxStep + 1e-6) {
-          this.blockPalm(p); current.delete(p.id); continue;
+        const samples = this.palmSamples(p).sort((a, b) => a.gap - b.gap);
+        for (const s of samples) {
+          if (!s.inside || s.alignment < P.palmHoldAlignment) continue;
+          const key = `${p.id}:${s.key}`, previous = this.palmPrevious.get(key);
+          const outsideAge = s.gap > 0 ? 0 : (previous?.outsideAge ?? Infinity) + dt;
+          current.set(key, { gap: s.gap, point: p.point.clone(), outsideAge });
+          this.palmDiagnostic = { id: p.id, patch: s.key, gap: s.gap, alignment: s.alignment,
+            state: !s.facing ? 'angle-history' : s.gap <= 0 && !previous ? 'approach-required' : 'approaching' };
+          if (previous && p.point.distanceTo(previous.point) > P.palmMaxStep + 1e-6) {
+            this.blockPalm(p); current.clear(); break;
+          }
+          if (s.facing && s.gap <= 0 && previous && outsideAge <= P.palmTrackingGrace) {
+            // Lock the patch identity and its offset from the palm centre.
+            // Finger articulation cannot turn a changed contact estimator
+            // into closing travel; translation is measured in stable space.
+            const tracked = this.worldToLocal(p.point.clone());
+            this.palmPush = { id: p.id, patchKey: s.key, level, pose: { ...level.cur }, scaleZ: s.scaleZ,
+              parents: this.levels.slice(0, -1).map(l => ({ level: l, z: l.cur.z })),
+              contactZ: tracked.z - s.gap / s.scaleZ, depth: 0, missing: 0 };
+            this.applyInputGates(); break;
+          }
         }
-        // A hand first appearing behind the layer must withdraw before it
-        // can push. Another hand cannot supply that approach history.
-        if (s.gap <= 0 && previous?.gap > 0) {
-          this.palmPush = { id: p.id, level, pose: { ...level.cur }, scaleZ: s.scaleZ,
-            parents: this.levels.slice(0, -1).map(l => ({ level: l, z: l.cur.z })),
-            contactZ: s.point.z - s.gap / s.scaleZ, depth: 0, missing: 0 };
-          this.applyInputGates();
-          break;
-        }
+        if (this.palmPush) break;
       }
     }
     this.palmPrevious = current;
     const push = this.palmPush;
     if (!push) return;
     const probe = probes.find(p => p.id === push.id);
-    const sample = probe && this.palmSample(probe, push.level, push.pose);
+    const patch = probe && this.palmSamples(probe, push.level, push.pose).find(s => s.key === push.patchKey);
+    const sample = patch && { ...patch, point: this.worldToLocal(probe.point.clone()) };
     const uncertain = !sample || sample.alignment < P.palmHoldAlignment;
     if (uncertain) {
       push.missing += dt;
@@ -205,7 +218,7 @@ export class PackagingPanel extends THREE.Group {
     this.controls.cancel(); this.palmPush = null;
     this.palmPrevious.clear(); this.palmBlocked.clear();
     this.palmDiagnostic = {};
-    for (const l of this.stack.all) for (const h of [l.panel, ...l.rows, ...l.corners]) {
+    for (const l of this.stack.all) for (const h of [l.panel, ...l.rows, ...l.moves, ...l.corners]) {
       h.probes = []; h.press.update(0, null, false);
     }
     this.retarget();
@@ -255,7 +268,7 @@ export class PackagingPanel extends THREE.Group {
       thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);
-    // Only the exposed title band navigates back or starts a move. The
+    // Only the exposed title band navigates back. The
     // full glass body remains visual; it is never a hidden back target.
     const titleHit = new THREE.Mesh(new THREE.PlaneGeometry(W, titleBand), new THREE.MeshBasicMaterial({ visible: false }));
     titleHit.position.set(0, (H - titleBand) / 2, panel.t);
@@ -263,18 +276,17 @@ export class PackagingPanel extends THREE.Group {
     panel.inside = point => Math.abs(point.x) <= W / 2 && point.y <= H / 2 && point.y >= H / 2 - titleBand;
     panel.pokeDistance = point => panel.inside(point) ? Math.abs(point.z - panel.t) * Math.abs(panel.getWorldScale(new THREE.Vector3()).z) : Infinity;
     panel.faceDistance = (point, radius = 0) => Math.max(0, panel.pokeDistance(point) - radius);
+    const M = D.windowManipulation;
     const corners = [-1, 1].map(side => {
-      const handle = new Button(T, { width: D.windowManipulation.cornerSize, height: D.windowManipulation.cornerSize,
-        radius: D.windowManipulation.cornerSize / 2, distance: dist, density: 'soft' });
-      handle.position.set(side * (W / 2 + handle.w / 2 + dmm(4)), -H / 2, panel.t);
-      handle.userData.resize = true;
-      const affordance = handle.affordance = new THREE.Group();
-      affordance.add(...handle.children); handle.add(affordance);
-      affordance.visible = false;
-      const hit = new THREE.Mesh(handle.body.geometry, new THREE.MeshBasicMaterial({ visible: false }));
-      handle.add(hit); handle.hitMeshes = [hit];
-      handle.body.visible = false;
-      handle.pokeDistance = point => handle.inside(point, true) ? handle.faceDistance(point) : Infinity;
+      const handle = new BubbleHandle(T, { width: M.cornerSize, distance: dist, reveal: true, resize: true });
+      handle.position.set(side * (W / 2 + handle.w / 2 + dmm(M.handleGap)), -H / 2, panel.t);
+      handle.arrow.scale.x = side;
+      group.add(handle); return handle;
+    });
+    const moves = [-1, 1].map(side => {
+      const handle = new BubbleHandle(T, { width: M.moveWidth, height: M.moveHeight,
+        distance: dist, rectangular: true, reveal: true });
+      handle.position.set(side * (W / 2 + handle.w / 2 + dmm(M.handleGap)), 0, panel.t);
       group.add(handle); return handle;
     });
     const front = panel.t + 0.0004;
@@ -349,7 +361,7 @@ export class PackagingPanel extends THREE.Group {
       if (idx >= 0 && idx < this.active) this.back(idx);
     });
 
-    const level = { item, group, panel, title, corners, rows, separators, size: { W, H, titleBand } };
+    const level = { item, group, panel, title, corners, moves, rows, separators, size: { W, H, titleBand } };
     return level;
   }
 
@@ -402,19 +414,21 @@ export class PackagingPanel extends THREE.Group {
     for (const l of this.stack.all) {
       const owner = this.controls.held?.handle;
       l.rows.forEach(r => { r.enabled = l.rowsEnabled && !this.palmPush && !owner; });
-      l.panel.enabled = !l.closing && !this.palmPush && (!owner || owner === l.panel);
-      l.corners.forEach(h => { h.enabled = l === this.levels.at(-1) && !this.palmPush && (!owner || owner === h); });
+      l.panel.enabled = l.panelEnabled && !l.closing && !this.palmPush && !owner;
+      [...l.moves, ...l.corners].forEach(h => { h.enabled = l === this.levels.at(-1) && !this.palmPush && (!owner || owner === h); });
     }
   }
 
   update(dt) {
     const reduced = this.reduced;
     this.controls.update();
+    const opacityTarget = this.controls.held ? DEFAULTS.windowManipulation.heldOpacity : 1;
+    this.manipulationOpacity = (this.manipulationOpacity ?? 1) + (opacityTarget - (this.manipulationOpacity ?? 1)) * (1 - Math.exp(-dt / .08));
     this.applyInputGates();
     this.updatePalm(dt);
     for (const l of this.stack.all) {
       l.panel.update(dt);
-      l.corners.forEach(h => h.update(dt));
+      [...l.moves, ...l.corners].forEach(h => h.update(dt));
       const contact = this.palmPush?.level === l ? 0.4 + 0.6 * Math.min(1, this.palmPush.depth / DEFAULTS.handInput.palmCloseTravel) : 0;
       l.palmGlow = contact || (l.palmGlow ?? 0) * Math.exp(-dt / 0.08);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
@@ -437,10 +451,14 @@ export class PackagingPanel extends THREE.Group {
       const c = l.cur;
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
-      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1), DEFAULTS.windowManipulation.rearOpacity);
-      l.corners.forEach(h => {
+      const M = DEFAULTS.windowManipulation, depth = Math.max(0, this.active - l.depth);
+      const opacityTarget = depth > 1 ? M.olderOpacity : M.rearOpacity;
+      l.rearOpacity = (l.rearOpacity ?? opacityTarget) + (opacityTarget - (l.rearOpacity ?? opacityTarget)) * (1 - Math.exp(-dt / .12));
+      setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1),
+        l.rearOpacity, { fullRearContent: true, manipulationOpacity: this.manipulationOpacity });
+      [...l.moves, ...l.corners].forEach(h => {
         h.visible = l === this.levels.at(-1) && !l.closing;
-        h.affordance.visible = h.body.visible = h.visible && (h.hovered || h.press.pressed || !!h.grab);
+        h.affordance.visible = h.body.visible = h.visible && (h.hovered || !!h.grab);
       });
     }
     this.updateLight();

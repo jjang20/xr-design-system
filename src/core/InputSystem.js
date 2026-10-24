@@ -116,18 +116,24 @@ export class InputSystem {
     const wrist = point('wrist');
     const middle = point('middle-finger-phalanx-proximal');
     if (!wrist || !middle) return null;
-    let extended = 0;
+    const extended = [];
     for (const finger of ['index', 'middle', 'ring', 'pinky']) {
       const base = point(`${finger}-finger-phalanx-proximal`), tip = point(`${finger}-finger-tip`);
-      if (base && tip && tip.distanceTo(wrist) > base.distanceTo(wrist) * DEFAULTS.handInput.fingerExtension) extended++;
+      if (base && tip && tip.distanceTo(wrist) > base.distanceTo(wrist) * DEFAULTS.handInput.fingerExtension) extended.push({ finger, tip });
     }
-    if (extended < 3) return null;
-    // WebXR JointSpace -Y points out of the palm on either hand.
+    if (extended.length < 3) return null;
+    // A leading index is a point. Several leading pads are a broad face.
     const normal = new THREE.Vector3(0, -1, 0).transformDirection(joints.wrist.matrixWorld);
     const centre = wrist.clone().lerp(middle, 0.5);
-    const index = point('index-finger-tip');
-    if (index && index.sub(centre).dot(normal) > DEFAULTS.handInput.palmTipLead) return null;
-    return { point: centre, normal, radius: DEFAULTS.handInput.palmRadius };
+    const index = extended.find(f => f.finger === 'index');
+    const others = extended.filter(f => f.finger !== 'index');
+    const otherLead = others.reduce((sum, f) => sum + f.tip.clone().sub(centre).dot(normal), 0) / others.length;
+    if (index && index.tip.clone().sub(centre).dot(normal) - otherLead > DEFAULTS.handInput.palmTipLead) return null;
+    const pads = extended.reduce((sum, f) => sum.add(f.tip), new THREE.Vector3()).multiplyScalar(1 / extended.length);
+    const key = `fingers:${extended.map(f => f.finger).join(',')}`;
+    return { point: centre, normal, radius: DEFAULTS.handInput.palmRadius,
+      contacts: [{ key: 'palm', point: centre, radius: DEFAULTS.handInput.palmRadius },
+        { key, point: pads, radius: DEFAULTS.handInput.fingertipRadius }] };
   }
 
   palmStep(src, targets) {
@@ -165,7 +171,10 @@ export class InputSystem {
           if (src.selecting) continue;
           src.resetBlocked = false;
         }
-        if (this.palmStep(src, palms)) { src.state = {}; continue; }
+        // An existing manipulation owns its source through the release
+        // frame too; an opening hand must not switch it to another panel.
+        const manipulating = items.some(item => item.grab?.id === src.id);
+        if (!manipulating && this.palmStep(src, palms)) { src.state = {}; continue; }
         const tip = this.tipOf(src);
         let dist = Infinity;
         if (tip) for (const c of components) dist = Math.min(dist, _box.setFromObject(c).distanceToPoint(tip));

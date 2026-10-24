@@ -787,15 +787,15 @@ export function softTexture() {
 // turning see-through, and content fades part way. `back` (0..1) is how far
 // the level has gone behind another, whatever its dim: marked content
 // (a subtitle, a list) is gone by a third of the way.
-export function setGroupOpacity(root, k, dim = 0, back = dim, rearOpacity = 1) {
+export function setGroupOpacity(root, k, dim = 0, back = dim, rearOpacity = 1, { fullRearContent = false, manipulationOpacity = 1 } = {}) {
   // Content fades in later than the glass and out sooner, so two levels'
   // text never shows through each other mid-transition.
-  const content = k * k * clamp(1 - 1.25 * dim, 0.2, 1);
-  const sheet = Math.min(1, k * 2.5) * (1 - back * (1 - rearOpacity));
+  const content = k * k * clamp(1 - 1.25 * dim, 0.2, 1) * manipulationOpacity;
+  const sheet = Math.min(1, k * 2.5) * (1 - back * (1 - rearOpacity)) * manipulationOpacity;
   root.traverse(o => {
     o.visible = k > 0.001;
     // Marked content (a subtitle, a list) goes once its level is pushed back.
-    const hide = o.userData.hideWhenDim ? clamp(1 - back * 3, 0, 1) : 1;
+    const hide = o.userData.hideWhenDim ? (fullRearContent ? 1 - back * (1 - rearOpacity) : clamp(1 - back * 3, 0, 1)) : 1;
     if (o.isMesh && o.text !== undefined && 'fillOpacity' in o) {
       o.fillOpacity = (o.userData.baseOpacity ?? 1) * (o.userData.preserveTitle ? k * k * (1 - back * (1 - DEFAULTS.windowManipulation.rearTitleOpacity)) : content) * hide;
       if (o.userData.baseOutline) o.outlineOpacity = o.userData.baseOutline * o.fillOpacity;

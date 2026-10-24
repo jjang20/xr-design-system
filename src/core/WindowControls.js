@@ -20,7 +20,7 @@ export class WindowControls {
     const p = this.panel, D = DEFAULTS.windowManipulation;
     if (p.palmPush) { this.cancel(); return; }
     const holding = probe => probe.kind === 'poke' ? probe.pinch : probe.pressed && probe.captured;
-    const handles = p.levels.flatMap(l => [l.panel, ...l.corners]);
+    const handles = p.levels.flatMap(l => [...l.moves, ...l.corners]);
     let h = this.held?.handle;
     let probe = h?.probes.find(q => q.id === this.held.id);
     if (!this.held) {
