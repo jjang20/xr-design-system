@@ -70,6 +70,32 @@ test('Holding a Dock plate end above the skin still makes a local dent',()=>{
  let dent=0;for(let i=1;i<pressed.length;i+=3)dent=Math.max(dent,restored[i]-pressed[i]);
  assert.ok(dent>.001,'capture feedback must deform the plate even without surface penetration');
 });
+
+function plateDentBySide(d) {
+ const shape=d.shelfShape,pressed=shape.geometry.attributes.position.array.slice();
+ const swell=DEFAULTS.look.dockPlate.swell*Math.max(0,d.grip.hover.x);
+ shape.fit(d.length,d.arcR,{neck:d.neck,size:d.size,swell:[d.grip.side<0?swell:0,d.grip.side>0?swell:0]});
+ const restored=shape.geometry.attributes.position.array,result={left:0,right:0};
+ for(let i=0;i<pressed.length;i+=3){const side=pressed[i]<0?'left':'right';result[side]=Math.max(result[side],restored[i+1]-pressed[i+1]);}
+ return result;
+}
+
+test('Direct plate pressure deforms the skin on its first frame',()=>{
+ const d=new Dock(T,{apps}),[x,z]=d.arc(d.length/2-d.pad/2,0);
+ const feed=y=>{d.shelf.feed({kind:'poke',id:'finger',point:new THREE.Vector3(x,y,z),radius:.008,pressOffset:.01});d.grabPlate(dt);d.layout();};
+ feed(.06);feed(.008);
+ assert.ok(plateDentBySide(d).right>.0025,'followInput must not wait for the held feedback spring');
+});
+
+test('A released plate dent recovers at its owner point while another hand hovers',()=>{
+ const d=new Dock(T,{apps}),[rx,rz]=d.arc(d.length/2-d.pad/2,0),[lx,lz]=d.arc(-d.length/2+d.pad/2,0);
+ const right={kind:'poke',id:'right',point:new THREE.Vector3(rx,.025,rz),radius:.008,pressOffset:.01,pinch:true};
+ for(let i=0;i<30;i++){d.shelf.feed({...right});d.grabPlate(dt);d.layout();}
+ d.shelf.feed({kind:'poke',id:'left',point:new THREE.Vector3(lx,.025,lz),radius:.008,pressOffset:.01,pinch:false});
+ d.shelf.feed({...right,pinch:false});d.grabPlate(dt);d.layout();
+ const dent=plateDentBySide(d);
+ assert.equal(d.grip.held,null);assert.ok(dent.right>.001);assert.ok(dent.left<.0001,'residual dent must not jump to another hover point');
+});
 test('Dock plate fingertip contact dents without selecting an end icon',()=>{
  const r=rig(.4,3), {dock,input,scene,camera,tip}=r;
  const s=dock.length/2-dock.pad/2,[x,z]=dock.arc(s,0);

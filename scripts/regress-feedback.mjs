@@ -88,7 +88,7 @@ try {
     const pixels=()=>{c.renderer.render(c.scene,c.camera);const p=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,p);return p;};
     const on=pixels();u.forEach(v=>v.y=0);const off=pixels();u.forEach((v,i)=>v.y=values[i]);
     let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=4){const d=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(d>2)changed++;maxDelta=Math.max(maxDelta,d);}
-    return {changed,maxDelta,hasEnv:!!mat.defines.ENVMAP_TYPE_CUBE_UV};
+    return {changed,maxDelta,hasEnv:Object.hasOwn(mat.defines,'ENVMAP_TYPE_CUBE_UV')};
   });
   check('MR no-env contact glow changes actual pixels',!result.traces.mrGlowPixels.hasEnv && result.traces.mrGlowPixels.changed>100 && result.traces.mrGlowPixels.maxDelta>10);
   await capture(page,'02-row-contact-mr');

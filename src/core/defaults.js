@@ -270,7 +270,7 @@ export const DEFAULTS = {
     // Text shadow under text on glass: off. Text earns contrast from weight
     // and the glass tone (visionOS vibrancy), not a CSS-style halo. Set
     // { blur, offset, opacity } (x the text size) to try one again.
-    palmGlow: { width: 0.012, strength: 0.28 }, // R5 trial: local metres; soft inner band, no outline
+    palmGlow: { width: 0.008, strength: 0.065 }, // R5 trial: local metres; soft inner band, no outline
     textShadow: null,
     separator: 0.08, // hairline between rows: white opacity
   },

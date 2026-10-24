@@ -73,9 +73,10 @@ try {
         const pixel=(Math.round((at.y+1)*h/2)*w+Math.round((at.x+1)*w/2))*4;
         return {inset,delta:Math.max(...[0,1,2].map(k=>Math.abs(on[pixel+k]-off[pixel+k])))};
       });
-      return {changed,maxDelta,samples,hasEnv:!!l.panel.skin.defines.ENVMAP_TYPE_CUBE_UV};
+      return {changed,maxDelta,samples,hasEnv:Object.hasOwn(l.panel.skin.defines,'ENVMAP_TYPE_CUBE_UV')};
     },mode);
     const glow=result.traces[mode+'InnerGlow'];
+    check(mode+' shader environment matches the fixture',glow.hasEnv===(mode==='hdr'));
     check(mode+' palm inner glow changes rendered pixels',glow.changed>100&&glow.maxDelta>5);
     check(mode+' glow fades from the inner edge toward the centre',glow.samples[1].delta>glow.samples[2].delta);
     await capture(panelPage,'palm-inner-'+mode);

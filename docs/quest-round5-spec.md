@@ -22,14 +22,16 @@ Source of truth: coordination/docs/quest-r5-feedback-coordinator-2026-10-24.md. 
 
 This slice restores complete rear plates/title opacity, weakens only the row ring, changes palm light to a soft inner band, separates icon acquisition from deformation, preserves finite-fingertip contact while rubbing, adds held plate dent, and restores Dock plate passthrough alpha. It does not complete the new controls/handle or Push input; Q20–Q24 remain pending and the central bar interference is still open.
 
-Trial values: row ring .18 (icon ring stays .45); title opacity1; palm inner band12mm and strength .28; icon early dent8% of maximum followed by actual skin penetration; held plate dent2mm; shelf passthrough alpha base .08 plus Fresnel. Sheet opacity .24 remains the earlier value until Q23. Actual contact, side exit, tracking loss and click release remain distinct. The widened icon capture silhouette applies only while the fingertip sphere still contacts the skin; detached side exits use the original item boundary.
+Trial values: row ring .18 (icon ring stays .45); title opacity1; palm inner band8mm and strength .065; icon early dent8% of maximum followed by actual skin penetration; held plate dent2mm; shelf passthrough alpha base .08 plus Fresnel. Sheet opacity .24 remains the earlier value until Q23. Actual contact, side exit, tracking loss and click release remain distinct. The widened icon capture silhouette applies only while the fingertip sphere still contacts the skin; detached side exits use the original item boundary.
 
 | Before | After | Why |
 | --- | --- | --- |
 | Icon dent already4.8mm before skin contact | Small early response, then continuous physical depth | Keep room for pressure and rubbing without removing early feedback |
 | Finger sphere touching at48° loses capture | Contact-aware front hemisphere; detached sideways exit still cancels | Preserve physical contact without turning side exits into clicks |
-| Above-skin plate pinch has light but no dent | Local2mm held dent with existing spring/reduced-motion damping | Capture gets material feedback even before physical penetration |
+| Above-skin plate pinch has light but no dent | Local2mm held dent with existing spring/reduced-motion damping; direct pressure stays immediate | Capture gets material feedback even before physical penetration |
 | Rear sheet fragments clipped by foremost panel | Full sheet remains, natural overlap and opacity separate | Side/back views must preserve the whole plate |
 | Refractive shelf always writes opaque alpha | Shelf-only translucent no-room skin; other presets unchanged | Passthrough has no room image in the grab texture |
 
 Desktop shader, synthetic input and test evidence do not establish physical Quest acceptance. The existing ad9 preview stays in place while R5 is incomplete.
+
+Review corrections: held dent recovery keeps its last owner position across other-hand hover; the capture spring does not delay physical press depth. Initial inner Glow (.28/12mm) looked too strong in actual HDR/no-env renders, so the trial was reduced to .065/8mm before publication. Shader tests check define presence, since an enabled cube-UV define has an empty-string value.
