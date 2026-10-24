@@ -2,7 +2,7 @@ import * as THREE from 'three';
 
 // Anything a hand or ray can touch. The InputSystem feeds it "probes" each
 // frame, already converted into this object's local space:
-//   { kind: 'poke', point, pinch, canPress } fingertip position; optional press-ownership gate
+//   { kind: 'poke', point, radius, pinch } fingertip joint position; radius in world metres
 //   { kind: 'ray', point, ray, pressed }     ray hit (or ray-plane point while captured)
 // Subclasses read this.probes in update(dt).
 export class Interactable extends THREE.Group {

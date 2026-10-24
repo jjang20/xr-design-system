@@ -2,8 +2,8 @@
 // it back), like the air vents in a Rolls-Royce, instead of sliding sideways.
 //
 // Local space: +z points at the user. The back plate's front face is z = 0.
-// The knob's back face moves between z = 0 (fully pushed, value 1) and
-// z = zslider.travel (fully pulled, value 0).
+// The knob's back face moves between z = 0 (fully pushed, value 0) and
+// z = zslider.travel (fully pulled away from the base, value 1).
 //
 // Input:
 //   poke   the fingertip pushes the knob (a finger can only push)
@@ -21,7 +21,7 @@
 // size.interactive.default, material.thickness.*, input.hover.distance.*, material.glow.width,
 // motion.enter.*, surface.*
 import * as THREE from 'three';
-import { Interactable, markComponent } from '../core/Interactable.js';
+import { Interactable, markComponent, pickProbe } from '../core/Interactable.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { cubicBezier, clamp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
@@ -215,12 +215,12 @@ export class ZSlider extends Interactable {
 
   setValue(v, { silent = false } = {}) {
     v = clamp(v, 0, 1);
-    this.knobZ = this.travel * (1 - v);
+    this.knobZ = this.travel * v;
     this.applyValue(silent);
   }
 
   applyValue(silent) {
-    const v = 1 - this.knobZ / this.travel;
+    const v = this.knobZ / this.travel;
     const before = this.value;
     this.value = v;
     if (before >= 0 && detentIndex(v, this.interval) !== detentIndex(before, this.interval)) {
@@ -242,27 +242,38 @@ export class ZSlider extends Interactable {
     return Math.abs(p.x) <= h && Math.abs(p.y) <= h;
   }
 
+  pokeDistance(p) {
+    const scale = this.getWorldScale(new THREE.Vector3());
+    return Math.hypot(Math.max(0, Math.abs(p.x) - this.side / 2) * scale.x,
+      Math.max(0, Math.abs(p.y) - this.side / 2) * scale.y,
+      Math.max(0, p.z - this.frontZ) * scale.z);
+  }
+
   update(dt) {
     const probes = this.consumeProbes();
+    const { probe } = pickProbe(probes, p => p.kind === 'ray' ? 0 : this.pokeDistance(p.point), this.grab?.id);
     let hoverD = Infinity;
     let z = this.knobZ;
     let engaged = false;
 
-    for (const p of probes) {
+    for (const p of probe ? [probe] : []) {
       if (p.kind === 'poke') {
-        const front = z + this.t;
+        const radius = (p.radius ?? 0) / Math.abs(this.getWorldScale(new THREE.Vector3()).z);
+        const contactZ = p.point.z - radius;
+        const thickness = this.t * this.knob.scale.z;
+        const front = z + thickness;
         const d = Math.hypot(
           Math.max(0, Math.abs(p.point.x) - this.touchSide / 2),
           Math.max(0, Math.abs(p.point.y) - this.touchSide / 2),
-          Math.max(0, p.point.z - front),
+          Math.max(0, contactZ - front),
         );
         hoverD = Math.min(hoverD, d);
         if (p.pinch && (this.grab?.id === p.id || (!this.grab && this.hoverBand.on))) {
           this.grab ??= { id: p.id, offset: p.point.z - z };
           z = p.point.z - this.grab.offset;
           engaged = true;
-        } else if (this.insideKnob(p.point) && p.point.z < front && p.point.z > z - this.t) {
-          z = p.point.z - this.t; // the finger pushes the face
+        } else if (!this.grab && this.insideKnob(p.point) && contactZ < front && contactZ > z - thickness) {
+          z = contactZ - thickness; // the fingertip surface pushes the face
           engaged = true;
         }
       } else if (p.kind === 'ray') {
@@ -286,11 +297,11 @@ export class ZSlider extends Interactable {
     this.applyValue(false);
 
     // Feedback: contact shadow, value label, hover glow.
-    const push = this.value;
-    const s = shadowAt(push, this.shadowScale, this.shadowMin, this.shadowMax);
+    const value = this.value;
+    const s = shadowAt(1 - value, this.shadowScale, this.shadowMin, this.shadowMax);
     this.shadow.scale.setScalar(s.scale);
     this.shadow.material.opacity = this.shadow.material.userData.baseOpacity = s.opacity;
-    const text = `${Math.round(push * 100)}%`;
+    const text = `${Math.round(value * 100)}%`;
     if (this.valueLabel.text !== text) { this.valueLabel.text = text; this.valueLabel.sync(); }
 
     const hovered = this.hoverBand.update(hoverD) || engaged;
@@ -300,7 +311,7 @@ export class ZSlider extends Interactable {
     const h = this.hoverEase(this.hoverT) * (engaged ? 1 : K.idle);
     this.knobSkin.uniforms.uHover.value = h * K.glow;
     this.knob.scale.setScalar(1 + K.swell * h);  // swells a little toward you, like a bubble
-    const lit = Math.round(push * this.rings.length);
+    const lit = Math.round(value * this.rings.length);
     const G = DEFAULTS.look.lampGlow;
     this.rings.forEach((r, i) => {
       const on = i < lit;
@@ -310,7 +321,7 @@ export class ZSlider extends Interactable {
     });
     // The lamp glows with its value: a floor so it reads as lit glass at
     // any value, rising to full at 100%.
-    const glow = G.min + (1 - G.min) * push;
+    const glow = G.min + (1 - G.min) * value;
     for (const [m, k] of this.glass) m.uniforms.uEmissive.value.copy(this.lampColor).multiplyScalar(k * glow);
     this.halo.material.opacity = G.halo.opacity * glow;
     this.spill.material.opacity = G.spill.opacity * glow;
@@ -395,7 +406,7 @@ function haloTexture(rim) {
 // The detent rings' glow: a soft band of light round each lit ring.
 function ringGlowMaterial(radii, width, color) {
   return new THREE.ShaderMaterial({
-    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, premultipliedAlpha: true, toneMapped: false,
     uniforms: {
       uR: { value: radii }, uOn: { value: radii.map(() => 0) }, uW: { value: width },
       uColor: { value: color.clone() }, uStrength: { value: 1 },
@@ -410,7 +421,8 @@ function ringGlowMaterial(radii, width, color) {
       void main() {
         float r = length(vP), a = 0.0;
         for (int i = 0; i < ${radii.length}; i++) a += uOn[i] * exp(-pow((r - uR[i]) / uW, 2.0));
-        gl_FragColor = vec4(uColor * a * uStrength, 1.0);
+        float strength = a * uStrength;
+        gl_FragColor = vec4(uColor * strength, clamp(strength, 0.0, 1.0));
       }`,
   });
 }

@@ -74,11 +74,11 @@ Disabled buttons are always `rigid`: they barely give, which reads as "not now".
 
 ## Z-Slider
 
-A knob you push away from you (value up) and pull back (value down), along Z instead of X.
+A knob that moves along Z instead of X. At the base it reads 0%; pulling it outward, away from the base, increases the value to 100% at full extension (Quest feedback, 2026-10-24).
 
 | Behaviour | Tokens |
 |---|---|
-| Travel from fully pulled to fully pushed | `zslider.travel` |
+| Travel from the base (0%) to fully extended (100%) | `zslider.travel` |
 | A tick every 1/10 of the range, as sound | `feedback.detent.interval`, `.audio.gain`, `.audio.length` |
 | Contact shadow grows and darkens with push | `shadow.contact.*` |
 | Hover, glow, surface | as Button |
@@ -169,7 +169,7 @@ Path-traced Blender references and 6K stills, in [`images/lookdev/`](images/look
 
 | Input | Becomes |
 |---|---|
-| Hand or controller within 350 mm (±50 mm hysteresis) of a component | **poke**: the index fingertip (or controller grip) position, plus pinch state |
+| Hand or controller entering within 350 mm, leaving beyond 400 mm | **poke**: fingertip position and tracked joint radius (or controller grip with zero radius), plus pinch state |
 | Hand or controller further away | **ray** from the hand or controller, pinch/trigger = press |
 | Desktop mouse | **ray** from the camera, click = press, wheel = push/pull |
 
@@ -185,7 +185,9 @@ What every interactive component (Button and the rows and toolbar built from it,
 | Disabled (`disabled: true`, public) | Content at 40 %, no hover; the control is `rigid`, so it barely gives | Presses fire `press` and `release` but never `select` |
 | Not taking input (`enabled = false`, internal) | No change of its own; the container shows why (a receded level's rows, a level on its way out) | Ignores every probe. Containers set it; apps should use `disabled` |
 
-**Press ownership** (Button and everything built from it, Dock apps). A press belongs to the hand or ray that started it until it ends. Another hand or ray hovering the same control can't take it over or end it early. If the pressing source disappears (tracking lost), the press is cancelled and nothing is selected. A ray presses only if its pinch began on the control: a pinch dragged onto a control doesn't press it. In the Dock, an app being pressed keeps the one bubble until its press ends. The Z-Slider has no select: a pinch grab stays with the hand that grabbed it, but two rays dragging the knob at once aren't arbitrated yet (see Known limits).
+**Direct-touch target.** Each fingertip routes hover and press to one nearest control, ranked by distance to its visible surface. Two hands can target different controls. The tracked fingertip radius counts toward surface contact; embossed rows use their raised crown rather than the hidden flat hit mesh. The 22 mm touch floor and physical hover/release distances remain unchanged. A held press or slider grab keeps its target until release or cancellation.
+
+**Press ownership** (Button and everything built from it, Dock apps). A press belongs to the hand or ray that started it until it ends. Another hand or ray hovering the same control can't take it over or end it early. If the pressing source disappears (tracking lost), the press is cancelled and nothing is selected. A ray presses only if its pinch began on the control: a pinch dragged onto a control doesn't press it. In the Dock, an app being pressed keeps the one bubble until its press ends. The Z-Slider has no select: a grab stays with the hand or ray that grabbed it, preserving the initial offset; loss of that source ends the grab at its current value.
 
 **Where press feedback sits.** A fingertip drags the dent along as it moves. A ray (controller, mouse, gaze and pinch) pins the dent where the pinch began, because eye tracking wobbles about 1° (35 mm at 2 m).
 
@@ -222,11 +224,10 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **The adaptive scrim works only where the page can see the room** (desktop, VR, arena). In mixed reality it would need the camera image, which WebXR doesn't give by default; there the glass uses the fixed `material.opacity.default`.
 - **Glass blurs the backdrop, not other 3D objects.** An object between the window and the room (a placed sofa) won't show through the glass. Fine for windows over a room; a real blur pass would be needed for objects.
 - **The backdrop photo is 1k**, so the room looks softly out of focus. Higher-resolution interiors weren't reachable from the build environment.
-- **Not yet tried on a headset.** Desktop rendering and the interaction logic are tested; hand poke and pinch follow the WebXR Hand Input spec but need a real device check, especially the follow and hover values tagged G.
+- **Quest verification is partial.** On 2026-10-24 the user confirmed MR entry and reported no major controller issue, but found multiple fingertip hovers, late surface contact, reversed slider values and a black glow rectangle. The fixes have automated regressions; their comfort and behavior still need a Quest recheck. Follow and hover values tagged G remain provisional.
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
 - **The Dock still follows the head under reduced motion.** It follows after `anchor.follow.delay` with a critically damped spring; reduced motion doesn't change that yet.
 - **No keyboard or assistive technology support** (see States and input).
-- **Z-Slider: two rays dragging at once.** A second ray captured on the knob while another drags it moves the knob with the first one's grab offset. Button and Dock press ownership doesn't cover it yet.
 
 ## Decisions
 

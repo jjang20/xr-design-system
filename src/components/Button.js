@@ -291,11 +291,30 @@ export class Button extends Interactable {
   get touchW() { return Math.max(this.w, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).x)); }
   get touchH() { return Math.max(this.h, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).y)); }
 
-  faceDistance(p) {
+  // Match the glass pillow's visible profile (core/look.js bulgeH1), not
+  // the undeformed hit mesh hidden underneath it. Freeze the contact plane
+  // during a press so its own dent/recovery cannot move the trigger.
+  surfaceZ(p) {
+    if (this.emboss) {
+      const r = Math.min(this.h / 2, this.r);
+      const qx = Math.abs(p.x) - this.w / 2 + r, qy = Math.abs(p.y) - this.h / 2 + r;
+      const d = Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r;
+      const ramp = DEFAULTS.look.emboss.ramp * this.k / 1000;
+      const t = clamp((0.15 * ramp - d) / ramp, 0, 1);
+      const mask = t ** 3 * (t * (t * 6 - 15) + 10);
+      const u = clamp(-d / Math.min(this.w / 2, this.h / 2), 0, 1);
+      return Math.max(0, this.bulge) * mask * Math.sqrt(1 - (1 - u) ** 2);
+    }
+    const height = this.beadH ?? this.t;
+    return height + (this.lift ? this.lift * (this.hover ?? 0) : 0);
+  }
+
+  faceDistance(p, radius = 0) {
     const dx = Math.max(0, Math.abs(p.x) - this.touchW / 2);
     const dy = Math.max(0, Math.abs(p.y) - this.touchH / 2);
     this.getWorldScale(inputScale);
-    return Math.hypot(dx * inputScale.x, dy * inputScale.y, Math.max(0, p.z - this.t) * inputScale.z);
+    return Math.max(0, Math.hypot(dx * inputScale.x, dy * inputScale.y,
+      Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z) - radius);
   }
 
   inside(p, touch = false) {
@@ -303,25 +322,24 @@ export class Button extends Interactable {
   }
 
   // Rank overlapping touch regions by distance to the visible face, in
-  // world metres. InputSystem gives one button each fingertip's press.
+  // world metres, including lateral approach outside the touch floor.
   pokeDistance(p) {
-    if (!this.inside(p, true)) return Infinity;
     this.getWorldScale(inputScale);
     return Math.hypot(Math.max(0, Math.abs(p.x) - this.w / 2) * inputScale.x,
-      Math.max(0, Math.abs(p.y) - this.h / 2) * inputScale.y, Math.max(0, p.z - this.t) * inputScale.z);
+      Math.max(0, Math.abs(p.y) - this.h / 2) * inputScale.y, Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z);
   }
 
   update(dt) {
     this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getWorldScale(inputScale).z);
     const probes = this.consumeProbes();
-    // Prefer this button's routed press source over another finger whose
-    // overlapping region only contributes proximity hover. With no eligible
-    // source, retain hover sensing but do not let that probe start a press.
+    // Respect explicit press gates on externally supplied probes too.
     const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
     const candidates = eligible.length ? eligible : probes;
-    const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point);
+    const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point, p.radius);
     const owner = this.press.pressed ? this.pressOwner : null;
     const { probe: best } = pickProbe(candidates, distance, owner);
+    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = null;
+    this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
     const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance, owner);
 
@@ -333,7 +351,10 @@ export class Button extends Interactable {
     let penetration = null, inside = false;
     if (best && this.enabled) {
       inside = best.canPress !== false && this.inside(best.point, best.kind === 'poke');
-      if (best.kind === 'poke') penetration = this.t - best.point.z;
+      if (best.kind === 'poke') {
+        const front = this.press.pressed ? this.pokeFront : this.surfaceZ(best.point);
+        penetration = front - best.point.z + (best.radius ?? 0) / Math.abs(this.getWorldScale(inputScale).z);
+      }
       // A ray has no depth: press goes all the way in, and letting go is a
       // clean release (no retreat distance to cover). Only a pinch that
       // began on this button presses it (captured), not one dragged onto it.
@@ -341,7 +362,11 @@ export class Button extends Interactable {
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;
     const ev = this.press.update(dt, penetration, inside);
-    if (ev === 'press') { this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
+    if (ev === 'press') {
+      this.pressOwner = best.id;
+      this.pokeFront = this.surfaceZ(best.point);
+      this.dispatchEvent({ type: 'press' });
+    }
     if (ev === 'release') {
       this.dispatchEvent({ type: 'release' });
       if (!this.disabled) this.dispatchEvent({ type: 'select' });

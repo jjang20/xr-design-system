@@ -196,8 +196,16 @@ Research behind this part: the [anatomy review](https://claude.ai/artifact/SyKK3
 
 
 ### 26. Preserve proximity while routing overlapping direct touches (2026-10-23)
+> Hover routing superseded by §27 after Quest testing; the physical target floor and press ownership remain.
 - **Decision:** Route press eligibility per fingertip among Buttons, rank eligible targets by world-space distance to the visible face, and retain a pressed target until release/cancellation. All Buttons still receive hover probes; two fingers can own different targets. Disabled press/release feedback stays intact and never emits select.
 - **Why:** Applying the 22 mm floor to small adjacent controls caused one fingertip to select multiple actions. Withholding non-selected probes also removed legitimate lateral hover, so press ownership and proximity sensing must remain separate.
 - **Alternatives:** Grow visual controls or widen their layout. These change product design and do not resolve generic overlapping hit regions. Shrink the hit floor. This violates §22.
 - **Trade-offs:** When faces are equally near, scene traversal order breaks the tie deterministically. Headset testing still needs to evaluate intent/comfort for densely packed controls; no automatic visual redesign is implied.
 - **Related correction:** Style-based text uses the same f(d) as its container. Button and uniformly scaled DockIcon hover, release and fingertip floors retain physical world-metre semantics through existing transforms.
+
+### 27. Match fingertip contact and slider direction to Quest feedback (2026-10-24)
+- **Decision:** Route one hover/press target per fingertip across Buttons, Dock apps and Z-Slider, retaining a pressed/grabbed target. Rank by world-space distance to the visible face, including lateral proximity. Count the tracked index-tip radius toward contact and use the rendered emboss crown for rows. Two independent hands may target different controls. Decorative toolbar glass does not take input.
+- **Why:** The user confirmed MR entry and usable controllers, but a single finger highlighted multiple controls and had to pass through the visible surface to press. Feeding every target in §26 caused the first problem; ignoring fingertip radius and the raised row profile caused the second.
+- **Slider contract:** The user's outward direction is now 0% at the base and 100% at full extension. Labels, detents and brightness follow that value; the contact shadow still follows physical compression. Glow shaders preserve transparent alpha outside their rings so their rectangular plane cannot mask passthrough.
+- **Alternatives:** Reduce hover distances or shrink touch targets. Rejected because the user reported ownership/contact errors, not a new sizing design. Remove the glow entirely. Rejected because correct alpha removes the rectangle while preserving the existing ring feedback.
+- **Trade-offs:** Equidistant targets still use stable traversal order. A pressed row freezes its contact reference until release so its own dent cannot release the finger. Devices without a joint radius keep the point-probe fallback. No token values, release distances, easing or durations change. Automated checks are not acceptance of the corrected experience on Quest.

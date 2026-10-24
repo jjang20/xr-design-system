@@ -41,6 +41,7 @@ export class Toolbar extends THREE.Group {
       width: W / T.effectiveDistance(dist) * 1000, height: H / T.effectiveDistance(dist) * 1000, shape: 'capsule',
       thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
     });
+    this.bar.enabled = false; // shared glass is a surface, not another action target
     this.add(this.bar);
     this.size = { W, H };
 

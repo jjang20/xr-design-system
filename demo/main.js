@@ -63,7 +63,7 @@ const ornament = place(new Toolbar(T, { tools, distance: D }), -0.02, 1.455, -0.
 ornament.addEventListener('select', e => say(`${e.tool.label ?? e.tool.name}`));
 const toolButtons = [ornament];
 
-// Z-Slider: lamp brightness. Push away = brighter.
+// Z-Slider: lamp brightness. Pull away from the base = brighter.
 const slider = place(new ZSlider(T, { label: 'Lamp', icon: 'sun', value: 0.4, distance: D }), 0.215, 1.53, -0.6);
 slider.rotateY(-0.45); // turned a little, so the push axis is visible on a flat screen
 setLamp(0.4);

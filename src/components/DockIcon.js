@@ -111,6 +111,8 @@ export class DockIcon extends Interactable {
   get inputScale() { return Math.abs(this.getWorldScale(inputScale).x); }
   get touchRadius() { return Math.max(this.rb, this.T.get('input.touch.size.minimum') / (2 * this.inputScale)); }
 
+  pokeDistance(p) { return Math.max(0, p.distanceTo(this.centre) - this.rb) * this.inputScale; }
+
   // A ray held on the bubble while pressed meets its sphere.
   rayPoint(localRay, out) {
     return localRay.intersectSphere(new THREE.Sphere(this.centre, this.rb), out);
@@ -121,7 +123,7 @@ export class DockIcon extends Interactable {
   // The Dock compares icons before any of them reacts.
   sense() {
     const { probe, distance } = pickProbe(this.consumeProbes(),
-      p => p.kind === 'ray' ? 0 : Math.max(0, p.point.distanceTo(this.centre) - this.touchRadius) * this.inputScale,
+      p => p.kind === 'ray' ? 0 : Math.max(0, (p.point.distanceTo(this.centre) - this.touchRadius) * this.inputScale - (p.radius ?? 0)),
       this.press.pressed ? this.pressOwner : null);
     this.best = probe;
     this.distanceToSkin = distance;
@@ -133,6 +135,8 @@ export class DockIcon extends Interactable {
     const scale = this.inputScale;
     this.press.release = this.T.get('input.poke.distance.release') / scale;
     const best = this.exclusive ? this.best : null;
+    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = null;
+    this.probeId = best?.id;
     this.hovered = best?.kind === 'ray' ? true : this.hoverBand.update(best ? this.distanceToSkin : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a
     // ray press pushes it all the way.
@@ -141,7 +145,7 @@ export class DockIcon extends Interactable {
       const r = best.point.distanceTo(this.centre);
       inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
       // Only a pinch that began on this app presses it (captured).
-      penetration = best.kind === 'poke' ? this.touchRadius - r : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
+      penetration = best.kind === 'poke' ? this.touchRadius - r + (best.radius ?? 0) / scale : best.pressed && best.captured ? this.press.maxDepth : -Infinity;
       this.spot.copy(best.point).sub(this.centre).normalize();
     }
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;

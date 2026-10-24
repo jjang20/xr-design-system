@@ -55,11 +55,11 @@ test('a small button accepts direct touch in the 22 mm floor without growing its
 });
 
 test('a small slider accepts a push within the fingertip floor', () => {
-  const s = new ZSlider(T, { distance: 0.1, value: 0 });
+  const s = new ZSlider(T, { distance: 0.1, value: 1 });
   const old = s.value;
   s.feed({ kind: 'poke', id: 'finger', point: new THREE.Vector3(0.01, 0, s.frontZ - 0.002) });
   s.update(dt);
-  assert.ok(s.value > old);
+  assert.ok(s.value < old); // pushing toward the base now lowers the value
   near(s.side, 0.006);
 });
 
@@ -98,7 +98,9 @@ test('one direct touch selects one action where small Toolbar hit areas overlap'
   const scene = new THREE.Scene(); scene.add(bar); scene.updateMatrixWorld(true);
   const input = inputFor(scene), selected = [];
   bar.addEventListener('select', e => selected.push(e.index));
-  for (const z of [0.013, 0.010, 0.016]) {
+  // Outside the tiny visible faces, the 22 mm floor lies on the bar's
+  // actual surface at 8 mm, not the hidden 12 mm hit-mesh front.
+  for (const z of [0.013, 0.007, 0.016]) {
     // Exercise the actual direct-input dispatch path, with a tracked fingertip.
     const src = input.xr[0]; src.connected = true; src.grip.visible = true;
     src.grip.position.set(0, 0, z); scene.updateMatrixWorld(true);
@@ -137,8 +139,8 @@ test('overlapping direct targets keep the pressed button and allow two independe
     for (const [id, px, z] of fingers) input.pokeStep({ id }, new THREE.Vector3(px, 0, z), input.collect().items);
     bar.update(dt);
   };
-  step([['left', x[0], 0.013]]); step([['left', x[0], 0.010]]);
-  step([['left', x[1], 0.010]]); // same finger moves toward the neighbouring face
+  step([['left', x[0], 0.013]]); step([['left', x[0], 0.007]]);
+  step([['left', x[1], 0.007]]); // same finger moves toward the neighbouring face
   assert.equal(bar.buttons[0].press.pressed, true);
   assert.equal(bar.buttons[1].press.pressed, false);
   step([['left', x[1], 0.016]]);
@@ -146,7 +148,7 @@ test('overlapping direct targets keep the pressed button and allow two independe
   selected.length = 0;
   step([]);
   step([['left', x[0], 0.013], ['right', x[1], 0.013]]);
-  step([['left', x[0], 0.010], ['right', x[1], 0.010]]);
+  step([['left', x[0], 0.007], ['right', x[1], 0.007]]);
   assert.ok(bar.buttons.every(b => b.press.pressed));
   step([['left', x[0], 0.016], ['right', x[1], 0.016]]);
   assert.deepEqual(selected, [0, 1]);

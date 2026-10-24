@@ -106,7 +106,9 @@ export class InputSystem {
         if (tip) for (const c of components) dist = Math.min(dist, _box.setFromObject(c).distanceToPoint(tip));
         if (tip && src.near.update(dist)) {
           this.handPoints.push(tip);
-          this.pokeStep(src, tip, items);
+          const joint = src.hand.joints?.['index-finger-tip'];
+          const radius = joint?.visible && Number.isFinite(joint.jointRadius) ? Math.max(0, joint.jointRadius) : 0;
+          this.pokeStep(src, tip, items, radius);
           src.state = {};
         } else {
           src.line.visible = true;
@@ -127,13 +129,13 @@ export class InputSystem {
     }
   }
 
-  pokeStep(src, worldPoint, items) {
+  pokeStep(src, worldPoint, items, radius = 0) {
     const probes = items.map(item => ({ item, point: item.worldToLocal(worldPoint.clone()) }));
-    // The same finger reaches every nearby object, but overlapping Button
-    // hit floors must not dispatch multiple actions. Keep a held press on
-    // its original button until it releases or cancels.
-    let target = probes.find(({ item }) => item.pokeDistance && item.press.pressed
-      && item.pressKind === 'poke' && item.pressOwner === src.id)?.item;
+    // One fingertip has one proximity target, including hover. Captured
+    // presses/grabs keep that target until release or tracking loss.
+    let target = probes.find(({ item }) => item.pokeDistance &&
+      ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id)
+        || item.grab?.id === src.id))?.item;
     if (!target) {
       let nearest = Infinity;
       for (const { item, point } of probes) {
@@ -141,10 +143,11 @@ export class InputSystem {
         if (distance < nearest) { nearest = distance; target = item; }
       }
     }
-    // Every object keeps proximity hover; only the selected Button can
-    // press. Other interactables retain their own input arbitration.
-    for (const { item, point } of probes) item.feed({ kind: 'poke', id: src.id, point, pinch: src.selecting,
-      canPress: !item.pokeDistance || item === target });
+    // Special handles (the Dock shelf) retain their own arbitration.
+    // Radius is in world metres; consumers convert it through their scale.
+    for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
+      item.feed({ kind: 'poke', id: src.id, point, radius, pinch: src.selecting });
+    }
   }
 
   rayStep(ptr, worldRay, pressed, wheel, items) {
