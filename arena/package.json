@@ -7,7 +7,8 @@
     "judge": "node judge-human.mjs",
     "judge:ai": "node judge-ai.mjs",
     "score": "node score.mjs",
-    "promote": "node promote.mjs"
+    "promote": "node promote.mjs",
+    "test": "node --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

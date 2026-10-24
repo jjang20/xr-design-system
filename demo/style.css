@@ -1,0 +1,18 @@
+:root { color-scheme: dark; --glass: rgba(30, 32, 37, 0.62); --text: #fff; --muted: rgba(255,255,255,0.68); --accent: #2f7cf6; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #1a1a1c; color: var(--text); font: 13px/1.45 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+canvas { display: block; touch-action: none; }
+#hud { position: fixed; left: 16px; bottom: 16px; width: min(300px, calc(100vw - 32px)); padding: 10px 12px; display: grid; gap: 8px;
+  background: var(--glass); backdrop-filter: blur(24px) saturate(1.4); -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 18px; }
+summary { cursor: pointer; color: var(--muted); }
+summary b { color: var(--text); }
+details p { margin: 8px 0; color: var(--muted); }
+.row { display: grid; gap: 6px; color: var(--muted); }
+#modes { display: flex; gap: 4px; }
+#modes button, #xr { font: inherit; color: var(--text); background: rgba(255,255,255,0.1); border: 0; border-radius: 999px; padding: 5px 10px; cursor: pointer; }
+#modes button[aria-pressed="true"] { background: var(--text); color: #111; }
+#xr:disabled { cursor: default; color: var(--muted); background: rgba(255,255,255,0.06); }
+#log { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); margin: 0; padding: 6px 14px; border-radius: 999px;
+  background: var(--glass); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); font-weight: 500; }
+#log:empty { display: none; }

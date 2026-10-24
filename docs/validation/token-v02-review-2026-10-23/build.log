@@ -1,0 +1,105 @@
+
+> contour-xr@0.2.0 build
+> npm run check && vite build
+
+
+> contour-xr@0.2.0 check
+> node scripts/check-tokens.mjs && node scripts/build-tokens.mjs --check
+
+  D  thickness.100                            0.004m
+  D  thickness.200                            0.008m
+  D  thickness.400                            0.016m
+  D  size.1600                                64vpt
+  D  size.2000                                80vpt
+  M  size.interactive.minimum                 64vpt  <- {size.1600}
+  M  size.interactive.default                 80vpt  <- {size.2000}
+  D  spacing.600                              24vpt
+  M  spacing.gap.minimum                      24vpt  <- {spacing.600}
+  D  duration.120                             120ms
+  D  duration.140                             140ms
+  D  duration.220                             220ms
+  D  duration.240                             240ms
+  D  duration.030                             30ms
+  D  duration.080                             80ms
+  D  easing.easeOut                           [0,0,0.58,1]
+  D  easing.easeInOut                         [0.42,0,0.58,1]
+  D  distance.100                             0.1m
+  D  distance.140                             0.14m
+  D  distance.350                             0.35m
+  D  distance.400                             0.4m
+  D  distance.003                             0.003m
+  G  material.thickness.thin                  0.004m  <- {thickness.100}
+  G  material.thickness.regular               0.008m  <- {thickness.200}
+  G  material.thickness.thick                 0.016m  <- {thickness.400}
+  T  material.firmness.soft.pressDepth        0.6
+  T  material.firmness.firm.pressDepth        0.4
+  T  material.firmness.rigid.pressDepth       0.15
+  G  material.opacity.default                 0.92
+  G  material.outline.width                   1vpt
+  G  material.glow.width                      2vpt
+  G  motion.enter.duration                    120ms  <- {duration.120}
+  G  motion.enter.easing                      [0,0,0.58,1]  <- {easing.easeOut}
+  T  motion.expand.duration                   240ms  <- {duration.240}
+  T  motion.expand.easing                     [0.42,0,0.58,1]  <- {easing.easeInOut}
+  T  motion.recovery.soft.duration            220ms  <- {duration.220}
+  T  motion.recovery.firm.duration            140ms  <- {duration.140}
+  T  motion.recovery.rigid.duration           80ms  <- {duration.080}
+  N  motion.press.behavior                    "followInput"
+  M  color.contrast.ratio.minimum             3
+  T  color.scrim.opacity.minimum              0
+  T  color.scrim.opacity.maximum              0.35
+  G  shadow.contact.behavior                  "proportionalToPush"
+~ G  shadow.contact.scaleGain                 0.9
+~ G  shadow.contact.opacity.minimum           0.15
+~ G  shadow.contact.opacity.maximum           0.6
+  G  sound.detent.gain                        -18
+~ G  sound.detent.duration                    30ms  <- {duration.030}
+  G  input.hover.distance.enter               0.1m  <- {distance.100}
+  G  input.hover.distance.exit                0.14m  <- {distance.140}
+  N  input.poke.pressTrigger                  "surfaceContact"
+  T  input.poke.distance.release              0.003m  <- {distance.003}
+  G  input.direct.distance.enter              0.35m  <- {distance.350}
+  G  input.direct.distance.exit               0.4m  <- {distance.400}
+~ G  input.touch.size.minimum                 0.022m
+~ G  zone.room.growth.start                   1.75m
+~ G  zone.room.growth.rate                    0.5
+  D  anchor.mode                              "bodyLock"
+  T  anchor.follow.delay                      350ms
+  G  anchor.follow.damping                    "critical"
+~ G  anchor.follow.frequency                  6
+  G  anchor.eccentricity.vertical             -25deg
+  T  dock.magnify.radius                      133.33333333333334vpt
+  T  dock.magnify.scale.max                   1.2
+  G  dock.magnify.falloff                     "cosine"
+  G  menu.extent.vertical.max                 35deg
+~ G  zslider.travel                           0.07m
+  T  feedback.detent.interval                 0.1
+~ G  packaging.depth.max                      3
+~ G  packaging.parent.mode                    "compress"
+~ G  packaging.parent.recede.z                0.05m
+~ G  packaging.parent.recede.y                0.035m
+~ G  packaging.parent.recede.scale            0.08
+~ G  packaging.parent.recede.opacity.start    0.6
+~ G  packaging.parent.recede.opacity.step     0.14
+~ G  packaging.parent.recede.opacity.min      0.3
+
+warning: press travel is shorter than input.poke.distance.release (3mm) for: soft x thin (2.4mm), firm x thin (1.6mm), rigid x thin (0.6mm), rigid x regular (1.2mm), rigid x thick (2.4mm)
+
+76 tokens (19 aliases, 17 provisional, marked ~)
+dist/ is up to date (76 tokens).
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 84 modules transformed.
+rendering chunks...
+computing gzip size...
+../site/bench.html                                     0.46 kB │ gzip:   0.32 kB
+../site/index.html                                     1.01 kB │ gzip:   0.60 kB
+../site/assets/inter-latin-400-normal-CyCys3Eg.woff   30.70 kB
+../site/assets/inter-latin-600-normal-CiBQ2DWP.woff   31.26 kB
+../site/assets/inter-latin-500-normal-BL9OpVg8.woff   31.28 kB
+../site/assets/inter-latin-700-normal-BLAVimhd.woff   31.32 kB
+../site/assets/main-BQV4Wa_G.css                       1.31 kB │ gzip:   0.64 kB
+../site/assets/main-CapIufGp.js                        4.89 kB │ gzip:   2.36 kB
+../site/assets/bench-CUyWNmgV.js                      11.22 kB │ gzip:   4.79 kB
+../site/assets/catalog-data-C7HCOihv.js              885.07 kB │ gzip: 251.54 kB
+✓ built in 1.21s

@@ -1,0 +1,23 @@
+{
+  "id": "catalog-parent-dim",
+  "question": "How much should a window dim when a child opens in front of it, so the window in front leads while the way back stays readable?",
+  "criteria": [
+    "The front window is clearly the one you are working in; the windows behind it don't pull your eye.",
+    "The titles behind are still easy to read, so you can see where you came from and how to go back.",
+    "The stack reads as one set of glass layers in depth, not as separate cards pasted on top of each other.",
+    "Nothing looks dirty or muddy: a dimmed window still looks like the same glass, just further back."
+  ],
+  "fixtures": {
+    "scene": "catalog-stack",
+    "distanceM": 0.6,
+    "ppd": 25,
+    "crop": [0.3, 0.12, 0.72, 0.72],
+    "note": "The real Catalog from src/ through demo/bench.html, three levels deep, from the front and from 35 degrees to the side. distanceM 0.6 is the locked bubble reference distance. Values here are scene setup, never tokens."
+  },
+  "variants": {
+    "dim-light": { "packaging.parent.recede.opacity.start": 0.75 },
+    "dim-current": {},
+    "dim-strong": { "packaging.parent.recede.opacity.start": 0.45 }
+  },
+  "baseline": "dim-current"
+}
