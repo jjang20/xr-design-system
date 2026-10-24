@@ -35,7 +35,7 @@ function openHand(r) {
     r.joint(`${finger}-finger-phalanx-proximal`, x, 0.03, 0, 0.01);
     r.joint(`${finger}-finger-tip`, x, 0.1, 0, 0.008);
   }
-  // Palm centre is between the wrist and middle metacarpal, not a fingertip.
+  // Palm centre is between the wrist and middle proximal joint, not a fingertip.
   return z => { r.src.hand.position.z = z; r.step(); };
 }
 
@@ -162,6 +162,22 @@ test('Quest follow-up: a palm overlapping a row suppresses that finger and other
   move(0.005);
   assert.deepEqual(events, []);
   move(-0.04); assert.equal(p.active, 0);
+});
+
+test('Quest follow-up: pushing the root Catalog cannot become a row selection', () => {
+  const p = catalog(); p.back(0);
+  for (let i = 0; i < 150; i++) p.update(dt);
+  const r = rig(p), move = openHand(r), root = p.levels[0], row = root.rows[0], events = [];
+  r.src.hand.rotation.z = Math.PI / 2;
+  r.src.hand.position.x = 0.045;
+  r.src.hand.position.y = row.position.y + 0.025;
+  for (const type of ['press', 'select']) row.addEventListener(type, () => events.push(type));
+  for (const z of [0.08, 0.025, 0.005, -0.04, 0.08]) move(z);
+  assert.equal(p.active, 0);
+  assert.equal(p.levels[0], root);
+  assert.equal(p.palmPush, null);
+  assert.deepEqual(events, []);
+  assert.ok(Math.abs(root.cur.z) < 1e-9);
 });
 
 test('Quest follow-up: second palm cannot take ownership or close after first loses tracking', () => {

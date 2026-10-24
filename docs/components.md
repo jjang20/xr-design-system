@@ -220,7 +220,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 | Type ramp | title 21 / headline 12.4 / body 12.4 / subheadline 11 / footnote 9.5 dmm (Apple's kit × 0.73) | text needs sizes, weights and tracking | `type.*` |
 | Text emphasis | white at 100 / 90 / 50 % | contrast on glass | `color.text.*` |
 | Dock follow threshold | 20° | without it, every small head move restarts the delay | `anchor.follow.threshold` |
-| Dock distance | 0.55 m | body-lock needs a distance | `anchor.distance` |
+| Dock distance | 0.40 m | Quest reach calibration, provisional | `anchor.distance` |
 | Glass (blur, refraction, Fresnel, grain, veil), bubble (`look.emboss`: height, dent, glow), contact shadows | see `look` | appearance of windows and rows | `look.*`, `feedback.press.*` |
 | Dock plate: shape (edge 5, crown 3, under 3 mm at 0.6 m), handle 44 dmm, app size 1× to 1.5×, fit spring, rubber band 0.55, release spring, projection 0.99/ms | `look.dockPlate` | the stretchable plate | `dock.plate.*`, `dock.size.minimum`, `dock.size.maximum`, `motion.release.*` |
 | Colours | dark graphite surfaces, blue accent | there are no colour tokens yet | `color.*` (MR contrast work) |
@@ -230,7 +230,7 @@ These live in [`src/core/defaults.js`](../src/core/defaults.js), one file, so th
 - **The adaptive scrim works only where the page can see the room** (desktop, VR, arena). In mixed reality it would need the camera image, which WebXR doesn't give by default; there the glass uses the fixed `material.opacity.default`.
 - **Glass blurs the backdrop, not other 3D objects.** An object between the window and the room (a placed sofa) won't show through the glass. Fine for windows over a room; a real blur pass would be needed for objects.
 - **The backdrop photo is 1k**, so the room looks softly out of focus. Higher-resolution interiors weren't reachable from the build environment.
-- **Quest verification is partial.** On 2026-10-24 the user confirmed MR entry and reported no major controller issue, but found multiple fingertip hovers, late surface contact, reversed slider values and a black glow rectangle. The fixes have automated regressions; their comfort and behavior still need a Quest recheck. Follow and hover values tagged G remain provisional.
+- **Quest verification is partial.** On 2026-10-24 the user confirmed MR entry, no major controller issue and the multi-hover fix. Early contact, nearer Dock and whole-palm dismissal need a fresh Quest recheck; slider direction and glow fixes have automated evidence but no explicit headset acceptance yet. Follow and hover values tagged G remain provisional.
 - **Audio** starts after the first click or tap, because browsers block sound until the user interacts.
 - **The Dock still follows the head under reduced motion.** It follows after `anchor.follow.delay` with a critically damped spring; reduced motion doesn't change that yet.
 - **No keyboard or assistive technology support** (see States and input).

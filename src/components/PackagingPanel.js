@@ -93,7 +93,8 @@ export class PackagingPanel extends THREE.Group {
   }
 
   palmDistance(probe) {
-    if (this.active <= 0) return Infinity; // Catalog itself stays open
+    // The root consumes an overlapping palm too, so its fingertip cannot
+    // accidentally select a row. updatePalm keeps the root nondismissable.
     const s = this.palmSample(probe);
     return s?.inside && s.facing ? Math.max(0, s.gap) : Infinity;
   }
