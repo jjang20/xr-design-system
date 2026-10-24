@@ -350,7 +350,12 @@ export class Button extends Interactable {
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
-    const hoverProbes = probes.filter(p => p.allowHover !== false || p.id === owner || distance(p) === 0);
+    const hoverProbes = probes.filter(p => p.allowHover !== false || p.id === owner || (
+      // faceDistance is an approach metric: it clamps everything behind
+      // the front face to zero. A contact-only tip must still overlap the
+      // sheet's finite depth; a detached tip behind it is not touching.
+      distance(p) === 0 && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
+    ));
     const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
 
     // Hover with hysteresis (pokes) or direct hit (rays).

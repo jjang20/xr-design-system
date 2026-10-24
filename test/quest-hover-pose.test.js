@@ -78,3 +78,16 @@ test('R8: unknown finger pose retains proximity and loss cancels a direct contac
  assert.equal(r.rows[1].press.pressed,true);r.src.hand.joints['middle-finger-tip'].visible=false;r.step();
  assert.equal(r.rows[1].press.pressed,false);assert.equal(r.events.filter(e=>e.type==='select').length,0);
 });
+
+test('R8: a curled fingertip separated behind the sheet cannot use the contact hover exception',()=>{
+ const r=rig();r.put('index-finger-tip',r.at(0,.02));
+ const tip=r.at(1,-.05);r.put('middle-finger-tip',tip);
+ r.put('wrist',tip.clone().add(new THREE.Vector3(0,-.06,.04)));
+ r.put('middle-finger-phalanx-proximal',tip.clone().add(new THREE.Vector3(0,.025,0)));
+ for(let n=0;n<60;n++)r.step();
+ assert.equal(r.input.fingerProximity(r.src,'middle-finger-tip'),false);
+ const row=r.rows[1],local=row.worldToLocal(tip.clone()),scale=row.getWorldScale(new THREE.Vector3()).z;
+ assert.ok(local.z+.008/scale < -row.t);
+ assert.equal(row.hovered,false);assert.equal(r.snap('rear separated').shader.count,1);
+ assert.equal(r.events.length,0);
+});
