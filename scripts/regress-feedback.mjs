@@ -140,14 +140,17 @@ try {
     const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=front.cur.y-front.size.H*front.cur.sy/2;
     const project=(x,y)=>p.localToWorld(new r.THREE.Vector3(x,y,rear.cur.z)).project(c.camera);
     const lo=project(-rear.size.W*rear.cur.sx/2,bottom+.003),hi=project(rear.size.W*rear.cur.sx/2,frontBottom-.006);
-    const regionMax=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);let max=0;for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;max=Math.max(max,data[i],data[i+1],data[i+2]);}return max;};
-    const visibleMax=regionMax(),save=rear.panel.skin.uniforms.uOpacity.value;
-    rear.panel.skin.uniforms.uOpacity.value=0;const hiddenMax=regionMax();rear.panel.skin.uniforms.uOpacity.value=save;
-    return {visibleMax,hiddenMax,bodyExtension:(frontBottom-bottom)*p.scale.y,
+    // Compare the same pixels, not independent maxima: faint rear text
+    // now remains visible and can be the maximum in both images.
+    const regionPixels=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);const pixels=[];for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;pixels.push(data[i],data[i+1],data[i+2]);}return pixels;};
+    const compare=(on,off)=>{let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=3){const d=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(d>=2)changed++;maxDelta=Math.max(maxDelta,d);}return {changed,maxDelta};};
+    const visible=regionPixels(),save=rear.panel.skin.uniforms.uOpacity.value;
+    rear.panel.skin.uniforms.uOpacity.value=0;const hidden=regionPixels();rear.panel.skin.uniforms.uOpacity.value=save;
+    return {...compare(visible,hidden),bodyExtension:(frontBottom-bottom)*p.scale.y,
       controlsHidden:front.corners.every(h=>!h.affordance.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
   });
   const short=result.traces.shortChild;
-  check('short child preserves the exposed rear body in actual MR pixels',short.bodyExtension>.05 && short.visibleMax>=short.hiddenMax+3);
+  check('short child preserves the exposed rear body in actual MR pixels',short.bodyExtension>.05 && short.changed>20 && short.maxDelta>=3);
   check('window controls are hidden until hover and title stays readable',short.controlsHidden&&short.titles[0]>.8);
   await capture(shortPage,'08-short-child-mr');
   result.traces.shortAngle=await shortPage.evaluate(()=>{
@@ -186,13 +189,16 @@ try {
     const bottom=rear.cur.y-rear.size.H*rear.cur.sy/2,frontBottom=front.cur.y-front.size.H*front.cur.sy/2;
     const project=(x,y)=>p.localToWorld(new r.THREE.Vector3(x,y,rear.cur.z)).project(c.camera);
     const lo=project(-rear.size.W*rear.cur.sx/2,bottom+.003),hi=project(rear.size.W*rear.cur.sx/2,frontBottom-.006);
-    const regionMax=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);let max=0;for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;max=Math.max(max,data[i],data[i+1],data[i+2]);}return max;};
-    const visibleMax=regionMax(),save=rear.panel.skin.uniforms.uOpacity.value;rear.panel.skin.uniforms.uOpacity.value=0;const rootHiddenMax=regionMax();rear.panel.skin.uniforms.uOpacity.value=save;
-    return {visibleMax,rootHiddenMax,bodyExtension:(frontBottom-bottom)*p.scale.y,
+    // Compare the same pixels, not independent maxima: faint rear text
+    // now remains visible and can be the maximum in both images.
+    const regionPixels=()=>{c.renderer.render(c.scene,c.camera);const data=new Uint8Array(w*h*4);gl.readPixels(0,0,w,h,gl.RGBA,gl.UNSIGNED_BYTE,data);const pixels=[];for(let y=Math.ceil((lo.y+1)*h/2);y<Math.floor((hi.y+1)*h/2);y++)for(let x=Math.ceil((lo.x+1)*w/2);x<Math.floor((hi.x+1)*w/2);x++){const i=(y*w+x)*4;pixels.push(data[i],data[i+1],data[i+2]);}return pixels;};
+    const compare=(on,off)=>{let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=3){const d=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(d>=2)changed++;maxDelta=Math.max(maxDelta,d);}return {changed,maxDelta};};
+    const visible=regionPixels(),save=rear.panel.skin.uniforms.uOpacity.value;rear.panel.skin.uniforms.uOpacity.value=0;const hidden=regionPixels();rear.panel.skin.uniforms.uOpacity.value=save;
+    return {...compare(visible,hidden),bodyExtension:(frontBottom-bottom)*p.scale.y,
       controlsHidden:front.corners.every(h=>!h.affordance.visible),titles:p.levels.map(l=>l.title.fillOpacity)};
   });
   const deep=result.traces.deepChild;
-  check('three-layer variable heights preserve the complete ancestor sheet',deep.visibleMax>=3 && deep.visibleMax>=deep.rootHiddenMax+2);
+  check('three-layer variable heights preserve the complete ancestor sheet',deep.bodyExtension>.02 && deep.changed>20 && deep.maxDelta>=2);
 
   await capture(deepPage,'10-deep-child-mr');await deepPage.close();
 
