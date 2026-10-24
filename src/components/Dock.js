@@ -112,6 +112,7 @@ export class Dock extends THREE.Group {
     this.size = 1;
     this.grip = { hover: { x: 0, v: 0 }, side: 1, at: new THREE.Vector3(), held: null, history: [] };
     this.plateDent = { x: 0, v: 0 };
+    this.plateContactDent = { x: 0, v: 0 };
     this.plateDentAt = new THREE.Vector3();
     this.gripBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
     this.thick = (P.edge + P.crown + P.under) / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
@@ -365,7 +366,7 @@ export class Dock extends THREE.Group {
     this.neck = (this.plateLength(c, z) / this.length) ** P.neck;
     const swell = P.swell * Math.max(0, this.grip.hover.x);
     const scale = Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y);
-    const depth = Math.max(this.shelf.press.depth, this.plateDent.x);
+    const depth = Math.max(this.plateContactDent.x, this.plateDent.x);
     const dent = depth > 0 ? { point: this.plateDentAt, depth: depth / scale, radius: DEFAULTS.handInput.plateDentRadius / scale } : null;
     this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0], dent });
   }
@@ -439,6 +440,14 @@ export class Dock extends THREE.Group {
     if (event === 'press') {
       this.plateFront = sample.front; this.shelf.pressOwner = probe.id; this.shelf.pressKind = probe.kind;
     }
+    // The early input offset supplies feedback before contact, not full
+    // visual compression. Actual pressure must still have travel left.
+    const physicalDepth = press.pressed && probe ? probe.kind === 'poke'
+      ? Math.min(press.maxDepth, .0003 + Math.max(0, penetration - (probe.pressOffset ?? 0)))
+      : press.maxDepth : 0;
+    if (physicalDepth >= this.plateContactDent.x) { this.plateContactDent.x = physicalDepth; this.plateContactDent.v = 0; }
+    else springTo(this.plateContactDent, physicalDepth, DEFAULTS.look.emboss.dent.response,
+      prefersReducedMotion() ? 1 : DEFAULTS.look.emboss.dent.damping, dt);
     if (probe && (press.pressed || grip.held)) grip.at.copy(probe.point);
     // Holding: the end follows the hand along the arc.
     if (grip.held) {
@@ -703,7 +712,8 @@ const rubberband = (over, dimension, k) => (over * dimension * k) / (dimension +
 // and of apps that are all hit by a ray (distance 0) the one whose pinch
 // began on it.
 export function nearestApp(icons, near) {
-  const held = icons.findIndex(icon => icon.press.pressed);
+  const held = icons.findIndex(icon => icon.press.pressed && (icon.pressKind !== 'poke'
+    || icon.best && icon.retainsPokeCapture(icon.best.point, icon.best.radius)));
   if (held >= 0) return held;
   let best = 0;
   for (let i = 1; i < near.length; i++) {

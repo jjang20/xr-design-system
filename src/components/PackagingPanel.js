@@ -205,6 +205,11 @@ export class PackagingPanel extends THREE.Group {
     this.palmDiagnostic = { id: push.id, state: 'pushing', depth, alignment: sample.alignment };
     l.settled = false;
     if (depth >= P.palmCloseTravel) {
+      // A short Push may acquire and commit in one update. Keep its visual
+      // acknowledgement on the departing layer after the input owner clears.
+      // This envelope never delays navigation, fading or rearming.
+      l.palmGlow = 1;
+      l.palmGlowHold = DEFAULTS.look.palmGlow.commitHold;
       // Keep the pushed pose/velocity, then continue away while fading.
       // Reduced motion keeps the final hand-driven pose and only fades.
       l.pushExit = { ...l.cur, z: l.cur.z - P.palmExitTravel / push.scaleZ };
@@ -435,7 +440,11 @@ export class PackagingPanel extends THREE.Group {
       l.panel.update(dt);
       [...l.moves, ...l.corners].forEach(h => h.update(dt));
       const contact = this.palmPush?.level === l ? 0.4 + 0.6 * Math.min(1, this.palmPush.depth / DEFAULTS.handInput.palmCloseTravel) : 0;
-      l.palmGlow = contact || (l.palmGlow ?? 0) * Math.exp(-dt / 0.08);
+      if (contact) { l.palmGlow = contact; l.palmGlowHold = 0; }
+      else if (l.palmGlowHold > 0) {
+        l.palmGlow = 1;
+        l.palmGlowHold = Math.max(0, l.palmGlowHold - dt);
+      } else l.palmGlow = (l.palmGlow ?? 0) * Math.exp(-dt / DEFAULTS.look.palmGlow.recovery);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
       l.rows.forEach(r => r.update(dt));
       const push = this.palmPush;

@@ -83,7 +83,7 @@ function plateDentBySide(d) {
 test('Direct plate pressure deforms the skin on its first frame',()=>{
  const d=new Dock(T,{apps}),[x,z]=d.arc(d.length/2-d.pad/2,0);
  const feed=y=>{d.shelf.feed({kind:'poke',id:'finger',point:new THREE.Vector3(x,y,z),radius:.008,pressOffset:.01});d.grabPlate(dt);d.layout();};
- feed(.06);feed(.008);
+ feed(.06);feed(.005); // fingertip radius8mm: actual3mm pressure, not the early offset
  assert.ok(plateDentBySide(d).right>.0025,'followInput must not wait for the held feedback spring');
 });
 

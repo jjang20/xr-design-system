@@ -81,7 +81,8 @@ export class BubbleHandle extends Interactable {
         THREE.MathUtils.clamp(probe.point.y, -this.h / 2, this.h / 2) / this.r, this.t / this.r);
       else this.spot.copy(probe.point).normalize();
     }
-    const depth = held ? .0015 : this.press.pressed ? Math.min(.002, .0003 + Math.max(0, -(separation ?? -.002))) : 0;
+    const physicalDepth = this.press.pressed ? Math.min(.002, .0003 + Math.max(0, -(separation ?? -.002))) : 0;
+    const depth = Math.max(held ? .0015 : 0, physicalDepth);
     springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
     const u = this.skin;
     u.uOpacity.value = 1;

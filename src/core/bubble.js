@@ -75,6 +75,7 @@ const VERT = /* glsl */`
 
 const FRAG = /* glsl */`
   uniform float uOpacity, uF0, uReflBlur, uEnvIntensity, uHasEnv, uKey, uKeySharp, uFar, uRimLight, uRimPower, uReflect, uReflColour;
+  uniform float uBodyOpacity;
   uniform float uGlow, uGlowCore, uCoreWidth, uRing, uDentShadow, uDentLight, uDentSlope, uDentWidth, uLipAt, uLipWidth, uDentGlint;
   uniform vec4 uDent;
   uniform vec3 uKeyDir, uGlowColor, uRimColor;
@@ -120,7 +121,12 @@ const FRAG = /* glsl */`
     vec3 H = normalize(uKeyDir - V);
     float spec = pow(max(dot(N, H), 0.0), uKeySharp);
     col += vec3(1.0) * spec * uKey;
-    float alpha = R * uReflect + spec * uKey;
+    float alpha = clamp(R * uReflect + spec * uKey, 0.0, 1.0);
+    // A visible translucent skin even without an environment reflection.
+    // Blend its neutral body in premultiplied space; never tint the room.
+    float body = uBodyOpacity * (1.0 - alpha);
+    col += uRimColor * body * 0.18;
+    alpha += body;
     // The dent. A clear skin shows a dent the way cling film over a bowl
     // does: by its reflections. Where the skin bends in, round the
     // fingertip, it catches the light as a thin bright lip, brightest on the
@@ -174,6 +180,7 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
   const uniforms = {
     ...backdropUniforms(),
     uOpacity: { value: 0 },
+    uBodyOpacity: { value: B.bodyOpacity },
     uF0: { value: B.f0 },
     uReflBlur: { value: B.reflBlur },
     uKey: { value: B.key },

@@ -113,6 +113,15 @@ export class DockIcon extends Interactable {
 
   pokeDistance(p) { return Math.max(0, p.distanceTo(this.centre) - this.rb) * this.inputScale; }
 
+  // Early proximity can show a press, but only actual contact locks the
+  // finger to this app. A neighboring skin may be the intended target.
+  pokeContact(p, fingertipRadius = 0) {
+    const centre = this.localToWorld(this.centre.clone());
+    const radius = this.rb * this.inputScale + fingertipRadius;
+    return { centre, radius, separation: p.distanceTo(this.centre) * this.inputScale - radius };
+  }
+  retainsPokeCapture(p, radius = 0) { return this.press.contacted || this.pokeContact(p, radius).separation <= 0; }
+
   // A ray held on the bubble while pressed meets its sphere.
   rayPoint(localRay, out) {
     return localRay.intersectSphere(new THREE.Sphere(this.centre, this.rb), out);
@@ -146,12 +155,19 @@ export class DockIcon extends Interactable {
       inside = r < (best.kind === 'poke' ? this.touchRadius : this.rb) + this.hoverBand.exit / scale;
       if (best.kind === 'poke') {
         separation = r - this.rb - (best.radius ?? 0) / scale;
+        // Routing may change during early proximity. A one-frame physical
+        // crossing observed by InputSystem can arm this newly chosen skin;
+        // first appearance behind it, gaps and jumps cannot.
+        if (!this.press.pressed && best.surfaceCrossing && separation <= 0 && best.point.z > this.centre.z) {
+          this.press.rearmAtSurface = true;
+          this.press.lastSeparation = best.surfaceCrossing.previousGap / scale;
+        }
         if (this.press.pressed && this.pressDirection) {
-          const delta = best.point.clone().sub(this.centre), axial = delta.dot(this.pressDirection);
+          const delta = best.point.clone().sub(this.centre), axial = delta.z;
           // Keep the contacting fingertip sphere, not only its centre,
           // inside the front silhouette while touching. Once separated,
           // restore the item boundary so a sideways exit cannot select.
-          // Crossing behind the original contact hemisphere cancels too.
+          // The actual front hemisphere stays stable across entry angles.
           const contactRadius = this.touchRadius + (separation <= 0 ? (best.radius ?? 0) / scale : 0);
           inside &&= axial > 0 && delta.lengthSq() - axial * axial <= contactRadius ** 2;
         }

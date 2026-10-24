@@ -79,6 +79,7 @@ export class InputSystem {
     this.handPoints = [];
     for (const src of this.xr) {
       src.state = {}; src.resetBlocked = src.selecting;
+      src.pokeHistory = null;
       src.near.update(Infinity); src.line.visible = false;
     }
     this.mouse.state = {}; this.mouse.resetBlocked = this.mouse.pressed;
@@ -159,6 +160,7 @@ export class InputSystem {
   }
 
   update() {
+    this.frame = (this.frame ?? 0) + 1;
     const { items, components, palms } = this.collect();
     this.handPoints = [];
     const presenting = this.renderer.xr.isPresenting;
@@ -166,15 +168,15 @@ export class InputSystem {
     if (presenting) {
       for (const src of this.xr) {
         src.line.visible = false;
-        if (!src.connected) continue;
+        if (!src.connected) { src.pokeHistory = null; continue; }
         if (src.resetBlocked) {
-          if (src.selecting) continue;
+          if (src.selecting) { src.pokeHistory = null; continue; }
           src.resetBlocked = false;
         }
         // An existing manipulation owns its source through the release
         // frame too; an opening hand must not switch it to another panel.
         const manipulating = items.some(item => item.grab?.id === src.id);
-        if (!manipulating && this.palmStep(src, palms)) { src.state = {}; continue; }
+        if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; continue; }
         const tip = this.tipOf(src);
         let dist = Infinity;
         if (tip) for (const c of components) dist = Math.min(dist, _box.setFromObject(c).distanceToPoint(tip));
@@ -186,6 +188,7 @@ export class InputSystem {
           this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0);
           src.state = {};
         } else {
+          src.pokeHistory = null;
           src.line.visible = true;
           const origin = new THREE.Vector3().setFromMatrixPosition(src.ray.matrixWorld);
           const dir = new THREE.Vector3(0, 0, -1).transformDirection(src.ray.matrixWorld);
@@ -209,10 +212,17 @@ export class InputSystem {
 
   pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0) {
     const probes = items.map(item => ({ item, point: item.worldToLocal(worldPoint.clone()) }));
+    const previous = src.pokeHistory;
+    const continuous = previous && previous.frame === this.frame - 1
+      && previous.point.distanceTo(worldPoint) <= DEFAULTS.handInput.iconApproachMaxStep;
+    const samples = new Map(probes.filter(({ item }) => item.pokeContact)
+      .map(({ item, point }) => [item, item.pokeContact(point, radius)]));
+    src.pokeHistory = { frame: this.frame, point: worldPoint.clone(), samples };
     // One fingertip has one proximity target, including hover. Captured
     // presses/grabs keep that target until release or tracking loss.
-    let target = probes.find(({ item }) => item.pokeDistance &&
-      ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id)
+    let target = probes.find(({ item, point }) => item.pokeDistance &&
+      ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id
+        && (item.retainsPokeCapture?.(point, radius) ?? true))
         || item.grab?.id === src.id))?.item;
     if (!target) {
       let nearest = Infinity;
@@ -224,7 +234,14 @@ export class InputSystem {
     // Special handles (the Dock shelf) retain their own arbitration.
     // Radius is in world metres; consumers convert it through their scale.
     for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
-      item.feed({ kind: 'poke', id: src.id, point, radius, pressOffset, pinch: src.selecting });
+      const before = continuous && previous.samples.get(item), current = samples.get(item);
+      // Cross both the previously observed skin and its current position.
+      // Growth, radius changes or a hidden/removed target cannot fabricate
+      // an approach from a stationary or newly tracked fingertip.
+      const surfaceCrossing = before?.separation > 0 && current?.separation <= 0
+        && worldPoint.distanceTo(before.centre) <= before.radius
+        ? { previousGap: before.separation } : null;
+      item.feed({ kind: 'poke', id: src.id, point, radius, pressOffset, pinch: src.selecting, surfaceCrossing });
     }
   }
 

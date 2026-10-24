@@ -68,6 +68,7 @@ export const DEFAULTS = {
   handInput: {
     pressOffset: 0.01, // start the press 10 mm before fingertip surface contact
     fingertipRadius: 0.008, // fallback when tracking supplies no usable radius
+    iconApproachMaxStep: 0.05, // R6: continuity limit for a newly routed icon's physical crossing
     palmRadius: 0.012,
     palmReach: 0.08,
     palmCloseTravel: 0.025,
@@ -143,7 +144,7 @@ export const DEFAULTS = {
       label: { reflect: 2, edgeDark: 0, saturation: 0.15, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked neutral grey so white text reads on it (visionOS vibrancy); Jihoon chose neutral grey on 2026-10-21 (judges in rounds 4 to 7 read the room-coloured one as a taupe tag); no dark rim
       tile: { rough: 0.12, roomDistort: 1, roomBlur: 0.22, roomLift: 0.5, specSharp: 0.01, rimSpec: 0, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; the room is seen bent as a real ball bends it (roomDistort 1) and blurred (roomBlur), its shade lifted halfway toward its average light (roomLift), sharp enough that the window reads upside down in it (judge round 6: "nothing visible through them"), so it reads as soft light and shade, not a dark band (judge round 5 read one as dirt), while the glyph keeps the stronger magnification (distort); specSharp: a hot point inside the soft key highlight, as on a polished marble (judge round 6); rimSpec 0: the rim light lights the globe's edge but adds no second hotspot (judge round 4: two or three highlight blobs per globe); neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
       shelf: { color: [0.98, 0.99, 1], attColor: [0.98, 0.99, 1], attDist: 0.19, rough: 0.02, coat: 1,
-        passthroughAlpha: 0.08 }, // R5 trial: transparent bubble skin, also without an HDR room
+        passthroughAlpha: 0.28 }, // R6 trial: stronger translucent shelf in passthrough
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
     // lensLift; 'emboss' inflates the window's skin into a bubble under the
@@ -154,6 +155,7 @@ export const DEFAULTS = {
     // window's distance like dmm, so a far window's bubble and dent fill the
     // same angle in the eye.
     emboss: {
+      opacity: 0.98, // R6: raised interaction skin only, not the ordinary sheet
       height: 6, // mm at the crown; 4–6 reads as a bubble (Jihoon, lookdev/ pillow)
       ramp: 4, // mm: the meniscus where the window glass rises into the bubble
       // Press (Jihoon picked 'dent' in lookdev/ press-options): a finger-sized
@@ -268,11 +270,11 @@ export const DEFAULTS = {
     // this fraction of its size, never from nothing (Emil Kowalski). lift:
     // how far the object rises toward the bubble's middle. The press dent
     // and glow are the list bubble's (emboss), its shadow and glow x these.
-    dockBubble: { contactDent: 0.08, size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
+    dockBubble: { bodyOpacity: 0.24, contactDent: 0.08, size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
     // Text shadow under text on glass: off. Text earns contrast from weight
     // and the glass tone (visionOS vibrancy), not a CSS-style halo. Set
     // { blur, offset, opacity } (x the text size) to try one again.
-    palmGlow: { width: 0.008, strength: 0.065 }, // R5 trial: local metres; soft inner band, no outline
+    palmGlow: { width: 0.016, strength: 0.12, commitHold: 0.1, recovery: 0.1 }, // R6 trial: inner light; successful exit acknowledgement is independent of input ownership
     textShadow: null,
     separator: 0.08, // hairline between rows: white opacity
   },

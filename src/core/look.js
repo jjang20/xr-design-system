@@ -360,7 +360,7 @@ const GLASS_FRAG = /* glsl */`
   ${BULGE_GLSL}
   uniform vec3 uContactExtent; // full plate half width/height and corner radius
   uniform float uContactWidth, uContactStrength;
-  uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity;
+  uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity, uBubbleOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo, uClearAlbedo;
@@ -417,7 +417,7 @@ const GLASS_FRAG = /* glsl */`
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
     vec3 col = uTint;
-    float alpha = uSolidOpacity;
+    float alpha = mix(uSolidOpacity, max(uSolidOpacity, uBubbleOpacity), bub);
     vec3 refl = vec3(0.0);
     float tm = 0.0;
     #ifdef ENVMAP_TYPE_CUBE_UV
@@ -593,7 +593,8 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uFrostScale: { value: G.frostScale },
       uScrimMax: { value: T.get('color.scrim.opacity.maximum') },
       uTint: { value: new THREE.Color(DEFAULTS.color.glassTint) },
-      uSolidOpacity: { value: T.get('material.opacity.default') },
+      uSolidOpacity: { value: kind === 'window' ? T.get('material.opacity.default') : Math.max(T.get('material.opacity.default'), L.emboss.opacity) },
+      uBubbleOpacity: { value: L.emboss.opacity },
       uDim: { value: 0 },
       uHover: { value: 0 },
       uFade: { value: kind === 'lens' ? 0 : 1 },
