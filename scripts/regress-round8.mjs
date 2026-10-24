@@ -29,7 +29,13 @@ try{
    input.xr.forEach(s=>{s.connected=false;s.grip.visible=false;});
    const src=input.xr[0];src.connected=true;src.hand.joints={};
    const put=(name,world)=>{let j=src.hand.joints[name];if(!j){j=new THREE.Group();j.jointRadius=.008;src.hand.add(j);src.hand.joints[name]=j;}j.position.copy(src.hand.worldToLocal(world.clone()));};
-   const step=()=>{c.scene.updateMatrixWorld(true);input.update();c.hands.splice(0,c.hands.length,...input.handPoints);c.tick(1);};
+   const step=()=>{
+    c.scene.updateMatrixWorld(true);input.update();c.hands.splice(0,c.hands.length,...input.handPoints);
+    // Advance actual component frames without spending a software GPU draw
+    // on every settling frame. All measured/captured frames render below.
+    const render=c.renderer.render;c.renderer.render=()=>{};
+    try{c.tick(1);}finally{c.renderer.render=render;}
+   };
    const capture=()=>c.pass('beauty');
    if(kind==='hover'){
     const rows=c.panel.levels[0].rows;
@@ -44,7 +50,6 @@ try{
     return {kind,mode,hovered:rows.map((r,i)=>r.hovered?i:null).filter(i=>i!==null),pressed:rows.filter(r=>r.press.pressed).length,bulges:u.uBulgeCount.value,poses:['index','middle','ring','pinky'].map(f=>({finger:f,proximity:input.fingerProximity(src,f+'-finger-tip')})),images:{on:capture()}};
    }
    const d=c.dock,h=d.handle,g=d.shelfShape.geometry;
-   const restP=g.attributes.position.array.slice(),restN=g.attributes.normal.array.slice();
    let point,focus;
    if(kind==='plate'){
     const [x,z]=d.arc(d.length/2-d.pad/2,0),p=new THREE.Vector3(x,0,z),front=d.plateSample(p).front;
@@ -56,22 +61,27 @@ try{
    c.camera.position.copy(focus).add(kind==='plate'?new THREE.Vector3(.035,.10,.12):new THREE.Vector3(.025,.008,.09));c.camera.lookAt(focus);c.camera.fov=32;c.camera.updateProjectionMatrix();c.camera.updateMatrixWorld(true);
    const gl=c.renderer.getContext(),w=gl.drawingBufferWidth,hh=gl.drawingBufferHeight;
    const read=()=>{c.renderer.render(c.scene,c.camera);const b=new Uint8Array(w*hh*4);gl.readPixels(0,0,w,hh,gl.RGBA,gl.UNSIGNED_BYTE,b);return b;};
-   const on=read(),images={overview,on:capture()};let restore,depth,pressed;
+   const on=read(),images={overview,on:capture()};let restore,depth,pressed,geometryControl=null;
    if(kind==='plate'){
-    const nowP=g.attributes.position.array.slice(),nowN=g.attributes.normal.array.slice();depth=0;
-    for(let i=1;i<nowP.length;i+=3)depth=Math.max(depth,restP[i]-nowP[i]);
-    g.attributes.position.array.set(restP);g.attributes.normal.array.set(restN);g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;
-    restore=()=>{g.attributes.position.array.set(nowP);g.attributes.normal.array.set(nowN);g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;};pressed=d.shelf.press.pressed;
+    const nowP=g.attributes.position.array.slice(),nowN=g.attributes.normal.array.slice(),fitKey=d.shelfShape.fitKey;
+    const [width,radius,neck,size,leftSwell,rightSwell]=fitKey.split(',').slice(0,6).map(Number);
+    d.shelfShape.fit(width,radius,{neck,size,swell:[leftSwell,rightSwell]});
+    // Hold the current size, stretch and hover swell fixed. Only the dent
+    // wells are absent, so their geometry contribution is isolated.
+    let xzDelta=0;depth=0;
+    for(let i=0;i<nowP.length;i+=3){depth=Math.max(depth,g.attributes.position.array[i+1]-nowP[i+1]);xzDelta=Math.max(xzDelta,Math.abs(g.attributes.position.array[i]-nowP[i]),Math.abs(g.attributes.position.array[i+2]-nowP[i+2]));}
+    geometryControl={width,radius,neck,size,swell:[leftSwell,rightSwell],xzDelta};
+    restore=()=>{g.attributes.position.array.set(nowP);g.attributes.normal.array.set(nowN);g.attributes.position.needsUpdate=g.attributes.normal.needsUpdate=true;g.computeBoundingBox();g.computeBoundingSphere();d.shelfShape.fitKey=fitKey;};pressed=d.shelf.press.pressed;
    }else{const v=h.skin.uDent.value.w;depth=h.dent.x*h.inputScale;h.skin.uDent.value.w=0;restore=()=>h.skin.uDent.value.w=v;pressed=h.press.pressed;}
    // No simulation step: Glow, alpha, camera and all other uniforms stay
    // fixed. The difference is actual geometry/dent, not a light-only mark.
    const off=read();images.geometryOff=capture();restore();read();
    let changed=0,maxDelta=0;for(let i=0;i<on.length;i+=4){const q=Math.max(...[0,1,2].map(k=>Math.abs(on[i+k]-off[i+k])));if(q>2)changed++;maxDelta=Math.max(maxDelta,q);}
-   return {kind,mode,pressed,depth,changed,maxDelta,images};
+   return {kind,mode,pressed,depth,changed,maxDelta,geometryControl,images};
   },{root,kind,mode});
   for(const [state,data]of Object.entries(trace.images))await writeFile(path.join(out,kind+'-'+mode+'-'+state+'.png'),Buffer.from(data.split(',')[1],'base64'));
   delete trace.images;result.traces.push(trace);
-  result.checks.push({name:kind+' '+mode,pass:kind==='hover'?trace.hovered.length===1&&trace.hovered[0]===0&&trace.bulges===1&&trace.pressed===0:trace.pressed&&trace.depth>.003&&trace.changed>100&&trace.maxDelta>10});
+  result.checks.push({name:kind+' '+mode,pass:kind==='hover'?trace.hovered.length===1&&trace.hovered[0]===0&&trace.bulges===1&&trace.pressed===0:trace.pressed&&trace.depth>.003&&trace.changed>100&&trace.maxDelta>10&&(kind!=='plate'||trace.geometryControl.xzDelta===0)});
   await page.close();
  }
  console.log(JSON.stringify(result,null,2));await writeFile(path.join(out,'round8.json'),JSON.stringify(result,null,2));
