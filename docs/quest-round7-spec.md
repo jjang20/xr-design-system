@@ -37,3 +37,11 @@ Status: implementation and review in progress. Source: R6 a68f647 and user Q32â€
 
 1. Lock actual InputSystem positive/negative multipoint and navigation cases, geometry/contact and MR/HDR rendering. Preserve first failures and distinguish test-fixture corrections from fixes. Test build/token checks and existing accepted paths.
 2. Commit coherent candidate, independent Spec/Standards/motion re-review and actual browser screens. Close P1/P2, update existing Draft PR5, serve that exact SHA over the existing HTTPS preview and verify receipt/module hashes before handoff. Physical Quest acceptance remains separate. No main merge, deployment or lookdev gate bypass.
+
+## Review fixes before safe publication
+
+- Captured parent contacts use the captured transform scale as well as its inverse, so shallow physical separation remains consistent during recession. Ray capture world points use that same frame.
+- Hand identity survives tracking loss. A hidden hand or missing index cannot become a stale controller/ray release; disappearance cancels. An explicit controller reconnect establishes a new source. Remaining tracked tips retain their independent near input.
+- Only an actual pressed/held owner is excluded from secondary contact feedback. A surviving fingertip keeps its dent/Glow after the action owner is lost, without reacquiring an action inside the skin.
+- Plate approach evidence is per source and per consecutive frame. Candidate changes cannot erase another tip's observed approach or borrow it for first-seen/returned contacts. Numerical distance ties (1e-9) use capture then stable probe ID; this is not a physical input margin.
+- Shared glass runs only through the active bulge slots (maximum 12); secondary bubble contacts remain bounded at 9. This bounds work but is not Quest GPU performance acceptance.

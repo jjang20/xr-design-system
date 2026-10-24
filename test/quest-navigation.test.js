@@ -195,3 +195,11 @@ test('Q39: retaining one rear owner does not license a new hand on that same row
   assert.equal(r.events.some(e => e.id === 'nav-beta' && e.type === 'select'), false,
     'loss of the original owner cannot leave a new rear claim that executes');
 });
+
+for(const settle of [0,18,60])test('Q39: shallow physical separation remains exact after parent recession '+settle,()=>{
+ const r=rig();r.arm([1,0]);r.tick([-.004,-.004]);
+ if(settle){r.tick([.015,-.004]);assert.deepEqual(r.opens(),['nav-alpha']);}
+ for(let i=0;i<Math.max(1,settle);i++)r.tick([settle?.015:-.004,-.0001]);
+ const before=settle?['nav-alpha']:[];assert.deepEqual(r.opens(),before);
+ r.tick([settle?.015:-.004,.0001]);assert.deepEqual(r.opens(),[...before,'nav-beta']);
+});

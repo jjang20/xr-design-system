@@ -57,7 +57,13 @@ export class InputSystem {
       const hand = renderer.xr.getHand(i);
       scene.add(ray, grip, hand);
       const src = { id: `xr${i}`, ray, grip, hand, selecting: false, connected: false, near: new Hysteresis(enter, exit), state: {} };
-      ray.addEventListener('connected', () => { src.connected = true; });
+      ray.addEventListener('connected', event => {
+        src.connected = true;
+        // A source change is explicit. Tracking loss must never reinterpret
+        // an existing hand's stale joints/grip as a controller.
+        src.handSource = event.data ? !!event.data.hand : undefined;
+        src.state = {}; src.pokeHistory = null; src.fingers?.clear();
+      });
       ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; });
       ray.addEventListener('selectstart', () => { src.selecting = true; });
       ray.addEventListener('selectend', () => { src.selecting = false; });
@@ -102,8 +108,8 @@ export class InputSystem {
   // Fingertip position, or the grip for a plain controller.
   tipOf(src) {
     const tip = src.hand.joints?.['index-finger-tip'];
-    if (tip && tip.visible) return tip.getWorldPosition(new THREE.Vector3());
-    if (src.grip.visible) return src.grip.getWorldPosition(new THREE.Vector3());
+    if (src.hand.visible && tip?.visible) return tip.getWorldPosition(new THREE.Vector3());
+    if (!src.handSource && src.grip.visible) return src.grip.getWorldPosition(new THREE.Vector3());
     return null;
   }
 
@@ -168,7 +174,14 @@ export class InputSystem {
     if (presenting) {
       for (const src of this.xr) {
         src.line.visible = false;
-        if (!src.connected) { src.pokeHistory = null; src.fingers?.clear(); continue; }
+        if (!src.connected) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
+        // Actual WebXR supplies hand identity on connected. The fallback also
+        // supports synthetic sources whose first tracked joints identify them.
+        if (src.handSource === undefined && src.hand.visible && Object.keys(src.hand.joints ?? {}).length) src.handSource = true;
+        if (src.handSource && !src.hand.visible) {
+          src.state = {}; src.pokeHistory = null; src.fingers?.clear();
+          src.near.update(Infinity); src.resetBlocked ||= src.selecting; continue;
+        }
         if (src.resetBlocked) {
           if (src.selecting) { src.pokeHistory = null; src.fingers?.clear(); continue; }
           src.resetBlocked = false;
@@ -213,6 +226,11 @@ export class InputSystem {
           src.state = {};
         } else {
           src.pokeHistory = null; src.fingers?.clear();
+          if (src.handSource && !tip) {
+            // Losing the index cannot release its poke via an unrelated ray.
+            // Other tracked tips still take the independent near path above.
+            src.state = {}; src.resetBlocked ||= src.selecting; continue;
+          }
           src.line.visible = true;
           const origin = new THREE.Vector3().setFromMatrixPosition(src.ray.matrixWorld);
           const dir = new THREE.Vector3(0, 0, -1).transformDirection(src.ray.matrixWorld);
@@ -294,7 +312,7 @@ export class InputSystem {
     let point;
     if (captured) {
       point = target.rayPoint(localRay, new THREE.Vector3()) ?? st.lastPoint ?? new THREE.Vector3();
-      worldPoint = point.clone().applyMatrix4(target.matrixWorld);
+      worldPoint = point.clone().applyMatrix4(target.inputCaptureInverse ? target.inputCaptureInverse.clone().invert() : target.matrixWorld);
     } else {
       point = worldPoint.clone().applyMatrix4(_m);
     }

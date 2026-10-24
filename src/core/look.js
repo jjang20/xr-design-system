@@ -241,6 +241,7 @@ export function glassBeadGeometry(diameter, height) {
 // Ten fingertip contacts plus two recovering rows. Repeated row bounds
 // share one raised skin, with independent contact wells and local light.
 const BULGE_GLSL = /* glsl */`
+  uniform int uBulgeCount;
   uniform vec4 uBulgeRect[12];   // centre xy, half size zw (local)
   uniform vec4 uBulgeParam[12];  // corner radius, height (signed), ramp width, front z (slot 0)
   uniform vec4 uBulgeDent[12];   // press dent: centre xy (local), radius, depth
@@ -276,16 +277,18 @@ const BULGE_GLSL = /* glsl */`
   float bulgeH(vec2 p) {
     float height=0.0, dent=0.0;
     for (int i=0; i<12; i++) {
+      if(i>=uBulgeCount) break;
       height=max(height,bulgeH1(p,uBulgeRect[i],uBulgeParam[i]));
       float d=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(d)>abs(dent)) dent=d;
     }
     return height+dent;
   }
-  bool anyBulge() { for(int i=0;i<12;i++) if(uBulgeParam[i].y != 0.0) return true; return false; }
+  bool anyBulge() { return uBulgeCount>0; }
   // How much of the bubble's glossy skin covers p (0 to 1).
   float bulgeSkin(vec2 p) {
     float s = 0.0;
     for (int i = 0; i < 12; i++) {
+      if(i>=uBulgeCount) break;
       vec4 R = uBulgeRect[i], P = uBulgeParam[i];
       if (P.y == 0.0) continue;
       s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / (0.0015 * uBulgeScale), 0.0, 1.0));
@@ -293,12 +296,13 @@ const BULGE_GLSL = /* glsl */`
     return s;
   }
   float dentHAll(vec2 p) {
-    float d=0.0; for(int i=0;i<12;i++) { float v=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(v)>abs(d)) d=v; } return d;
+    float d=0.0; for(int i=0;i<12;i++) { if(i>=uBulgeCount) break; float v=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(v)>abs(d)) d=v; } return d;
   }
   // How much of a press dent covers p (0 to 1).
   float dentMask(vec2 p) {
     float m = 0.0;
     for (int i = 0; i < 12; i++) {
+      if(i>=uBulgeCount) break;
       vec4 D = uBulgeDent[i];
       if (D.w <= 0.0) continue;
       vec2 q = p - D.xy;
@@ -312,6 +316,7 @@ const BULGE_GLSL = /* glsl */`
   vec3 bulgeGlow(vec2 p) {
     vec3 g = vec3(0.0);
     for (int i = 0; i < 12; i++) {
+      if(i>=uBulgeCount) break;
       vec4 R = uBulgeRect[i], P = uBulgeParam[i], D = uBulgeDent[i], G = uBulgeGlow[i];
       if (G.y <= 0.0 || P.y == 0.0) continue;
       vec2 q = p - D.xy;
@@ -611,6 +616,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uContactStrength: { value: L.palmGlow.strength },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
+      uBulgeCount: { value: 0 },
       uBulgeRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uBulgeParam: { value: Array.from({length:12},(_,i)=>new THREE.Vector4(0,0,0,i===0 ? (t ?? T.get('material.thickness.regular')) : 0)) },
       uBulgeDent: { value: Array.from({length:12},()=>new THREE.Vector4()) },
@@ -694,6 +700,7 @@ export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0
   m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
   const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
+  m.uniforms.uBulgeCount.value = m.uniforms.uBulgeParam.value.findLastIndex(p=>p.y!==0)+1;
   const d = dent ?? { x: 0, y: 0, radius: 1, depth: 0 };
   m.uniforms.uBulgeDent.value[i].set(d.x, d.y, d.radius, d.depth);
   m.uniforms.uBulgeGlow.value[i].set(L.emboss.glow.falloff * scale / 1000, glow, L.emboss.glow.bloomRadius * scale / 1000, L.emboss.glow.coreRadius * scale / 1000);

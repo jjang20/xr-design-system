@@ -24,7 +24,7 @@ import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
 
 const C = DEFAULTS.color;
-const inputScale = new THREE.Vector3();
+const inputScale = new THREE.Vector3(), inputMatrix = new THREE.Matrix4();
 
 export class Button extends Interactable {
   /**
@@ -292,8 +292,13 @@ export class Button extends Interactable {
 
   // Direct-touch floors and reach thresholds are physical, even while a
   // Packaging parent scales this button. Probes arrive in local space.
-  get touchW() { return Math.max(this.w, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).x)); }
-  get touchH() { return Math.max(this.h, this.T.get('input.touch.size.minimum') / Math.abs(this.getWorldScale(inputScale).y)); }
+  getInputScale(out) {
+    // Retained parent input uses its captured world frame for both
+    // coordinates and physical units while the visible parent recedes.
+    return this.inputCaptureInverse ? out.setFromMatrixScale(inputMatrix.copy(this.inputCaptureInverse).invert()) : this.getWorldScale(out);
+  }
+  get touchW() { return Math.max(this.w, this.T.get('input.touch.size.minimum') / Math.abs(this.getInputScale(inputScale).x)); }
+  get touchH() { return Math.max(this.h, this.T.get('input.touch.size.minimum') / Math.abs(this.getInputScale(inputScale).y)); }
 
   // Match the glass pillow's visible profile (core/look.js bulgeH1), not
   // the undeformed hit mesh hidden underneath it. Freeze the contact plane
@@ -316,7 +321,7 @@ export class Button extends Interactable {
   faceDistance(p, radius = 0) {
     const dx = Math.max(0, Math.abs(p.x) - this.touchW / 2);
     const dy = Math.max(0, Math.abs(p.y) - this.touchH / 2);
-    this.getWorldScale(inputScale);
+    this.getInputScale(inputScale);
     return Math.max(0, Math.hypot(dx * inputScale.x, dy * inputScale.y,
       Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z) - radius);
   }
@@ -328,13 +333,13 @@ export class Button extends Interactable {
   // Rank overlapping touch regions by distance to the visible face, in
   // world metres, including lateral approach outside the touch floor.
   pokeDistance(p) {
-    this.getWorldScale(inputScale);
+    this.getInputScale(inputScale);
     return Math.hypot(Math.max(0, Math.abs(p.x) - this.w / 2) * inputScale.x,
       Math.max(0, Math.abs(p.y) - this.h / 2) * inputScale.y, Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z);
   }
 
   update(dt) {
-    this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getWorldScale(inputScale).z);
+    this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getInputScale(inputScale).z);
     const probes = this.consumeProbes();
     // Respect explicit press gates on externally supplied probes too.
     const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
@@ -357,8 +362,8 @@ export class Button extends Interactable {
       inside = best.canPress !== false && this.inside(best.point, best.kind === 'poke');
       if (best.kind === 'poke') {
         const front = this.press.pressed ? this.pokeFront : this.surfaceZ(best.point);
-        if (this.emboss) separation = best.point.z - front - (best.radius ?? 0) / Math.abs(this.getWorldScale(inputScale).z);
-        penetration = front - best.point.z + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / Math.abs(this.getWorldScale(inputScale).z);
+        if (this.emboss) separation = best.point.z - front - (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
+        penetration = front - best.point.z + ((best.radius ?? 0) + (best.pressOffset ?? 0)) / Math.abs(this.getInputScale(inputScale).z);
       }
       // A ray has no depth: press goes all the way in, and letting go is a
       // clean release (no retreat distance to cover). Only a pinch that
@@ -395,9 +400,9 @@ export class Button extends Interactable {
     if (this.emboss) {
       this.stepBulge(dt);
       const maxDepth = DEFAULTS.look.emboss.dent.depth * this.k / 1000;
-      contactFeedback(this, this.enabled && !this.disabled ? probes : [], best?.id, dt, p => {
+      contactFeedback(this, this.enabled && !this.disabled ? probes : [], this.press.pressed ? this.pressOwner : null, dt, p => {
         if (!this.inside(p.point, true)) return null;
-        const gap = p.point.z - this.surfaceZ(p.point) - (p.radius ?? 0) / Math.abs(this.getWorldScale(inputScale).z);
+        const gap = p.point.z - this.surfaceZ(p.point) - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
         if (gap > 0 || p.point.z < -this.t) return null;
         return { x:p.point.x, y:p.point.y, z:0, radius: DEFAULTS.look.emboss.dent.width*this.k/2000/Math.sqrt(Math.LN2),
           depth: Math.min(maxDepth, .0003 + Math.max(0,-gap)), maxDepth };

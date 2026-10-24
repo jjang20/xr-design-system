@@ -214,7 +214,7 @@ export class DockIcon extends Interactable {
     springTo(this.dent, on ? physicalDepth : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     if (Math.abs(this.dent.x) < 1e-6 && Math.abs(this.dent.v) < 1e-5) this.dent.x = this.dent.v = 0;
 
-    const contacts = contactFeedback(this, on ? this.frameProbes : [], best?.id, dt, p => {
+    const contacts = contactFeedback(this, on ? this.frameProbes : [], this.press.pressed ? this.pressOwner : null, dt, p => {
       const delta = p.point.clone().sub(this.centre), separation = delta.length() - this.rb - (p.radius ?? 0) / scale;
       if (delta.z <= 0 || separation > 0 || delta.length() > this.touchRadius + (p.radius ?? 0) / scale) return null;
       const at = delta.normalize();

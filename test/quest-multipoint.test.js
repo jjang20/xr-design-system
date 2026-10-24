@@ -5,9 +5,9 @@ import * as THREE from 'three';
 import {createTokens,Dock,PackagingPanel,InputSystem} from '../src/index.js';
 const T=createTokens(JSON.parse(readFileSync(new URL('../tokens.json',import.meta.url)))),dt=1/60;
 const apps=['house','ruler','scan','image','settings','notes','clock'].map(icon=>({icon,label:icon}));
-function rig(kind='window'){
+function rig(kind='window', dockOptions={}){
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();camera.position.y=1.6;scene.add(camera);
- const obj=kind==='dock'?new Dock(T,{apps,distance:.4}):new PackagingPanel(T,{title:'Catalog',items:[{label:'Sofas',items:[{label:'Chair'},{label:'Table'}]}]});scene.add(obj);
+ const obj=kind==='dock'?new Dock(T,{apps,distance:.4,...dockOptions}):new PackagingPanel(T,{title:'Catalog',items:[{label:'Sofas',items:[{label:'Chair'},{label:'Table'}]}]});scene.add(obj);
  if(kind==='window'){obj.scale.setScalar(1.5);obj.levels[0].rows[0].dispatchEvent({type:'select'});}
  const settle=()=>{for(let n=0;n<120;n++){scene.updateMatrixWorld(true);if(kind==='dock')obj.update(dt,camera);else obj.update(dt);}};settle();
  const group=()=>new THREE.Group(),input=new InputSystem({T,scene,camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
@@ -89,11 +89,67 @@ test('R7: a hand pinch captures the window control and cancels its other fingert
  src.selecting=false;r.frame();assert.equal(r.obj.controls.held,null);assert.equal(r.events.length,0);
 });
 
-test('R7: losing an item owner cancels its action while another contact stays visible',()=>{
- const r=rig('window'),row=r.obj.levels.at(-1).rows[0];
- for(const gap of [.04,.025,.015,.005,-.003]){r.hand(0,rowPoint(r,row,-.025,gap));r.hand(1,rowPoint(r,row,.025,gap));r.frame();}
- const owner=row.pressOwner,idx=r.sources.findIndex(s=>s.src.id===owner);
- r.sources[idx].src.connected=false;r.frame();
- assert.equal(row.press.pressed,false);assert.equal(row.hovered,true);assert.equal(r.events.length,0);
- const other=1-idx;r.hand(other,rowPoint(r,row,other?.025:-.025,.015));r.frame();assert.equal(r.events.length,0);
+for(const kind of ['window','dock'])test('R7: '+kind+' owner loss cancels action but preserves remaining physical dent and Glow',()=>{
+ const r=rig(kind),c=kind==='dock'?r.obj.icons[3]:r.obj.levels.at(-1).rows[0];
+ const point=(n,gap)=>kind==='dock'?iconPoint(r,c,n?-30:30,gap):rowPoint(r,c,n?-.025:.025,gap);
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(0,point(0,gap));r.hand(1,point(1,gap));r.frame();}
+ const idx=r.sources.findIndex(s=>s.src.id===c.pressOwner),other=1-idx;
+ assert.ok(idx>=0,'an actual primary press is required');
+ r.sources[idx].src.connected=false;
+ for(let i=0;i<90;i++){r.hand(other,point(other,-.003));r.frame();}
+ assert.equal(c.press.pressed,false);assert.equal(c.hovered,true);assert.equal(r.events.length,0);
+ assert.ok(c.contactDents.some(d=>d.id===r.sources[other].src.id&&d.depth>0&&d.glow>0),'surviving fingertip must still visibly dent and glow');
+ r.hand(other,point(other,.02));r.frame();assert.equal(r.events.length,0,'surviving feedback is not an action reacquisition');
+});
+
+for(const staleGrip of [false,true])test('R7: hidden hand cancels without stale joint/grip or ray fallback, grip='+staleGrip,()=>{
+ const r=rig('window'),row=r.obj.levels.at(-1).rows[0],src=r.sources[0].src;
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(0,rowPoint(r,row,0,gap));r.frame();}
+ assert.equal(row.press.pressed,true);src.hand.visible=false;src.grip.visible=staleGrip;
+ src.grip.position.copy(r.sources[0].tip.position);
+ for(let i=0;i<3;i++)r.frame();
+ assert.equal(row.press.pressed,false);assert.equal(r.events.length,0);
+ assert.equal(src.line.visible,false,'untracked hand must not turn into a controller ray');
+ r.hand(0,rowPoint(r,row,0,-.003));r.frame();assert.equal(row.press.pressed,false);
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(0,rowPoint(r,row,0,gap));r.frame();}
+ assert.equal(row.press.pressed,true);r.hand(0,rowPoint(r,row,0,.02));r.frame();assert.equal(r.events.length,1);
+});
+
+for(const schedule of [
+ [.04,.025,.015,.005,-.003].map(g=>[g,g]),
+ [[.04,.05],[.03,.02],[.004,.005],[.003,-.003]],
+])test('R7: plate keeps per-source approach when end candidates exchange proximity '+JSON.stringify(schedule),()=>{
+ const r=rig('dock',{distance:Math.hypot(.28,.48),eccentricity:-Math.atan2(.28,.48)}),d=r.obj;
+ const tick=gaps=>{for(let n=0;n<2;n++){
+  r.scene.updateMatrixWorld(true);const [x,z]=d.arc((n?1:-1)*(d.length/2-d.pad/2),0),p=new THREE.Vector3(x,0,z);
+  p.y=d.plateSample(p).front+.008+gaps[n];r.hand(n,d.shelf.localToWorld(p));
+ }r.frame();};
+ for(const gaps of schedule)tick(gaps);
+ assert.equal(d.shelf.press.pressed,true,'continuous front approaches must acquire plate pressure');
+ assert.ok(r.delivered.some(x=>x.item===d.shelf&&x.probes.length===2));
+ const owner=d.shelf.pressOwner;
+ r.sources.forEach(h=>h.src.connected=false);r.frame();assert.equal(d.shelf.press.pressed,false);
+ tick([-.003,-.003]);assert.equal(d.shelf.press.pressed,false,'loss must discard both approach histories');
+});
+
+for(const loss of ['index-only','all-tips'])test('R7: visible hand with '+loss+' tracking loss cancels instead of ray release',()=>{
+ const r=rig('window'),row=r.obj.levels.at(-1).rows[0],src=r.sources[0].src;
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(0,rowPoint(r,row,0,gap));r.frame();}
+ assert.equal(row.press.pressed,true);
+ r.sources[0].tip.visible=false;
+ if(loss==='index-only'){
+  const tip=new THREE.Group();tip.position.set(0,2,2);tip.jointRadius=.008;src.hand.add(tip);src.hand.joints['middle-finger-tip']=tip;
+ }
+ src.ray.position.copy(rowPoint(r,row,0,.5));
+ src.ray.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),new THREE.Vector3(0,0,-1).transformDirection(row.matrixWorld));
+ r.frame();assert.equal(row.press.pressed,false);assert.equal(r.events.length,0);assert.equal(src.line.visible,false);
+});
+
+test('R7: explicit controller reconnect after hand loss retains ray click support',()=>{
+ const r=rig('window'),row=r.obj.levels.at(-1).rows[0],src=r.sources[0].src;
+ r.hand(0,rowPoint(r,row,0,.04));r.frame();src.hand.visible=false;r.frame();
+ src.ray.dispatchEvent({type:'disconnected'});src.ray.dispatchEvent({type:'connected',data:{targetRayMode:'tracked-pointer'}});
+ const at=row.localToWorld(new THREE.Vector3(0,0,row.frontZ));
+ r.ray(0,at,false);r.frame();r.ray(0,at,true);r.frame();r.ray(0,at,false);r.frame();
+ assert.equal(r.events.length,1);
 });

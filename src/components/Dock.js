@@ -443,7 +443,17 @@ export class Dock extends THREE.Group {
     const penetration = !probe ? null : probe.kind === 'poke'
       ? (front - probe.point.y) * scale + (probe.radius ?? 0) + (probe.pressOffset ?? 0)
       : probe.pressed && probe.captured ? press.maxDepth : -Infinity;
-    if (!press.pressed && this.plateProbeId !== probe?.id) press.lastPenetration = null;
+    // The nearest end can change before contact. Its own previous frame is
+    // the approach evidence, never another finger's penetration. Replacing
+    // the map each frame discards loss/absence; first-seen inside stays inert.
+    const previous = this.plateApproaches?.get(probe?.id);
+    if (!press.pressed) press.lastPenetration = previous && previous.kind === probe?.kind ? previous.penetration : null;
+    this.plateApproaches = new Map(probes.filter(p => this.plateSample(p.point).inside).map(p => {
+      const at = this.plateSample(p.point);
+      const depth = p.kind === 'poke' ? (at.front-p.point.y)*scale+(p.radius ?? 0)+(p.pressOffset ?? 0)
+        : p.pressed && p.captured ? press.maxDepth : -Infinity;
+      return [p.id, { kind: p.kind, penetration: depth }];
+    }));
     this.plateProbeId = probe?.id;
     const resizeOwner = grip.held?.id === probe?.id && (probe?.pinch || probe?.captured);
     const event = press.update(dt, penetration, !!sample?.inside || !!resizeOwner);
@@ -514,7 +524,7 @@ export class Dock extends THREE.Group {
     // An end merely being nearby cannot take another icon's input. The
     // input system now ranks this handle alongside the actual app skins.
     this.gripping = !!grip.held;
-    const contacts=contactFeedback(this.shelf, grip.held ? [] : probes, probe?.id, dt, p=>{
+    const contacts=contactFeedback(this.shelf, grip.held ? [] : probes, grip.held?.id ?? (press.pressed ? this.shelf.pressOwner : null), dt, p=>{
       const sample=this.plateSample(p.point);
       const gap=(p.point.y-sample.front)*scale-(p.radius ?? 0);
       if(!sample.inside || gap>0 || p.point.y<sample.front-this.thick) return null;
@@ -541,6 +551,7 @@ export class Dock extends THREE.Group {
    */
   resetPlacement() {
     this.rail.reset(); this.grip.held = this.shelf.grab = null;
+    this.plateApproaches = new Map(); this.plateProbeId = null;
     for (const h of [this.handle, this.shelf, ...this.icons]) { h.probes = []; h.press.update(0, null, false); }
   }
 
@@ -703,6 +714,7 @@ class PlateGeometry {
     const end = this.end * size;   // the round ends grow with the plate's depth
     const hw0 = this.w / 2 - this.end, hw = w / 2 - end;
     const mid = -this.edge;   // the rim's plane: an end swells about it
+    const wells = dent ? [dent,...dents] : dents;
     for (let i = 0; i < p.length; i += 3) {
       // Stretch the middle, carry the round ends out with it.
       let x = F[i];
@@ -721,7 +733,7 @@ class PlateGeometry {
       n[i] = nx * c - nz * sn; n[i + 1] = ny; n[i + 2] = nx * sn + nz * c;
       if ((dent || dents.length) && ny > 0) {
         let dip=0,dx=0,dz=0,rr=1;
-        for(const d of [dent,...dents]) {
+        for(const d of wells) {
           if(!d) continue;
           const x=p[i]-d.point.x,z=p[i+2]-d.point.z,r=d.radius**2,v=d.depth*Math.exp(-(x*x+z*z)/r);
           if(v>dip){dip=v;dx=x;dz=z;rr=r;}

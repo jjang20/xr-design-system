@@ -45,7 +45,10 @@ export function pickProbe(probes, distance, owner = null) {
   let probe = null, best = Infinity;
   for (const p of probes) {
     const d = distance(p);
-    if (d < best || (d === best && d < Infinity && p.captured && !probe.captured)) { probe = p; best = d; }
+    const tie = Number.isFinite(d) && Math.abs(d - best) <= 1e-9;
+    const priority = probe && (Number(!!p.captured) - Number(!!probe.captured)
+      || String(probe.id).localeCompare(String(p.id)));
+    if ((!tie && d < best) || (tie && priority > 0)) { probe = p; best = d; }
   }
   return { probe, distance: best, lost: false };
 }

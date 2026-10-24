@@ -87,7 +87,7 @@ export class BubbleHandle extends Interactable {
     const physicalDepth = this.press.pressed ? Math.min(F.depth, .0003 + Math.max(0, -(separation ?? -F.depth))) : 0;
     const depth = Math.max(held ? F.hold : 0, physicalDepth);
     springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
-    const contacts = contactFeedback(this, this.enabled && !held ? probes : [], probe?.id, dt, p => {
+    const contacts = contactFeedback(this, this.enabled && !held ? probes : [], this.grab?.id ?? (this.press.pressed ? this.pressOwner : null), dt, p => {
       if (!this.inside(p.point, true) || p.point.z <= 0) return null;
       const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
