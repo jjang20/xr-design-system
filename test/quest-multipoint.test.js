@@ -163,13 +163,14 @@ test('R7: index loss during pinch blocks recapture even while another tip stays 
  src.selecting=false;r.frame();src.selecting=true;r.frame();assert.equal(r.obj.controls.held?.id,src.id);
 });
 
-test('R7: plate primary dent stays at its actual owner when the other end also touches',()=>{
+for(const owner of [0,1])test('R7: plate primary dent stays at owner '+owner+' until explicit opposite pinch',()=>{
  const r=rig('dock',{distance:Math.hypot(.28,.48),eccentricity:-Math.atan2(.28,.48)}),d=r.obj;
  const point=(n,gap)=>{r.scene.updateMatrixWorld(true);const[x,z]=d.arc((n?1:-1)*(d.length/2-d.pad/2),0),p=new THREE.Vector3(x,0,z);p.y=d.plateSample(p).front+.008+gap;return d.shelf.localToWorld(p);};
- for(const gap of [.04,.025,.015,.005,-.003]){r.hand(1,point(1,gap));r.frame();}
- assert.equal(d.shelf.pressOwner,'xr1');assert.ok(d.plateDentAt.x>0);
- for(const gap of [.04,.025,.015,.005,-.003]){r.hand(1,point(1,-.003));r.hand(0,point(0,gap));r.frame();}
- assert.equal(d.shelf.pressOwner,'xr1');assert.ok(d.plateDentAt.x>0,'hover at opposite pad cannot move primary dent');
- assert.ok(d.shelf.contactDents.some(c=>c.id==='xr0'&&c.x<0));
- r.sources[0].src.selecting=true;r.frame();assert.equal(d.grip.held?.id,'xr0');assert.ok(d.plateDentAt.x<0,'explicit pinch transfers feedback to held owner');
+ const other=1-owner,sign=owner?1:-1;
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(owner,point(owner,gap));r.frame();}
+ assert.equal(d.shelf.pressOwner,'xr'+owner);assert.ok(d.plateDentAt.x*sign>0);
+ for(const gap of [.04,.025,.015,.005,-.003]){r.hand(owner,point(owner,-.003));r.hand(other,point(other,gap));r.frame();}
+ assert.equal(d.shelf.pressOwner,'xr'+owner);assert.ok(d.plateDentAt.x*sign>0,'hover at opposite pad cannot move primary dent');
+ assert.ok(d.shelf.contactDents.some(c=>c.id==='xr'+other&&c.x*sign<0));
+ r.sources[other].src.selecting=true;r.frame();assert.equal(d.grip.held?.id,'xr'+other);assert.ok(d.plateDentAt.x*sign<0,'explicit pinch transfers feedback to held owner');
 });

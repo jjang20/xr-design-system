@@ -49,20 +49,29 @@ try {
     const read=()=>{c.renderer.render(c.scene,c.camera);c.renderer.readRenderTargetPixels(target,x,y,1,1,pixel);return [...pixel];};
     const hdrPixel=read();look.setBackdrop(null);c.scene.background=null;c.renderer.setClearAlpha(0);
     const visible=read();
+    const readFrame=()=>{const data=new Uint8Array(1280*800*4);c.renderer.readRenderTargetPixels(target,0,0,1280,800,data);return data;};
+    const currentFrame=readFrame();
     const currentAlpha=d.base.material.uniforms.uPassthroughAlpha.value;
-    d.base.material.uniforms.uPassthroughAlpha.value=.28;const previousAlphaPixel=read();
+    d.base.material.uniforms.uPassthroughAlpha.value=.28;const previousAlphaPixel=read(),previousFrame=readFrame();
     d.base.material.uniforms.uPassthroughAlpha.value=currentAlpha;
-    d.base.visible=false;const hidden=read();d.base.visible=true;
+    d.base.visible=false;const hidden=read(),hiddenFrame=readFrame();d.base.visible=true;
+    let strongerPixels=0,maxAlphaIncrease=0;
+    // Saturated Fresnel edges can retain the .65 ceiling at both settings.
+    // Measure exposed plate pixels too, excluding any other scene coverage.
+    for(let i=3;i<currentFrame.length;i+=4)if(hiddenFrame[i]===0&&previousFrame[i]>0){
+      const delta=currentFrame[i]-previousFrame[i];if(delta>10)strongerPixels++;
+      maxAlphaIncrease=Math.max(maxAlphaIncrease,delta);
+    }
     const hasRoom=d.base.material.uniforms.uHasRoom.value;
     c.scene.background=null;
     c.renderer.setRenderTarget(null);target.dispose();
-    return {visible,hidden,hdrPixel,previousAlphaPixel,currentAlpha,hasRoom,position:[x,y]};
+    return {visible,hidden,hdrPixel,previousAlphaPixel,currentAlpha,strongerPixels,maxAlphaIncrease,hasRoom,position:[x,y]};
   });
   check('plate sample lies inside the render target',result.traces.plate.position[0]>=0&&result.traces.plate.position[0]<1280&&result.traces.plate.position[1]>=0&&result.traces.plate.position[1]<800);
   // R7 explicitly strengthens opacity. Compare the same pixel with the old
   // alpha setting; retain a translucent ceiling and the hidden control.
   check('passthrough plate is stronger than the old alpha while staying translucent',
-    result.traces.plate.visible[3]>result.traces.plate.previousAlphaPixel[3]+10
+    result.traces.plate.strongerPixels>20&&result.traces.plate.maxAlphaIncrease>10
     &&result.traces.plate.visible[3]<=Math.ceil(.65*255)&&result.traces.plate.hidden[3]===0);
 
   check('opaque room background remains covered',result.traces.plate.hdrPixel[3]===255);

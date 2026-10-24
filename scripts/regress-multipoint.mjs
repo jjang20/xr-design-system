@@ -6,11 +6,13 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 const root=fileURLToPath(new URL('../',import.meta.url)),out=process.env.MULTIPOINT_CHECK_OUT;
-const result={checks:[],errors:[],traces:[]};
+const kinds=process.env.MULTIPOINT_KINDS?.split(',')??['row','icon','handle','plate'];
+if(!kinds.length||kinds.some(k=>!['row','icon','handle','plate'].includes(k)))throw new Error('Unknown multipoint fixture kind');
+const result={kinds,checks:[],errors:[],traces:[]};
 const server=await createServer({configFile:path.join(root,'vite.config.js'),logLevel:'error',server:{host:'127.0.0.1'}});let browser;
 try{
  await server.listen(0);browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
- for(const kind of ['row','icon','handle','plate'])for(const mode of ['hdr','mr']){
+ for(const kind of kinds)for(const mode of ['hdr','mr']){
   const page=await browser.newPage({viewport:{width:1280,height:800}});
   page.on('pageerror',e=>result.errors.push(e.message));page.on('console',m=>{if(m.type()==='error')result.errors.push(m.text());});
   await page.goto(server.resolvedUrls.local[0]+'bench.html?manual&'+(['icon','plate'].includes(kind)?'part=dock&visible=7':'component=packaging&layout=quest'));

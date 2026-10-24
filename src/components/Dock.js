@@ -426,13 +426,17 @@ export class Dock extends THREE.Group {
     const probes = this.shelf.consumeProbes();
     const tip = this.length / 2;
     const grip = this.grip;
-    let near = null, nearD = Infinity;
+    let near = null, nearD = Infinity, grabCandidate = null, grabDistance = Infinity;
     for (const p of probes) {
       const [s] = this.arcCoords(p.point);
       // Distance to the end: the stretch of plate past the last app.
       const sample = this.plateSample(p.point);
       const dist = p.kind === 'ray' ? (sample.inside ? 0 : Infinity) : Math.max(0, this.plateDistance(p.point) - (p.radius ?? 0));
       if (dist < nearD) { nearD = dist; near = { p, s }; }
+      const wantsGrab = p.kind === 'poke' ? p.pinch && dist <= this.gripBand.enter * P.reach : p.captured && dist === 0;
+      if (wantsGrab && (dist < grabDistance || (dist === grabDistance && String(p.id) < String(grabCandidate?.p.id)))) {
+        grabCandidate = { p, s }; grabDistance = dist;
+      }
       if (grip.held?.id === p.id) grip.held.probe = { p, s };
     }
     const press = this.shelf.press;
@@ -508,7 +512,9 @@ export class Dock extends THREE.Group {
     // Hover: a hand near an end, or a ray on it.
     const hovered = grip.held ? true : this.gripBand.update(nearD);
     if (!grip.held && near && hovered) {
-      const grab = near.p.kind === 'poke' ? near.p.pinch && nearD <= this.gripBand.enter * P.reach : near.p.captured && nearD === 0;
+      // An explicit pinch is not lost behind a passive hand at equal distance.
+      near = grabCandidate ?? near;
+      const grab = !!grabCandidate;
       // Hover cannot move another fingertip's active dent. An explicit
       // pinch can transfer visual ownership to the newly held end.
       if (grab || !press.pressed) { grip.side = Math.sign(near.s) || 1; grip.at.copy(near.p.point); }
