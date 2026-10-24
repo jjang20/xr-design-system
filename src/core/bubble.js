@@ -24,6 +24,8 @@ import { DEFAULTS } from './defaults.js';
 import { backdropUniforms, trackGlass } from './look.js';
 
 const VERT = /* glsl */`
+  uniform vec4 uExtraDent[9];
+  uniform int uExtraCount;
   uniform vec4 uDent;        // press point (unit direction, local) and depth (x radius)
   uniform float uDentWidth;  // dent radius (x radius): exp(-d²/w²)
   uniform float uSquash;     // the whole skin gives a little along the press
@@ -37,6 +39,17 @@ const VERT = /* glsl */`
     float front = max(0.0, normal.z);
     vec3 pos = p - vec3(0.0, 0.0, uDent.w * e * front);
     vec3 n = normalize(normal - vec3(2.0 * uDent.w * e * q.xy / (uDentWidth * uDentWidth), 0.0) * front);
+    for (int i=0; i<9; i++) {
+      if (i >= uExtraCount) break;
+      vec3 dq = p-uExtraDent[i].xyz;
+      float de = exp(-dot(dq,dq)/(uDentWidth*uDentWidth));
+      float amount = uExtraDent[i].w*de;
+      if (amount > p.z-pos.z) {
+        pos.z=p.z-amount*front;
+        n=normalize(normal-vec3(2.0*amount*dq.xy/(uDentWidth*uDentWidth),0.0)*front);
+        e=de;
+      }
+    }
     vDent = e;
     vLocal = p;
     vec4 w = modelMatrix * vec4(pos, 1.0);
@@ -55,6 +68,17 @@ const VERT = /* glsl */`
     vec3 g = 2.0 * uDent.w * e / (uDentWidth * uDentWidth) * (dot(uDent.xyz, p) * p - uDent.xyz);
     vec3 n = normalize(p - g / (1.0 + h));
     vec3 pos = p * (1.0 + h);
+    for (int i=0; i<9; i++) {
+      if (i >= uExtraCount) break;
+      vec3 at=uExtraDent[i].xyz, dq=p-at;
+      float de=exp(-dot(dq,dq)/(uDentWidth*uDentWidth));
+      float dh=-uExtraDent[i].w*de;
+      if (dh < h) {
+        h=dh; e=de;
+        vec3 dg=2.0*uExtraDent[i].w*de/(uDentWidth*uDentWidth)*(dot(at,p)*p-at);
+        n=normalize(p-dg/max(.05,1.0+h)); pos=p*(1.0+h);
+      }
+    }
     // Pressed, the skin gives a little along the press and bulges round it
     // (volume kept), as a soft ball does: the list pillow's sag.
     vec3 d = uDent.xyz;
@@ -77,7 +101,9 @@ const FRAG = /* glsl */`
   uniform float uOpacity, uF0, uReflBlur, uEnvIntensity, uHasEnv, uKey, uKeySharp, uFar, uRimLight, uRimPower, uReflect, uReflColour;
   uniform float uBodyOpacity;
   uniform float uGlow, uGlowCore, uCoreWidth, uRing, uDentShadow, uDentLight, uDentSlope, uDentWidth, uLipAt, uLipWidth, uDentGlint;
-  uniform vec4 uDent;
+  uniform vec4 uDent, uExtraDent[9];
+  uniform float uExtraGlow[9];
+  uniform int uExtraCount;
   uniform vec3 uKeyDir, uGlowColor, uRimColor;
   uniform mat3 uEnvRot;
   varying vec3 vWorld, vNormal, vLocal, vRadial;
@@ -134,8 +160,17 @@ const FRAG = /* glsl */`
     // list bubble's inner shadow); and the hollow, a small concave mirror,
     // gathers the key light into a glint. Nothing else: added light spread
     // over a clear skin reads as fog, not as a dent.
-    float dd = length(vLocal - uDent.xyz);
-    float press = clamp(uGlow, 0.0, 1.0);
+    vec3 contactAt=uDent.xyz;
+    float contactGlow=uGlow;
+    float weight=uGlow*exp(-dot(vLocal-contactAt,vLocal-contactAt)/(uDentWidth*uDentWidth));
+    for (int i=0; i<9; i++) {
+      if (i >= uExtraCount) break;
+      vec3 dq=vLocal-uExtraDent[i].xyz;
+      float w=uExtraGlow[i]*exp(-dot(dq,dq)/(uDentWidth*uDentWidth));
+      if (w > weight) { weight=w; contactAt=uExtraDent[i].xyz; contactGlow=uExtraGlow[i]; }
+    }
+    float dd = length(vLocal - contactAt);
+    float press = clamp(contactGlow, 0.0, 1.0);
     float lt = (dd - uDentWidth * uLipAt) / uLipWidth;
     float lip = exp(-lt * lt) * press;
     vec3 tilt = N - Nr;
@@ -152,10 +187,10 @@ const FRAG = /* glsl */`
     col *= 1.0 - shadow;
     // Press glow: light gathers at the bottom of the dent and the rim lights
     // as a ring, brightest nearest the finger (as the list bubble's edge).
-    vec3 q = vLocal - uDent.xyz;
+    vec3 q = vLocal - contactAt;
     float core = exp(-dot(q, q) / (uCoreWidth * uCoreWidth));
     float near = exp(-length(q) * 1.2);
-    vec3 glow = uGlowColor * uGlow * (core * uGlowCore + rim * uRing * (0.15 + 0.85 * near));
+    vec3 glow = uGlowColor * contactGlow * (core * uGlowCore + rim * uRing * (0.15 + 0.85 * near));
     col += glow;
     alpha = max(alpha, clamp(dot(glow, vec3(0.333)), 0.0, 1.0));
     // The far wall reflects less (seen through the near one, at a slant).
@@ -192,6 +227,9 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
     uReflColour: { value: B.reflectColour ?? 1 },
     uRimColor: { value: new THREE.Color(...B.rimColor) },
     uFar: { value: B.far },
+    uExtraDent: { value: Array.from({length:9},()=>new THREE.Vector4(0,0,1,0)) },
+    uExtraGlow: { value: Array(9).fill(0) },
+    uExtraCount: { value: 0 },
     uDent: { value: new THREE.Vector4(0, 0, 1, 0) },
     uDentWidth: { value: 0.3 },
     uSquash: { value: 0 },

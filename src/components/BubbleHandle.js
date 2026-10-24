@@ -4,14 +4,16 @@ import { PressModel } from '../core/PressModel.js';
 import { Hysteresis } from '../core/Hysteresis.js';
 import { DEFAULTS } from '../core/defaults.js';
 import { makeBubble } from '../core/bubble.js';
+import { contactFeedback, writeBubbleContacts } from '../core/contactFeedback.js';
 import { glassSlabGeometry } from '../core/look.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
 
 // A material handle, not a navigation button. Contact supplies feedback;
 // WindowControls/DockRail alone decide when pinch/ray capture manipulates.
 export class BubbleHandle extends Interactable {
-  constructor(T, { width, height = width, distance, rectangular = false, reveal = false, resize = false }) {
+  constructor(T, { width, height = width, distance, rectangular = false, reveal = false, resize = false, feedback = {} }) {
     super(); this.T = T; this.reveal = reveal; this.rectangular = rectangular;
+    this.feedback = { depth: .002, hold: .0015, width: .012, core: .007, ...feedback };
     const dmm = v => v * T.effectiveDistance(distance) / 1000;
     this.w = dmm(width); this.h = dmm(height); this.r = this.w / 2;
     this.t = rectangular ? this.w * .45 : this.r;
@@ -34,7 +36,7 @@ export class BubbleHandle extends Interactable {
       this.arrow = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: .92 }));
       this.affordance.add(this.arrow);
     }
-    this.press = new PressModel({ thickness: .002, pressRatio: 1, recover: T.get('motion.recovery.soft.duration'), release: T.get('input.poke.distance.release') });
+    this.press = new PressModel({ thickness: this.feedback.depth, pressRatio: 1, recover: T.get('motion.recovery.soft.duration'), release: T.get('input.poke.distance.release') });
     this.hoverBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
     this.dent = { x: 0, v: 0 }; this.spot = new THREE.Vector3(0,0,1);
     this.hovered = false; this.affordance.visible = !reveal;
@@ -81,18 +83,27 @@ export class BubbleHandle extends Interactable {
         THREE.MathUtils.clamp(probe.point.y, -this.h / 2, this.h / 2) / this.r, this.t / this.r);
       else this.spot.copy(probe.point).normalize();
     }
-    const physicalDepth = this.press.pressed ? Math.min(.002, .0003 + Math.max(0, -(separation ?? -.002))) : 0;
-    const depth = Math.max(held ? .0015 : 0, physicalDepth);
+    const F = this.feedback;
+    const physicalDepth = this.press.pressed ? Math.min(F.depth, .0003 + Math.max(0, -(separation ?? -F.depth))) : 0;
+    const depth = Math.max(held ? F.hold : 0, physicalDepth);
     springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
+    const contacts = contactFeedback(this, this.enabled && !held ? probes : [], probe?.id, dt, p => {
+      if (!this.inside(p.point, true) || p.point.z <= 0) return null;
+      const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r) * scale - (p.radius ?? 0);
+      if (gap > 0) return null;
+      const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : p.point.clone().normalize();
+      return { x: at.x, y: at.y, z: at.z, depth: Math.min(F.depth, .0003-gap)/scale, maxDepth:F.depth/scale };
+    });
+    writeBubbleContacts(this.skin, contacts, this.r);
     const u = this.skin;
     u.uOpacity.value = 1;
     u.uDent.value.set(this.spot.x, this.spot.y, this.spot.z, this.dent.x / this.r);
-    u.uDentWidth.value = .012 / (scale * this.r);
-    u.uCoreWidth.value = .007 / (scale * this.r);
+    u.uDentWidth.value = F.width / (scale * this.r);
+    u.uCoreWidth.value = F.core / (scale * this.r);
     u.uLipWidth.value = .001 / (scale * this.r);
-    u.uDentSlope.value = this.dent.x / .012;
+    u.uDentSlope.value = this.dent.x / F.width;
     u.uGlow.value = held || this.press.pressed ? .8 : this.hovered ? .12 : 0;
-    u.uSquash.value = this.rectangular ? 0 : .03 * Math.min(1, this.dent.x / .002);
+    u.uSquash.value = this.rectangular ? 0 : .03 * Math.min(1, this.dent.x / (F.depth / scale));
     this.affordance.visible = !this.reveal || this.hovered || held;
     if (this.arrow) this.arrow.position.z = -Math.max(0, this.dent.x);
   }

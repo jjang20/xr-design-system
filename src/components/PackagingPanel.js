@@ -226,6 +226,7 @@ export class PackagingPanel extends THREE.Group {
   }
 
   resetInteraction() {
+    this.cancelSelections();
     this.controls.cancel(); this.palmPush = null;
     this.palmPrevious.clear(); this.palmBlocked.clear();
     this.palmDiagnostic = {};
@@ -261,7 +262,7 @@ export class PackagingPanel extends THREE.Group {
   prepareGeometry() {
     const visit = (item, depth) => {
       const { W, H, dmm } = this.levelLayout(item);
-      glassSlabGeometry(W, H, this.T.get('material.thickness.regular'), dmm(DEFAULTS.radius.window), { tessellate: .002 }).dispose();
+      glassSlabGeometry(W, H, this.T.get('material.thickness.regular') * DEFAULTS.windowPreview.thicknessScale, dmm(DEFAULTS.radius.window), { tessellate: .002 }).dispose();
       if (depth < this.maxDepth) for (const child of item.items ?? []) if (child.items?.length) visit(child, depth + 1);
     };
     visit(this.levels[0].item, 0);
@@ -276,7 +277,7 @@ export class PackagingPanel extends THREE.Group {
     // has receded it becomes the way back (the breadcrumb).
     const panel = new Button(T, {
       width: D.panelWidth, height: H / T.effectiveDistance(dist) * 1000, radius: D.radius.window,
-      thickness: 'regular', density: 'rigid', variant: 'glass', distance: dist,
+      thickness: 'regular', thicknessScale: D.windowPreview.thicknessScale, density: 'rigid', variant: 'glass', distance: dist,
     });
     group.add(panel);
     // Only the exposed title band navigates back. The
@@ -342,12 +343,21 @@ export class PackagingPanel extends THREE.Group {
       // The rendered pillow and direct contact use the same concentric corner.
       row.embossRadius = Math.min(row.h / 2, row.r * (D.radius.window - D.rowInset) / D.radius.row);
       row.position.set(0, listTop - rowH / 2 - i * rowH, panel.t);
-      row.addEventListener('select', () => {
-        // Only the front level's list acts (a row of a level that has since
-        // gone back can't open anything).
+      row.addEventListener('press', () => {
         if (this.levels.at(-1) !== level) return;
-        if (canOpen && !tooDeep) this.open(child, row);
-        else this.dispatchEvent({ type: 'select', item: child });
+        row.navigationClaim = { parent:level, started:this.inputEpoch ?? 0,
+          key:String(child.id ?? `${level.depth}:${i}:${child.label ?? ''}`),
+          inverse:row.matrixWorld.clone().invert() };
+      });
+      row.addEventListener('cancel', () => { row.navigationClaim=null; });
+      row.addEventListener('select', () => {
+        const claim=row.navigationClaim;
+        if (this.levels.at(-1) !== level && (!claim || !this.levels.includes(level) || level.closing)) return;
+        const request={ parent:level, row, child, canOpen:canOpen && !tooDeep,
+          started:claim?.started ?? this.inputEpoch ?? 0, key:claim?.key ?? String(child.id ?? `${level.depth}:${i}:${child.label ?? ''}`) };
+        row.navigationClaim=null;
+        if (this.collectingSelections) this.pendingSelections.push(request);
+        else this.runSelection(request);
       });
       group.add(row);
       // A pushed-back level shows only its title: its list would compete
@@ -374,6 +384,25 @@ export class PackagingPanel extends THREE.Group {
 
     const level = { item, group, panel, title, corners, moves, rows, separators, size: { W, H, titleBand } };
     return level;
+  }
+
+  // Selection is collected before navigation mutates input gates. A
+  // sibling request retains its original parent, never the last child.
+  runSelection({parent,row,child,canOpen}) {
+    const index=this.levels.indexOf(parent);
+    if (index<0 || parent.closing || this.palmPush || this.controls.held) return;
+    if (canOpen) {
+      if (index<this.active) this.back(index, {preserveClaims:true});
+      this.open(child,row);
+    } else this.dispatchEvent({type:'select',item:child});
+  }
+
+  cancelSelections() {
+    this.pendingSelections=[];
+    for (const l of this.stack.all) for (const row of l.rows) {
+      if (row.press.pressed) { row.press.update(0,null,false); row.dispatchEvent({type:'cancel'}); }
+      row.navigationClaim=null; row.continuingOwner=null; row.inputCaptureInverse=null;
+    }
   }
 
   // Open a child level out of `sourceRow` (null for the root).
@@ -403,8 +432,9 @@ export class PackagingPanel extends THREE.Group {
   }
 
   // Go back so that `toLevel` is in front again.
-  back(toLevel = this.active - 1) {
+  back(toLevel = this.active - 1, {preserveClaims=false} = {}) {
     if (this.palmPush || this.controls.held) return;
+    if (!preserveClaims) this.cancelSelections();
     if (!this.stack.popTo(toLevel).length) return;
     this.retarget();
     this.dispatchEvent({ type: 'back', level: toLevel });
@@ -424,7 +454,12 @@ export class PackagingPanel extends THREE.Group {
     // Only the front level's rows take input; receded panels act as "back".
     for (const l of this.stack.all) {
       const owner = this.controls.held?.handle;
-      l.rows.forEach(r => { r.enabled = l.rowsEnabled && !this.palmPush && !owner; });
+      l.rows.forEach(r => {
+        const continuing=!l.rowsEnabled && !l.closing && this.levels.includes(l) && r.press.pressed && r.navigationClaim?.parent===l;
+        r.enabled=(l.rowsEnabled || continuing) && !this.palmPush && !owner;
+        r.continuingOwner=continuing && r.enabled ? r.pressOwner : null;
+        r.inputCaptureInverse=r.continuingOwner ? r.navigationClaim.inverse : null;
+      });
       l.panel.enabled = l.panelEnabled && !l.closing && !this.palmPush && !owner;
       [...l.moves, ...l.corners].forEach(h => { h.enabled = l === this.levels.at(-1) && !this.palmPush && (!owner || owner === h); });
     }
@@ -432,11 +467,15 @@ export class PackagingPanel extends THREE.Group {
 
   update(dt) {
     const reduced = this.reduced;
+    this.inputEpoch=(this.inputEpoch ?? 0)+1;
+    this.pendingSelections=[];
     this.controls.update();
     const opacityTarget = this.controls.held ? DEFAULTS.windowManipulation.heldOpacity : 1;
     this.manipulationOpacity = (this.manipulationOpacity ?? 1) + (opacityTarget - (this.manipulationOpacity ?? 1)) * (1 - Math.exp(-dt / .08));
     this.applyInputGates();
     this.updatePalm(dt);
+    if (this.palmPush || this.controls.held) this.cancelSelections();
+    this.collectingSelections=true;
     for (const l of this.stack.all) {
       l.panel.update(dt);
       [...l.moves, ...l.corners].forEach(h => h.update(dt));
@@ -453,6 +492,11 @@ export class PackagingPanel extends THREE.Group {
         : push?.parents.some(p => p.level === l) ? ['z'] : [];
       l.settled = stepPackagingLevel(l, this.omega, dt, reduced, held);
     }
+    this.collectingSelections=false;
+    this.pendingSelections.sort((a,b)=>a.started-b.started || (a.key<b.key ? -1 : a.key>b.key ? 1 : 0));
+    for (const request of this.pendingSelections) this.runSelection(request);
+    this.pendingSelections=[];
+    this.applyInputGates();
     if (!reduced) for (const child of this.closing) {
       // Hold depth order through the visible exit. Recover ancestors once
       // the child has faded, rather than occluding it mid-dismissal.
@@ -467,6 +511,10 @@ export class PackagingPanel extends THREE.Group {
       l.group.position.set(c.x, c.y, c.z);
       l.group.scale.set(c.sx, c.sy, Math.min(c.sx, c.sy));
       const M = DEFAULTS.windowManipulation, depth = Math.max(0, this.active - l.depth);
+      const frontTarget = l.closing ? l.frontOpacity ?? DEFAULTS.windowPreview.frontOpacity
+        : depth === 0 ? DEFAULTS.windowPreview.frontOpacity : 1;
+      l.frontOpacity = (l.frontOpacity ?? frontTarget) + (frontTarget - (l.frontOpacity ?? frontTarget)) * (1 - Math.exp(-dt / .12));
+      l.panel.skin.uniforms.uFrontOpacity.value = l.frontOpacity;
       const opacityTarget = depth > 1 ? M.olderOpacity : M.rearOpacity;
       l.rearOpacity = (l.rearOpacity ?? opacityTarget) + (opacityTarget - (l.rearOpacity ?? opacityTarget)) * (1 - Math.exp(-dt / .12));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1),
@@ -530,8 +578,8 @@ export class PackagingPanel extends THREE.Group {
           x: lifted.position.x, y: lifted.position.y, hw: lifted.w / 2, hh: lifted.h / 2, r: lifted.r,
           gap: lifted.lift * lifted.hover + lifted.t, amount: S.lens * lifted.hover,
         });
-        setBulge(m, 0); setBulge(m, 1);
-      } else { setContactShadow(m, 1); setBulge(m, 0); setBulge(m, 1); }
+        for(let i=0;i<m.uniforms.uBulgeParam.value.length;i++) setBulge(m,i);
+      } else { setContactShadow(m, 1); for(let i=0;i<m.uniforms.uBulgeParam.value.length;i++) setBulge(m,i); }
       // Hairlines next to a lifted row step aside, as in visionOS lists.
       for (const line of l.separators) {
         const j = line.userData.between;

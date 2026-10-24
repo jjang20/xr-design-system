@@ -238,13 +238,13 @@ export function glassBeadGeometry(diameter, height) {
 // window with no seam: a wide, tangent ramp (a meniscus) up to a low,
 // domed pillow, so it reads as one membrane, not a slab on a slab.
 // A negative height is a shallow dish (pressed).
-// Two slots, so the row being left deflates while the next one inflates
-// (one slot would snap the old bubble flat the moment the new one wins).
+// Ten fingertip contacts plus two recovering rows. Repeated row bounds
+// share one raised skin, with independent contact wells and local light.
 const BULGE_GLSL = /* glsl */`
-  uniform vec4 uBulgeRect[2];   // centre xy, half size zw (local)
-  uniform vec4 uBulgeParam[2];  // corner radius, height (signed), ramp width, front z (slot 0)
-  uniform vec4 uBulgeDent[2];   // press dent: centre xy (local), radius, depth
-  uniform vec4 uBulgeGlow[2];   // press glow: ring falloff distance, amount (0 to 1), bloom radius
+  uniform vec4 uBulgeRect[12];   // centre xy, half size zw (local)
+  uniform vec4 uBulgeParam[12];  // corner radius, height (signed), ramp width, front z (slot 0)
+  uniform vec4 uBulgeDent[12];   // press dent: centre xy (local), radius, depth
+  uniform vec4 uBulgeGlow[12];   // press glow: ring falloff distance, amount (0 to 1), bloom radius
   uniform vec3 uGlowColor; uniform vec2 uGlowMix;   // ring, bloom strength
   uniform float uDentShade, uDentShadow, uGlowCore;
   uniform float uBulgeScale;   // emboss sizes grow with the window's distance
@@ -274,14 +274,18 @@ const BULGE_GLSL = /* glsl */`
     return -D.w * exp(-dot(q, q) / (D.z * D.z)) * bulgeT(p, R, P);
   }
   float bulgeH(vec2 p) {
-    return bulgeH1(p, uBulgeRect[0], uBulgeParam[0]) + dentH(p, uBulgeRect[0], uBulgeParam[0], uBulgeDent[0])
-         + bulgeH1(p, uBulgeRect[1], uBulgeParam[1]) + dentH(p, uBulgeRect[1], uBulgeParam[1], uBulgeDent[1]);
+    float height=0.0, dent=0.0;
+    for (int i=0; i<12; i++) {
+      height=max(height,bulgeH1(p,uBulgeRect[i],uBulgeParam[i]));
+      float d=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(d)>abs(dent)) dent=d;
+    }
+    return height+dent;
   }
-  bool anyBulge() { return uBulgeParam[0].y != 0.0 || uBulgeParam[1].y != 0.0; }
+  bool anyBulge() { for(int i=0;i<12;i++) if(uBulgeParam[i].y != 0.0) return true; return false; }
   // How much of the bubble's glossy skin covers p (0 to 1).
   float bulgeSkin(vec2 p) {
     float s = 0.0;
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 12; i++) {
       vec4 R = uBulgeRect[i], P = uBulgeParam[i];
       if (P.y == 0.0) continue;
       s = max(s, smoothstep(0.0, 0.25, bulgeT(p, R, P)) * clamp(abs(P.y) / (0.0015 * uBulgeScale), 0.0, 1.0));
@@ -289,12 +293,12 @@ const BULGE_GLSL = /* glsl */`
     return s;
   }
   float dentHAll(vec2 p) {
-    return dentH(p, uBulgeRect[0], uBulgeParam[0], uBulgeDent[0]) + dentH(p, uBulgeRect[1], uBulgeParam[1], uBulgeDent[1]);
+    float d=0.0; for(int i=0;i<12;i++) { float v=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(v)>abs(d)) d=v; } return d;
   }
   // How much of a press dent covers p (0 to 1).
   float dentMask(vec2 p) {
     float m = 0.0;
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 12; i++) {
       vec4 D = uBulgeDent[i];
       if (D.w <= 0.0) continue;
       vec2 q = p - D.xy;
@@ -307,7 +311,7 @@ const BULGE_GLSL = /* glsl */`
   // of the dent (z).
   vec3 bulgeGlow(vec2 p) {
     vec3 g = vec3(0.0);
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < 12; i++) {
       vec4 R = uBulgeRect[i], P = uBulgeParam[i], D = uBulgeDent[i], G = uBulgeGlow[i];
       if (G.y <= 0.0 || P.y == 0.0) continue;
       vec2 q = p - D.xy;
@@ -360,7 +364,7 @@ const GLASS_FRAG = /* glsl */`
   ${BULGE_GLSL}
   uniform vec3 uContactExtent; // full plate half width/height and corner radius
   uniform float uContactWidth, uContactStrength;
-  uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity, uBubbleOpacity;
+  uniform float uOpacity, uFade, uDim, uHover, uContactGlow, uSpotRadius, uBlur, uReflBlur, uSolidOpacity, uBubbleOpacity, uFrontOpacity;
   uniform float uHasEnv, uEnvIntensity, uMaxLum, uScrimMax, uAbsorb, uThick, uIor, uF0, uGrain, uVeil, uKey, uEdge, uFrost, uFrostScale, uGloss, uClear;
   uniform vec2 uSpot;
   uniform vec3 uTint, uAlbedo, uClearAlbedo;
@@ -561,6 +565,9 @@ const GLASS_FRAG = /* glsl */`
     float innerDepth = max(0.0, -sdRoundRect(vLocal.xy, uContactExtent.xy, uContactExtent.z));
     float innerBand = (1.0 - exp(-innerDepth / 0.002)) * exp(-innerDepth / uContactWidth);
     col += uGlowColor * uContactGlow * innerBand * uContactStrength * step(0.5, vFront);
+    // Window front transparency is separate from text, side walls and the
+    // raised interaction skin. Rear panes keep this multiplier at one.
+    alpha *= mix(1.0, uFrontOpacity, step(0.5, vFront) * (1.0 - bub));
     if (alpha * uOpacity * uFade < 0.001) discard;
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
@@ -604,10 +611,10 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uContactStrength: { value: L.palmGlow.strength },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
-      uBulgeRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
-      uBulgeParam: { value: [new THREE.Vector4(0, 0, 0, t ?? T.get('material.thickness.regular')), new THREE.Vector4()] },
-      uBulgeDent: { value: [new THREE.Vector4(), new THREE.Vector4()] },
-      uBulgeGlow: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uBulgeRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
+      uBulgeParam: { value: Array.from({length:12},(_,i)=>new THREE.Vector4(0,0,0,i===0 ? (t ?? T.get('material.thickness.regular')) : 0)) },
+      uBulgeDent: { value: Array.from({length:12},()=>new THREE.Vector4()) },
+      uBulgeGlow: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uGlowColor: { value: new THREE.Color(...L.emboss.glow.color) },
       uGlowMix: { value: new THREE.Vector2(L.emboss.glow.rowRing, L.emboss.glow.bloom) },
       uDentShade: { value: L.emboss.dent.shade },
@@ -617,13 +624,13 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uClear: { value: L.emboss.clear },
       uClearAlbedo: { value: new THREE.Color(...G.bead.albedo) },
       uGloss: { value: L.emboss.gloss },
-      uShadowRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uShadowRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uTintRect: { value: new THREE.Vector4() },
       uTintParam: { value: new THREE.Vector4() },
       uTintColor: { value: new THREE.Color(1, 1, 1) },
-      uShadowParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
-      uBehindRect: { value: [new THREE.Vector4(), new THREE.Vector4()] },
-      uBehindParam: { value: [new THREE.Vector4(), new THREE.Vector4()] },
+      uShadowParam: { value: Array.from({length:12},()=>new THREE.Vector4()) },
+      uBehindRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
+      uBehindParam: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uKnee: { value: K.knee ?? 0 },
       uSat: { value: K.sat ?? 1 },
       uDimFloor: { value: G.dimFloor },
@@ -631,6 +638,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uShoulder: { value: K.shoulder ?? 0 },
       uRimClear: { value: K.rimClear ?? 0 },
       uOpacity: { value: 1 },
+      uFrontOpacity: { value: 1 },
     },
   });
   glassMaterials.add(m);

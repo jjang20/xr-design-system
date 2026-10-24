@@ -27,6 +27,7 @@ import { DEFAULTS } from '../core/defaults.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
 import { makeAppObject } from '../core/objects.js';
 import { makeBubble } from '../core/bubble.js';
+import { contactFeedback, writeBubbleContacts } from '../core/contactFeedback.js';
 import { makeText, glassSlabGeometry } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 
@@ -134,10 +135,13 @@ export class DockIcon extends Interactable {
   // pressed, from the source that pressed; see pickProbe), and where it is.
   // The Dock compares icons before any of them reacts.
   sense() {
-    const { probe, distance } = pickProbe(this.consumeProbes(),
+    this.frameProbes = this.consumeProbes();
+    const { probe, distance } = pickProbe(this.frameProbes,
       p => p.kind === 'ray' ? 0 : Math.max(0, (p.point.distanceTo(this.centre) - this.touchRadius) * this.inputScale - (p.radius ?? 0)),
       this.press.pressed ? this.pressOwner : null);
     this.best = probe;
+    const hover=pickProbe(this.frameProbes,p=>p.kind==='ray' ? 0 : Math.max(0,(p.point.distanceTo(this.centre)-this.touchRadius)*this.inputScale-(p.radius??0)));
+    this.hoverBest=hover.probe; this.hoverDistance=hover.distance;
     this.distanceToSkin = distance;
     return distance;
   }
@@ -149,7 +153,7 @@ export class DockIcon extends Interactable {
     const best = this.exclusive ? this.best : null;
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
-    this.hovered = best?.kind === 'ray' ? true : this.hoverBand.update(best ? this.distanceToSkin : Infinity);
+    this.hovered = this.exclusive && this.hoverBest?.kind === 'ray' ? true : this.hoverBand.update(this.exclusive ? this.hoverDistance : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a
     // ray press pushes it all the way.
     let penetration = null, inside = false, separation = null;
@@ -209,6 +213,14 @@ export class DockIcon extends Interactable {
       ? Math.min(this.dentMax, this.dentMax * B.contactDent + Math.max(0, -separation)) : 0;
     springTo(this.dent, on ? physicalDepth : 0, E.dent.response, calm ? 1 : E.dent.damping, dt);
     if (Math.abs(this.dent.x) < 1e-6 && Math.abs(this.dent.v) < 1e-5) this.dent.x = this.dent.v = 0;
+
+    const contacts = contactFeedback(this, on ? this.frameProbes : [], best?.id, dt, p => {
+      const delta = p.point.clone().sub(this.centre), separation = delta.length() - this.rb - (p.radius ?? 0) / scale;
+      if (delta.z <= 0 || separation > 0 || delta.length() > this.touchRadius + (p.radius ?? 0) / scale) return null;
+      const at = delta.normalize();
+      return { x: at.x, y: at.y, z: at.z, depth: Math.min(this.dentMax, this.dentMax * B.contactDent - separation), maxDepth: this.dentMax };
+    });
+    writeBubbleContacts(this.skin, contacts, this.rb);
 
     // Draw it. The bubble grows from a little smaller, never from nothing.
     const u = this.skin;

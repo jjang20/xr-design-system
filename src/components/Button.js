@@ -18,6 +18,7 @@ import { Hysteresis } from '../core/Hysteresis.js';
 import { PressModel } from '../core/PressModel.js';
 import { cubicBezier, clamp, lerp } from '../core/easing.js';
 import { DEFAULTS } from '../core/defaults.js';
+import { contactFeedback } from '../core/contactFeedback.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { bodyGeometry, bodyMaterial, faceMaterial, glassMaterial, glassSlabGeometry, glassBeadGeometry, setTint, makeText, makeIcon } from '../core/look.js';
@@ -39,6 +40,7 @@ export class Button extends Interactable {
    * @param {number} [o.color]      fill colour override (tinted variant)
    * @param {'soft'|'firm'|'rigid'} [o.density='firm']
    * @param {'thin'|'regular'|'thick'} [o.thickness='regular']
+   * @param {number} [o.thicknessScale=1] physical body multiplier, including input/material geometry
    * @param {number} [o.width]      face width in dmm (default size.interactive.default)
    * @param {number} [o.height]     face height in dmm (default size.interactive.default)
    * @param {number} [o.radius]     corner radius in dmm
@@ -55,7 +57,7 @@ export class Button extends Interactable {
     this.variant = o.variant ?? 'secondary';
     // Disabled elements are rigid: they barely give, which reads as "not now".
     this.density = this.disabled ? 'rigid' : (o.density ?? 'firm');
-    this.t = T.get(`material.thickness.${o.thickness ?? 'regular'}`);
+    this.t = T.get(`material.thickness.${o.thickness ?? 'regular'}`) * (o.thicknessScale ?? 1);
     const side = T.viewSize('size.interactive.default', distance);
     this.w = o.width != null ? dmm(o.width) : side;
     this.h = o.height != null ? dmm(o.height) : side;
@@ -343,7 +345,7 @@ export class Button extends Interactable {
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
-    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance, owner);
+    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(probes, distance);
 
     // Hover with hysteresis (pokes) or direct hit (rays).
     this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
@@ -392,6 +394,14 @@ export class Button extends Interactable {
     u.uSpot.value.copy(this.spot);
     if (this.emboss) {
       this.stepBulge(dt);
+      const maxDepth = DEFAULTS.look.emboss.dent.depth * this.k / 1000;
+      contactFeedback(this, this.enabled && !this.disabled ? probes : [], best?.id, dt, p => {
+        if (!this.inside(p.point, true)) return null;
+        const gap = p.point.z - this.surfaceZ(p.point) - (p.radius ?? 0) / Math.abs(this.getWorldScale(inputScale).z);
+        if (gap > 0 || p.point.z < -this.t) return null;
+        return { x:p.point.x, y:p.point.y, z:0, radius: DEFAULTS.look.emboss.dent.width*this.k/2000/Math.sqrt(Math.LN2),
+          depth: Math.min(maxDepth, .0003 + Math.max(0,-gap)), maxDepth };
+      });
       // Content under a clear bubble is magnified a touch, like through a lens.
       this.face.scale.setScalar(1 + DEFAULTS.look.emboss.magnify * Math.max(0, this.bz) / this.lift);
     } else if (this.variant === 'plain') {

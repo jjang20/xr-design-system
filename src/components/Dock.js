@@ -38,6 +38,7 @@ import * as THREE from 'three';
 import { Interactable, markComponent, pickProbe } from '../core/Interactable.js';
 import { PressModel } from '../core/PressModel.js';
 import { DEFAULTS } from '../core/defaults.js';
+import { contactFeedback } from '../core/contactFeedback.js';
 import { softTexture } from '../core/look.js';
 import { refractiveGlass, refractiveMesh } from '../core/refract.js';
 import { springStep, springTo, prefersReducedMotion } from '../core/spring.js';
@@ -115,7 +116,7 @@ export class Dock extends THREE.Group {
     this.plateContactDent = { x: 0, v: 0 };
     this.plateDentAt = new THREE.Vector3();
     this.gripBand = new Hysteresis(T.get('input.hover.distance.enter'), T.get('input.hover.distance.exit'));
-    this.thick = (P.edge + P.crown + P.under) * P.thicknessScale / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
+    this.thick = (P.edge + P.under) * P.thicknessScale / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
     this.neck = 1;
     // Spacing: at least the gap token, and enough that a fully magnified
     // app's bubble clears its magnified neighbours' objects (the bubble is
@@ -148,7 +149,8 @@ export class Dock extends THREE.Group {
     // A fixed stem separates the sphere from the central app in world Y.
     // It stays in the level frame as the plate pitches; no pendulum motion.
     const H = DEFAULTS.dockRail;
-    this.handle = new BubbleHandle(T, { width: H.sphereSize, distance: dist });
+    this.handle = new BubbleHandle(T, { width: H.sphereSize, distance: dist,
+      feedback: { depth: .004, hold: .003, width: .018, core: .012 } });
     this.handle.position.set(0, this.top - H.stemLength - this.handle.r, 0);
     this.level.add(this.handle);
     this.stem = new THREE.Mesh(new THREE.CylinderGeometry(H.stemRadius, H.stemRadius, H.stemLength, 12),
@@ -159,7 +161,7 @@ export class Dock extends THREE.Group {
       ...(o.eccentricity === undefined ? {} : { radius: Math.cos(o.eccentricity) * dist, height: Math.sin(o.eccentricity) * dist }) });
     this.restX = this.icons.map(() => 0);
     const mm = v => v * P.thicknessScale / 1000 * T.effectiveDistance(dist) / T.effectiveDistance(DEFAULTS.distance);
-    this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), crown: mm(P.crown), under: mm(P.under) });
+    this.shelfShape = new PlateGeometry(this.plateLength(this.icons.length, P.maxSize), this.side * S.depth, { edge: mm(P.edge), under: mm(P.under) });
     // Refractive glass, so the mirrored objects below show through it.
     this.base = refractiveMesh(this.shelfShape.geometry, refractiveGlass('shelf', { thick: this.thick }));
     this.base.renderOrder = 1;
@@ -368,15 +370,23 @@ export class Dock extends THREE.Group {
     const scale = Math.abs(this.shelf.getWorldScale(new THREE.Vector3()).y);
     const depth = Math.max(this.plateContactDent.x, this.plateDent.x);
     const dent = depth > 0 ? { point: this.plateDentAt, depth: depth / scale, radius: DEFAULTS.handInput.plateDentRadius / scale } : null;
-    this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0], dent });
+    const dents = (this.shelf.contactDents ?? []).map(c=>({point:new THREE.Vector3(c.x,c.y,c.z),depth:c.depth,radius:DEFAULTS.handInput.plateDentRadius/scale}));
+    this.shelfShape.fit(this.length, this.arcR, { neck: this.neck, size: z, swell: [this.grip.side < 0 ? swell : 0, this.grip.side > 0 ? swell : 0], dent, dents });
   }
 
   plateSample(point) {
     const [s, t] = this.arcCoords(point), half = this.length / 2;
     const scale = this.neck * this.size, depth = this.shelfShape.depth / 2 * scale;
-    const inside = Math.abs(s) >= half - this.pad && Math.abs(s) <= half && Math.abs(t) <= depth;
-    const inset = Math.max(0, Math.min(depth - Math.abs(t), half - Math.abs(s)));
-    return { s, inside, front: this.shelfShape.top(inset / scale) * scale };
+    const end = this.shelfShape.end * this.size, straight = half - end;
+    const inset = this.shelfShape.end - Math.hypot(Math.max(0, (Math.abs(s)-straight)/this.size), t/scale);
+    const inside = Math.abs(s) >= half - this.pad && inset >= 0;
+    // Same stadium and upper profile as fit(); captured presses retain the
+    // pre-dent front, so deformation cannot chase its own trigger.
+    const P = DEFAULTS.look.dockPlate, u = Math.abs(s)-(straight-end);
+    const swelling = u > 0 && Math.sign(s) === this.grip.side ? P.swell*Math.max(0,this.grip.hover.x)*smoothstep(0,2*end,u) : 0;
+    const mid=-this.shelfShape.edge;
+    const front=((this.shelfShape.top(Math.max(0,inset))-mid)*(1+swelling)+mid)*scale;
+    return { s, inside, front };
   }
 
   plateDistance(point) {
@@ -503,13 +513,25 @@ export class Dock extends THREE.Group {
       DEFAULTS.look.emboss.dent.response, prefersReducedMotion() ? 1 : DEFAULTS.look.emboss.dent.damping, dt);
     // An end merely being nearby cannot take another icon's input. The
     // input system now ranks this handle alongside the actual app skins.
-    this.gripping = !!grip.held || press.pressed;
+    this.gripping = !!grip.held;
+    const contacts=contactFeedback(this.shelf, grip.held ? [] : probes, probe?.id, dt, p=>{
+      const sample=this.plateSample(p.point);
+      const gap=(p.point.y-sample.front)*scale-(p.radius ?? 0);
+      if(!sample.inside || gap>0 || p.point.y<sample.front-this.thick) return null;
+      return {x:p.point.x,y:sample.front,z:p.point.z,depth:Math.min(press.maxDepth,.0003-gap)/scale,maxDepth:press.maxDepth/scale};
+    });
     // The glass lights where it is held, in the press glow's colour.
     const u = this.base.material.uniforms;
     this.shelf.updateMatrixWorld();
     const w = this.shelf.localToWorld(grip.at.clone());
     u.uTouch.value.set(w.x, w.y, w.z, this.pad * P.glow.radius);
     u.uTouchGlow.value.setRGB(...DEFAULTS.look.emboss.glow.color).multiplyScalar(P.glow.grab * Math.max(0, grip.hover.x, press.pressed ? 1 : press.amount));
+    u.uExtraTouchCount.value=contacts.length;
+    contacts.forEach((c,i)=>{
+      const at=this.shelf.localToWorld(new THREE.Vector3(c.x,c.y,c.z));
+      u.uExtraTouch.value[i].set(at.x,at.y,at.z,this.pad*P.glow.radius);
+      u.uExtraTouchGlow.value[i].setRGB(...DEFAULTS.look.emboss.glow.color).multiplyScalar(P.glow.grab*c.glow);
+    });
   }
 
   /**
@@ -565,12 +587,22 @@ export class Dock extends THREE.Group {
     });
     this.scaleState ??= want.map(x => ({ x, v: 0 }));
     this.scales = want.map((s, i) => Math.max(1, springStep(this.scaleState[i], s, this.magnifyOmega, dt)));
-    // One bubble at a time: only the app nearest the finger may show one,
-    // so a finger between two never lights both.
-    // (Apps not yet whole on the plate take no hands.)
-    const near = this.icons.map((icon, i) => this.presence[i] >= 1 ? icon.sense() : (icon.consumeProbes(), icon.best = null, Infinity));
-    const nearest = this.gripping || placing ? -1 : nearestApp(this.icons, near);
-    this.icons.forEach((icon, i) => { icon.exclusive = i === nearest; icon.update(dt); });
+    // InputSystem routes each probe to one target. Distinct fingers may
+    // operate distinct apps; only Dock manipulation suppresses all apps.
+    const routes = new Map();
+    this.icons.forEach((icon,i) => {
+      if (this.presence[i] < 1 || this.gripping || placing) { icon.probes=[]; return; }
+      for (const p of icon.probes) {
+        const held=icon.press.pressed && icon.pressOwner===p.id && (p.kind!=='poke' || icon.retainsPokeCapture(p.point,p.radius,p.surfaceCrossing));
+        const distance=p.kind==='ray' ? 0 : icon.pokeDistance(p.point);
+        const old=routes.get(p.id);
+        if (!old || held && !old.held || held===old.held && (distance<old.distance || distance===old.distance && p.captured)) routes.set(p.id,{icon,distance,held});
+      }
+    });
+    this.icons.forEach(icon => {
+      icon.probes=icon.probes.filter(p=>routes.get(p.id)?.icon===icon);
+      icon.sense(); icon.exclusive = !this.gripping && !placing; icon.update(dt);
+    });
     this.layout();
     this.lightPress();
     // The mirror images fade with depth below the shelf's top (world plane).
@@ -604,25 +636,24 @@ export class Dock extends THREE.Group {
 
 // The plate: a solid bubble w long (along the arc) and d deep. Its outline
 // is a stadium (round ends); across its depth it is a cushion: the edge
-// rolls round in a full curve, the top domes gently to a crown under the
-// apps (y = 0), and the underside swells a little less. Built flat once,
+// rolls round above and below a shared rim. The top under the apps (y = 0)
+// and the underside are flat between those rolled sides. Built flat once,
 // at its longest, as rings stepping in from the edge (finer at the edge,
 // where it turns fastest) with fine steps along it, so it bends smoothly
 // round the arc. fit() then sets its length (stretching the straight
 // middle, carrying the round ends), its neck and its ends' swell, and bends
 // it: one pass over the vertices.
 class PlateGeometry {
-  constructor(w, d, { edge, crown, under }) {
+  constructor(w, d, { edge, under }) {
     const half = d / 2, a = w / 2 - half;
     const rings = 28, arcSteps = 28, straight = Math.max(8, Math.ceil(2 * a / (d / 16)));
     this.depth = d;
-    this.edge = edge; this.crown = crown; this.under = under;
-    const roll = Math.min(edge + under, half * 0.6);   // the edge's curve, in from the rim
+    this.edge = edge; this.under = under;
+    const roll = Math.min(Math.max(edge, under), half * 0.6);
     // Height of the top and the underside at δ in from the rim.
     const curve = δ => δ >= roll ? 1 : Math.sqrt(1 - (1 - δ / roll) ** 2);
-    const dome = δ => 1 - (1 - Math.min(δ, half) / half) ** 2;
-    this.top = δ => edge * curve(δ) + crown * dome(δ) - (edge + crown);
-    const bottom = δ => -(under * curve(δ) + under * 0.6 * dome(δ)) - (edge + crown);
+    this.top = δ => edge * curve(δ) - edge;
+    const bottom = this.bottom = δ => -under * curve(δ) - edge;
     // One ring: the stadium ρ in from the rim, as a loop of points.
     const loop = ρ => {
       const r = half - ρ, pts = [];
@@ -663,15 +694,15 @@ class PlateGeometry {
     return this.top(Math.max(0, this.depth / 2 - Math.abs(t)));
   }
 
-  fit(w, R, { neck = 1, size = 1, swell = [0, 0], dent = null } = {}) {
-    const key = [w, R, neck, size, swell[0], swell[1], dent?.depth, dent?.point.x, dent?.point.z].join();
+  fit(w, R, { neck = 1, size = 1, swell = [0, 0], dent = null, dents = [] } = {}) {
+    const key = [w, R, neck, size, swell[0], swell[1], dent?.depth, dent?.point.x, dent?.point.z,...dents.flatMap(d=>[d.depth,d.point.x,d.point.z])].join();
     if (this.fitKey === key) return;
     this.fitKey = key;
     const g = this.geometry, p = g.attributes.position.array, n = g.attributes.normal.array;
     const F = this.flatP, FN = this.flatN;
     const end = this.end * size;   // the round ends grow with the plate's depth
     const hw0 = this.w / 2 - this.end, hw = w / 2 - end;
-    const mid = -(this.edge + this.crown);   // the rim's plane: an end swells about it
+    const mid = -this.edge;   // the rim's plane: an end swells about it
     for (let i = 0; i < p.length; i += 3) {
       // Stretch the middle, carry the round ends out with it.
       let x = F[i];
@@ -688,9 +719,13 @@ class PlateGeometry {
       const a = x / R, c = Math.cos(a), sn = Math.sin(a), r = R - z;
       p[i] = r * sn; p[i + 1] = y; p[i + 2] = R - r * c;
       n[i] = nx * c - nz * sn; n[i + 1] = ny; n[i + 2] = nx * sn + nz * c;
-      if (dent && ny > 0) {
-        const dx = p[i] - dent.point.x, dz = p[i + 2] - dent.point.z, rr = dent.radius ** 2;
-        const dip = dent.depth * Math.exp(-(dx * dx + dz * dz) / rr);
+      if ((dent || dents.length) && ny > 0) {
+        let dip=0,dx=0,dz=0,rr=1;
+        for(const d of [dent,...dents]) {
+          if(!d) continue;
+          const x=p[i]-d.point.x,z=p[i+2]-d.point.z,r=d.radius**2,v=d.depth*Math.exp(-(x*x+z*z)/r);
+          if(v>dip){dip=v;dx=x;dz=z;rr=r;}
+        }
         p[i + 1] -= dip;
         n[i] -= 2 * dx * dip / rr; n[i + 2] -= 2 * dz * dip / rr;
         const length = Math.hypot(n[i], n[i + 1], n[i + 2]);

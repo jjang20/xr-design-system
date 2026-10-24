@@ -82,13 +82,13 @@ export const DEFAULTS = {
     palmHoldAlignment: 0.35,
     palmTrackingGrace: 0.08, // freeze briefly; never integrate unseen motion
     palmMaxStep: 0.08, // reject a tracking teleport instead of dismissing
-    platePressDepth: 0.003,
-    plateHoldDent: 0.002, // R5 trial: local physical dent during above-skin capture
-    plateDentRadius: 0.018,
+    platePressDepth: 0.005,
+    plateHoldDent: 0.0035, // R5 trial: local physical dent during above-skin capture
+    plateDentRadius: 0.025,
   },
 
   // Quest layout comparison; component defaults remain reusable.
-  windowPreview: { scale: 1.5, layerSpacing: 0.7, recedeRatio: 0.7 },
+  windowPreview: { scale: 1.5, layerSpacing: 0.7, recedeRatio: 0.7, thicknessScale: 0.5, frontOpacity: 0.85 },
 
   // Appearance. Proposed: a look.* token group once tested in MR.
   look: {
@@ -144,7 +144,7 @@ export const DEFAULTS = {
       label: { reflect: 2, edgeDark: 0, saturation: 0.15, color: [0.4, 0.39, 0.38], attDist: 1, rough: 0.12, coat: 1, coatRough: 0.02 }, // the Z-Slider's value label: the plate's glass, smoked neutral grey so white text reads on it (visionOS vibrancy); Jihoon chose neutral grey on 2026-10-21 (judges in rounds 4 to 7 read the room-coloured one as a taupe tag); no dark rim
       tile: { rough: 0.12, roomDistort: 1, roomBlur: 0.22, roomLift: 0.5, specSharp: 0.01, rimSpec: 0, coatRough: 0.25, rimBlur: 0.015, coat: 1, diffuse: 0.05, transTint: 0.85, absorb: 1, luminance: 0.55, behind: 0.05, edgeDark: 0.5, distort: 1.6, glyphGlow: 1.0, glyphBloom: 0.35, neutralDepth: 0.85, color: [1, 1, 1] }, // a clear tinted glass globe: the room shows through it upside down (a ball lens; judge round 2 found the milky one opaque); the glyph hangs inside and glows; the room is seen bent as a real ball bends it (roomDistort 1) and blurred (roomBlur), its shade lifted halfway toward its average light (roomLift), sharp enough that the window reads upside down in it (judge round 6: "nothing visible through them"), so it reads as soft light and shade, not a dark band (judge round 5 read one as dirt), while the glyph keeps the stronger magnification (distort); specSharp: a hot point inside the soft key highlight, as on a polished marble (judge round 6); rimSpec 0: the rim light lights the globe's edge but adds no second hotspot (judge round 4: two or three highlight blobs per globe); neutralDepth: a grey globe absorbs as if its tint were this bright, so it reads as smoked glass
       shelf: { color: [0.98, 0.99, 1], attColor: [0.98, 0.99, 1], attDist: 0.19, rough: 0.02, coat: 1,
-        passthroughAlpha: 0.28 }, // R6 trial: stronger translucent shelf in passthrough
+        passthroughAlpha: 0.42 }, // R7 trial: stronger translucent shelf in passthrough
     },
     // Hovered row: 'lens' lifts a light glass lens out of the window by
     // lensLift; 'emboss' inflates the window's skin into a bubble under the
@@ -155,7 +155,7 @@ export const DEFAULTS = {
     // window's distance like dmm, so a far window's bubble and dent fill the
     // same angle in the eye.
     emboss: {
-      opacity: 0.98, // R6: raised interaction skin only, not the ordinary sheet
+      opacity: 0.995, // R7: raised interaction skin only, not the ordinary sheet
       height: 6, // mm at the crown; 4–6 reads as a bubble (Jihoon, lookdev/ pillow)
       ramp: 4, // mm: the meniscus where the window glass rises into the bubble
       // Press (Jihoon picked 'dent' in lookdev/ press-options): a finger-sized
@@ -247,9 +247,9 @@ export const DEFAULTS = {
       shadow: { size: 2048, bias: -0.0002, normalBias: 0.01, radius: 3 }, // normalBias x the object's size
     },
     // The Dock's plate, a solid bubble you can stretch (Jihoon, 2026-10-21).
-    // edge, crown, under: mm as seen at `distance` (0.6 m), growing with the
-    // Dock's distance: the rolled edge's rise, the dome on top under the
-    // apps, the underside's swell. pad: dmm of plate past the last app, its
+    // edge and under: symmetric rolled sides in dmm, growing with the
+    // Dock's distance; the central top and bottom are flat.
+    // pad: dmm of plate past the last app, its
     // handle (at least size.interactive.minimum). minSize, maxSize: the apps' sizes
     // the stretch reaches (x size.interactive.default); the smallest is the
     // default, so stretching never takes a target below its resting size.
@@ -263,14 +263,14 @@ export const DEFAULTS = {
     // a held end swells by this share. glow: the hold's light (x the press
     // glow), a hover's, its radius (x pad). reach: a pinch grabs within this
     // share of the hover distance (input.hover.distance.enter).
-    dockPlate: { edge: 5, crown: 3, under: 3, thicknessScale: 1.2, pad: 44, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.5 }, reach: 0.4 },
+    dockPlate: { edge: 8, under: 8, thicknessScale: 1.2, pad: 80, minSize: 1, maxSize: 1.5, appear: [0.45, 0.95], fit: { response: 0.4, damping: 1 }, rubber: 0.55, neck: 0.5, decelerate: 0.99, settle: { response: 0.35, damping: 0.8 }, swell: 0.15, glow: { grab: 0.8, hover: 0.25, radius: 0.7 }, reach: 0.4 },
     // The hover bubble (core/bubble.js, DockIcon): a clear skin round an app.
     // size: its diameter x the object's larger side (Jihoon's reference:
     // about 1.5; 1.42 holds the corners of a square). from: it grows from
     // this fraction of its size, never from nothing (Emil Kowalski). lift:
     // how far the object rises toward the bubble's middle. The press dent
     // and glow are the list bubble's (emboss), its shadow and glow x these.
-    dockBubble: { bodyOpacity: 0.24, contactDent: 0.08, size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
+    dockBubble: { bodyOpacity: 0.38, contactDent: 0.08, size: 1.42, from: 0.9, lift: 1, pressScale: 0.04, f0: 0.03, reflect: 1, reflectColour: 0.3, reflBlur: 0.05, key: 1.4, keySharp: 600, rim: 0.4, rimPower: 5, rimColor: [0.86, 0.93, 1], far: 0.5, dentDepth: 1.6, squash: 0.06, dentShadow: 0.5, dentLight: 0.8, lipAt: 1, lipWidth: 1.2, dentGlint: 0.8, push: 0.6, pressLight: 3, nameGap: 8, glow: 1, glowCore: 0.4 },
     // Text shadow under text on glass: off. Text earns contrast from weight
     // and the glass tone (visionOS vibrancy), not a CSS-style halo. Set
     // { blur, offset, opacity } (x the text size) to try one again.

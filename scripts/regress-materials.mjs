@@ -36,6 +36,8 @@ try {
   };
 
   const page=await open('part=dock&visible=7');
+  // R7 end padding widens the Dock; fit its whole plate before pixel sampling.
+  await page.evaluate(()=>{const c=window.contour;c.camera.fov=32;c.camera.updateProjectionMatrix();});
   await capture(page,'plate-hdr');
   result.traces.plate=await page.evaluate(async()=>{
     const c=window.contour,r=window.replay,d=c.dock;
@@ -52,6 +54,7 @@ try {
     c.renderer.setRenderTarget(null);target.dispose();
     return {visible,hidden,hdrPixel,hasRoom,position:[x,y]};
   });
+  check('plate sample lies inside the render target',result.traces.plate.position[0]>=0&&result.traces.plate.position[0]<1280&&result.traces.plate.position[1]>=0&&result.traces.plate.position[1]<800);
   check('passthrough plate keeps alpha translucent on its exposed end',result.traces.plate.visible[3]>0&&result.traces.plate.visible[3]<128&&result.traces.plate.hidden[3]===0);
 
   check('opaque room background remains covered',result.traces.plate.hdrPixel[3]===255);

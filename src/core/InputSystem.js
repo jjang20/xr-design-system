@@ -79,7 +79,7 @@ export class InputSystem {
     this.handPoints = [];
     for (const src of this.xr) {
       src.state = {}; src.resetBlocked = src.selecting;
-      src.pokeHistory = null;
+      src.pokeHistory = null; src.fingers = new Map();
       src.near.update(Infinity); src.line.visible = false;
     }
     this.mouse.state = {}; this.mouse.resetBlocked = this.mouse.pressed;
@@ -168,27 +168,51 @@ export class InputSystem {
     if (presenting) {
       for (const src of this.xr) {
         src.line.visible = false;
-        if (!src.connected) { src.pokeHistory = null; continue; }
+        if (!src.connected) { src.pokeHistory = null; src.fingers?.clear(); continue; }
         if (src.resetBlocked) {
-          if (src.selecting) { src.pokeHistory = null; continue; }
+          if (src.selecting) { src.pokeHistory = null; src.fingers?.clear(); continue; }
           src.resetBlocked = false;
         }
         // An existing manipulation owns its source through the release
         // frame too; an opening hand must not switch it to another panel.
         const manipulating = items.some(item => item.grab?.id === src.id);
-        if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; continue; }
+        if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         const tip = this.tipOf(src);
+        const joints = src.hand.visible ? ['index-finger-tip','thumb-tip','middle-finger-tip','ring-finger-tip','pinky-finger-tip']
+          .map(name => src.hand.joints?.[name]).filter(j => j?.visible) : [];
+        const points = joints.map(j => j.getWorldPosition(new THREE.Vector3()));
+        if (!points.length && tip) points.push(tip);
         let dist = Infinity;
-        if (tip) for (const c of components) dist = Math.min(dist, _box.setFromObject(c).distanceToPoint(tip));
-        if (tip && src.near.update(dist)) {
-          this.handPoints.push(tip);
+        for (const c of components) {
+          _box.setFromObject(c);
+          for (const point of points) dist = Math.min(dist, _box.distanceToPoint(point));
+        }
+        if (points.length && src.near.update(dist)) {
           const joint = src.hand.joints?.['index-finger-tip'];
-          const hand = !!joint?.visible;
-          const radius = hand ? (Number.isFinite(joint.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;
-          this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0);
+          const hand = joints.length > 0;
+          const radius = hand ? (Number.isFinite(joint?.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;
+          if (tip && (!hand || joint?.visible)) {
+            this.handPoints.push(tip);
+            this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0);
+          } else src.pokeHistory = null;
+          // History belongs to each fingertip, while pinch/palm capture
+          // belongs to the hand. The index keeps the legacy source id.
+          src.fingers ??= new Map();
+          if (hand && !src.selecting && !manipulating) {
+            for (const name of ['thumb-tip', 'middle-finger-tip', 'ring-finger-tip', 'pinky-finger-tip']) {
+              const joint = src.hand.joints[name];
+              if (!joint?.visible) { src.fingers.delete(name); continue; }
+              let finger = src.fingers.get(name);
+              if (!finger) { finger = { id: `${src.id}:${name}`, sourceId: src.id, selecting: false }; src.fingers.set(name, finger); }
+              const point = joint.getWorldPosition(new THREE.Vector3());
+              const r = Number.isFinite(joint.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius;
+              this.handPoints.push(point);
+              this.pokeStep(finger, point, items, r, DEFAULTS.handInput.pressOffset);
+            }
+          } else src.fingers.clear();
           src.state = {};
         } else {
-          src.pokeHistory = null;
+          src.pokeHistory = null; src.fingers?.clear();
           src.line.visible = true;
           const origin = new THREE.Vector3().setFromMatrixPosition(src.ray.matrixWorld);
           const dir = new THREE.Vector3(0, 0, -1).transformDirection(src.ray.matrixWorld);
@@ -211,7 +235,8 @@ export class InputSystem {
   }
 
   pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0) {
-    const probes = items.map(item => ({ item, point: item.worldToLocal(worldPoint.clone()) }));
+    const probes = items.filter(item=>!item.continuingOwner || item.continuingOwner===src.id)
+      .map(item => ({ item, point: item.inputCaptureInverse ? worldPoint.clone().applyMatrix4(item.inputCaptureInverse) : item.worldToLocal(worldPoint.clone()) }));
     const previous = src.pokeHistory;
     const continuous = previous && previous.frame === this.frame - 1
       && previous.point.distanceTo(worldPoint) <= DEFAULTS.handInput.iconApproachMaxStep;
@@ -242,7 +267,7 @@ export class InputSystem {
     // Special handles (the Dock shelf) retain their own arbitration.
     // Radius is in world metres; consumers convert it through their scale.
     for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
-      item.feed({ kind: 'poke', id: src.id, point, radius, pressOffset, pinch: src.selecting,
+      item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius, pressOffset, pinch: src.selecting,
         surfaceCrossing: crossings.get(item) });
     }
   }
@@ -255,13 +280,14 @@ export class InputSystem {
     } else {
       st.captured = null;
       this.raycaster.ray.copy(worldRay);
-      const hit = this.raycaster.intersectObjects(items.flatMap(i => i.hitMeshes), false)[0];
+      const hit = this.raycaster.intersectObjects(items.filter(i=>!i.continuingOwner).flatMap(i => i.hitMeshes), false)[0];
       if (hit) { target = hit.object.userData.owner; worldPoint = hit.point; }
     }
     st.hover = !!target;
     if (!target) { st.wasPressed = pressed; return; }
 
-    _m.copy(target.matrixWorld).invert();
+    if (target.inputCaptureInverse) _m.copy(target.inputCaptureInverse);
+    else _m.copy(target.matrixWorld).invert();
     const localRay = worldRay.clone().applyMatrix4(_m);
     if (pressed && !st.wasPressed) st.captured = target;
     const captured = st.captured === target;
