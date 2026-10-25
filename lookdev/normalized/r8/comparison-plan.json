@@ -1,0 +1,279 @@
+{
+  "schemaVersion": 3,
+  "taskId": "XR07-R7-STATES-20261025-0238",
+  "runId": "XR08-R8-STATES-20261025-1312",
+  "status": "PREPARED_NOT_CAPTURED",
+  "sourceSha": "61c7ba019eb6c1a535a7dbd8ce05265fc0be818e",
+  "contractSha256": "2c2d61074534eacce56b42a7e3ef8b571ae558ab3831ce6f8b33a30f34090fdc",
+  "inputDigest": "d46675f450a1bb78adef9c82e0abf513230c2807973904f2cdb20a482ffe11d8",
+  "sourceInputCount": 100,
+  "scope": {
+    "allowedOverrideLeaves": [
+      "look.glass.window.albedo",
+      "look.glass.window.knee",
+      "look.glass.window.sat",
+      "look.glass.window.rimLine",
+      "look.glass.window.shoulder",
+      "look.glass.window.edge",
+      "look.glass.window.frost",
+      "look.glass.window.grain",
+      "look.glass.window.key"
+    ],
+    "fixedWindowLeaves": [
+      "maxLum",
+      "rimClear",
+      "veil"
+    ],
+    "sharedBlurFixed": 0.36,
+    "forbiddenChanges": [
+      "look.glass shared blur/reflection/absorption/IOR/F0/frostScale/dimFloor",
+      "look.glass.bead and look.glass.lens",
+      "look.dockBubble, look.dockPlate, look.emboss and look.palmGlow",
+      "geometry, dimensions, corner positions, arrow geometry, font shaping, text metrics, icons, content, camera or environment",
+      "opacity hierarchy, title opacity, contact glow, input thresholds, motion or source/owner handling",
+      "product/preview source, shared tokens or generated files"
+    ],
+    "applicationMethod": "Isolated original product bench ?set before construction; verify actual producer ESM, defaults and all uniforms. No product edits."
+  },
+  "profiles": [
+    {
+      "id": "current",
+      "label": "Current · R8",
+      "overrides": {},
+      "resolvedWindow": {
+        "albedo": [
+          0.72,
+          0.695,
+          0.66
+        ],
+        "maxLum": 0.13,
+        "knee": 0.3,
+        "sat": 0.6,
+        "rimClear": 1,
+        "rimLine": 0.15,
+        "shoulder": 0.08,
+        "edge": 0.15,
+        "frost": 0.03,
+        "grain": 0.04,
+        "veil": 0,
+        "key": 0.55
+      },
+      "adopted": false
+    },
+    {
+      "id": "neutral-frost",
+      "label": "A · 차분한 반투명",
+      "overrides": {
+        "look": {
+          "glass": {
+            "window": {
+              "albedo": [
+                0.68,
+                0.69,
+                0.7
+              ],
+              "knee": 0.26,
+              "sat": 0.25,
+              "rimLine": 0.1,
+              "shoulder": 0.06,
+              "edge": 0.1,
+              "frost": 0.022,
+              "grain": 0.016,
+              "key": 0.42
+            }
+          }
+        }
+      },
+      "resolvedWindow": {
+        "albedo": [
+          0.68,
+          0.69,
+          0.7
+        ],
+        "maxLum": 0.13,
+        "knee": 0.26,
+        "sat": 0.25,
+        "rimClear": 1,
+        "rimLine": 0.1,
+        "shoulder": 0.06,
+        "edge": 0.1,
+        "frost": 0.022,
+        "grain": 0.016,
+        "veil": 0,
+        "key": 0.42
+      },
+      "adopted": false
+    },
+    {
+      "id": "clear-edge",
+      "label": "B · 또렷한 유리 경계",
+      "overrides": {
+        "look": {
+          "glass": {
+            "window": {
+              "albedo": [
+                0.73,
+                0.73,
+                0.74
+              ],
+              "knee": 0.31,
+              "sat": 0.4,
+              "rimLine": 0.14,
+              "shoulder": 0.075,
+              "edge": 0.13,
+              "frost": 0.015,
+              "grain": 0.012,
+              "key": 0.5
+            }
+          }
+        }
+      },
+      "resolvedWindow": {
+        "albedo": [
+          0.73,
+          0.73,
+          0.74
+        ],
+        "maxLum": 0.13,
+        "knee": 0.31,
+        "sat": 0.4,
+        "rimClear": 1,
+        "rimLine": 0.14,
+        "shoulder": 0.075,
+        "edge": 0.13,
+        "frost": 0.015,
+        "grain": 0.012,
+        "veil": 0,
+        "key": 0.5
+      },
+      "adopted": false
+    }
+  ],
+  "fixedConditions": {
+    "constructionDistanceM": 0.6,
+    "rootInitialScale": 1.5,
+    "rootInitialWindowMm": [
+      216,
+      246.15
+    ],
+    "anchorWorldM": [
+      0,
+      1.6,
+      -0.8
+    ],
+    "frontCameraUiM": [
+      0,
+      0,
+      0.8
+    ],
+    "fovYDegrees": 26,
+    "viewportPx": [
+      1600,
+      1000
+    ],
+    "dpr": 1,
+    "environment": "Pinned Lebombo HDR, yaw 1.6; unchanged original product tone mapping/exposure",
+    "sheetOpacityByDepthFromFront": [
+      1,
+      0.3,
+      0.12
+    ],
+    "titleOpacity": 1,
+    "heldStackOpacity": 0.9,
+    "heldPhysicalDentM": 0.0015,
+    "rowRing": 0.18,
+    "iconRing": 0.45,
+    "noLegacyHardRearMask": true,
+    "typeAndIcons": "Same pinned font/assets and actual shaped text metadata; no fallback, restyling or glyph replacement is permitted.",
+    "input": "Replay the exact verified source/owner fixtures and stable state; never substitute index press for pinch hold.",
+    "depthIntervalsM": [
+      0.035,
+      0.0245
+    ],
+    "depthIntervalRatio": 0.7,
+    "controlBodyOpacity": 0.38,
+    "controlSurfaceOpacityRule": "actual heldStackOpacity .9 when held,1 when rest/hover",
+    "dockProfileThicknessScale": 1.2,
+    "pushInnerWidthM": 0.016,
+    "pushInnerStrength": 0.12,
+    "frontFaceOpacity": 0.85,
+    "paneLocalThicknessM": 0.004,
+    "dockThicknessMAt0_4m": 0.0112,
+    "dockEndPadMAt0_4m": 0.042,
+    "dockDentRadiusM": 0.01,
+    "sphereDentWidthM": 0.008
+  },
+  "boundedMatrix": {
+    "profiles": [
+      "current",
+      "neutral-frost",
+      "clear-edge"
+    ],
+    "maximumInitialImages": 12,
+    "conditions": [
+      {
+        "id": "root-rest-front",
+        "fixture": "Catalog root",
+        "state": "rest",
+        "view": "front",
+        "reason": "Judge the main material, label hierarchy, texture and polished outline."
+      },
+      {
+        "id": "root-side-held-front",
+        "fixture": "Catalog root",
+        "state": "side-held",
+        "view": "front",
+        "reason": "Confirm that the same 12 mm/6 mm actual movement, unchanged side bubble and held opacity still read clearly.",
+        "positionDeltaUiM": [
+          0.012,
+          0.006,
+          0
+        ]
+      },
+      {
+        "id": "lighting-front",
+        "fixture": "Catalog > Lighting",
+        "state": "settled navigation",
+        "view": "front",
+        "reason": "Compare a visible rear sheet and restored title using the accepted layer fixture."
+      },
+      {
+        "id": "modular-angle",
+        "fixture": "Catalog > Sofas > Modular",
+        "state": "settled navigation",
+        "view": "angle",
+        "reason": "Compare three-level depth and rear hierarchy at the accepted oblique camera.",
+        "cameraUiFormula": "[0.8*sin(0.6),0.06,0.8*cos(0.6)]"
+      }
+    ],
+    "layerCondition": "New exact R8 independent references only. Preserve old RGB FAIL/occlusion N/A; side/back not added. Explicitly report unavailable oldest comparison."
+  },
+  "executionOrderedStages": [
+    "State support and adapter error-path/independent review closure",
+    "First root-rest-front Current only, independent reference/data and image review",
+    "Then other profile/condition captures; each condition Current reference first",
+    "Artifact/visual review then coordinator user choice"
+  ],
+  "referenceRequirements": {
+    "sameSource": true,
+    "uniformsAndOpticalUniforms": true,
+    "actualProducerESM": true,
+    "fullFontDeadline": true,
+    "cleanupOnReportFailure": true,
+    "firstCurrentIncludedIn12": true,
+    "noAutomaticImageDifferenceAcceptance": true
+  },
+  "rationale": {
+    "current": "Unchanged exact R8 defaults",
+    "neutral-frost": "Proposed modest tint/grain/highlight reduction relative to current; retain fixed alpha and luminance bounds",
+    "clear-edge": "Proposed restrained grain with stronger edge and spatial gradient than A",
+    "recommendationBeforeImages": "Inspect A first as a hypothesis only; not a rendered visual judgement",
+    "oldExactValuesReused": false
+  },
+  "limitations": [
+    "New candidates not captured or adopted",
+    "Synthetic WebGL is not headset contrast/comfort/frame timing",
+    "Historical R4/R6 failures, oldest RGB limitations and Blender evaluated deformation unsupported remain"
+  ],
+  "maximumSelectionImages": 12
+}
