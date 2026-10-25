@@ -66,6 +66,9 @@ try{
      disk.removeFromParent();disk.geometry.dispose();disk.material.dispose();
     }
     states.push(state);
+    // Dock placement uses the camera pose. Restore the real bench camera
+    // before the next simulation frame; inspection must not move the Dock.
+    camera(false);
    };
    const point=gap=>h.localToWorld(new THREE.Vector3(0,0,h.r+.008+gap));
    capture('rest');for(const gap of [.04,.025,.015,.005]){put('index-finger-tip',point(gap));step();}capture('early');
