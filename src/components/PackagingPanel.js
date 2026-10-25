@@ -11,8 +11,8 @@
 // contact shadow on the one behind, and a hovered row lifts out as a glass
 // lens that shadows its window.
 //
-// Navigation is never locked: a level can be opened or left while another
-// is still moving. Reduced motion: levels don't travel or grow, they fade
+// Motion never locks navigation. Overlapping sibling presses wait for all
+// contacts to end, then open only the last valid choice. Reduced motion: levels don't travel or grow, they fade
 // in and out where they belong (see stepPackagingLevel).
 //
 // Tokens used: packaging.*, motion.expand.dropdown.*, material.*, size.*,
@@ -346,6 +346,7 @@ export class PackagingPanel extends THREE.Group {
       row.addEventListener('press', () => {
         if (this.levels.at(-1) !== level) return;
         row.navigationClaim = { parent:level, started:this.inputEpoch ?? 0,
+          canOpen:canOpen && !tooDeep,
           key:String(child.id ?? `${level.depth}:${i}:${child.label ?? ''}`),
           inverse:row.matrixWorld.clone().invert() };
       });
@@ -357,7 +358,7 @@ export class PackagingPanel extends THREE.Group {
           started:claim?.started ?? this.inputEpoch ?? 0, key:claim?.key ?? String(child.id ?? `${level.depth}:${i}:${child.label ?? ''}`) };
         row.navigationClaim=null;
         if (this.collectingSelections) this.pendingSelections.push(request);
-        else this.runSelection(request);
+        else { this.queueSelection(request); this.flushNavigation(); }
       });
       group.add(row);
       // A pushed-back level shows only its title: its list would compete
@@ -386,8 +387,24 @@ export class PackagingPanel extends THREE.Group {
     return level;
   }
 
-  // Selection is collected before navigation mutates input gates. A
-  // sibling request retains its original parent, never the last child.
+  // Leaves execute independently. Overlapping navigation presses stay on
+  // their original parent until every navigation contact ends. The last
+  // valid release wins; a cancelled contact never overwrites that choice.
+  queueSelection(request) {
+    if (request.canOpen) request.parent.pendingNavigation = request;
+    else this.runSelection(request);
+  }
+
+  flushNavigation() {
+    for (const parent of [...this.levels]) {
+      const request = parent.pendingNavigation;
+      if (!request || parent.rows.some(row => row.press.pressed && row.navigationClaim?.canOpen)) continue;
+      parent.pendingNavigation = null;
+      this.runSelection(request);
+    }
+  }
+
+  // A sibling request retains its original parent, never the last child.
   runSelection({parent,row,child,canOpen}) {
     const index=this.levels.indexOf(parent);
     if (index<0 || parent.closing || this.palmPush || this.controls.held) return;
@@ -399,9 +416,12 @@ export class PackagingPanel extends THREE.Group {
 
   cancelSelections() {
     this.pendingSelections=[];
-    for (const l of this.stack.all) for (const row of l.rows) {
-      if (row.press.pressed) { row.press.update(0,null,false); row.dispatchEvent({type:'cancel'}); }
-      row.navigationClaim=null; row.continuingOwner=null; row.inputCaptureInverse=null;
+    for (const l of this.stack.all) {
+      l.pendingNavigation = null;
+      for (const row of l.rows) {
+        if (row.press.pressed) { row.press.update(0,null,false); row.dispatchEvent({type:'cancel'}); }
+        row.navigationClaim=null; row.continuingOwner=null; row.inputCaptureInverse=null;
+      }
     }
   }
 
@@ -494,8 +514,9 @@ export class PackagingPanel extends THREE.Group {
     }
     this.collectingSelections=false;
     this.pendingSelections.sort((a,b)=>a.started-b.started || (a.key<b.key ? -1 : a.key>b.key ? 1 : 0));
-    for (const request of this.pendingSelections) this.runSelection(request);
+    for (const request of this.pendingSelections) this.queueSelection(request);
     this.pendingSelections=[];
+    this.flushNavigation();
     this.applyInputGates();
     if (!reduced) for (const child of this.closing) {
       // Hold depth order through the visible exit. Recover ancestors once

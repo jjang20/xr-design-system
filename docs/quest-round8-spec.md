@@ -1,14 +1,16 @@
-# Quest R8 — single-finger list feedback and compact Dock dents
+# Quest R8 — list feedback, compact Dock dents and last-choice navigation
 
-Source8447168 and coordinator Q40–Q46 contract. Product/preview single writer; same branch and Draft PR5. Current844 preview remains until complete candidate validation.
+Source8447168, preserved independent slice404ce6f and coordinator Q40–Q48 contract. Product/preview single writer; same branch and Draft PR5. Current844 preview remains until complete candidate validation.
 
-## Accepted and pending
+## Accepted behavior
 
 R7 bubble clarity/Glow, pane half thickness/front-face alpha/rear distinction are accepted. Keep .38/.995/.42 material values, pane4mm local/front.85/rear.30/.12/title1 and existing gaps. Preserve accepted icon approach/rubbing, Push25mm/100ms, actual multi-contact and independent leaf actions, loss/cancel/rearming and pinch controls.
 
 Q45 is a concrete observation: one finger approaching makes multiple list rows react. It is not a new per-hand/global hover policy. Reproduce actual InputSystem delivery and visual response before narrowing its cause.
 
-Q41 supersedes sequential intermediate navigation: the user wants only the last selection's child. Q46 release waiting/cohort details remain pending explanation and decision. Navigation implementation is held; oldQ39 code remains until the decision joins this slice.
+Q48 resolves the earlier Q46 question: together-pressed navigation items under the same parent wait until all their contacts release/cancel/lose tracking. Only the last valid release opens a child; no intermediate child opens. A cancelled contact cannot replace a valid choice; all-cancel means no navigation. A new navigation press overlapping a still-held sibling joins that parent group. A singleton opens immediately on complete separation, without a timer.
+
+Same-frame releases reuse press-start order then stable item ID, taking the final valid request. Leaf selection remains independent and does not join or delay navigation groups. Same-item duplicate prevention, actual multi-contact, pinch/Push ownership, original-parent sibling replacement and one stack remain. External back/manipulation/Push clears pending navigation. Q39 intermediate-open assertions are superseded by these explicit Q48 expectations; source404 and its evidence remain preserved.
 
 ## Confirmed Dock trials
 
@@ -20,7 +22,7 @@ Q41 supersedes sequential intermediate navigation: the user wants only the last 
 
 ## Verification and next two
 
-1. Pin844 reproduction and before/after actual mesh/input/screen traces. Fix only the reproduced hover path; merge Q46 when decided. Preserve actual multi-contact and cancellation boundaries.
+1. Preserve the verified404 input/Dock evidence; add actual InputSystem navigation red→green for Q48, including cancellation/loss, overlapping contacts, ties, ray input, independent leaves and ownership boundaries. Questions pending0.
 2. Coherent fixed SHA runtime/build/token and MR/HDR browser checks; independent Spec/Standards/motion closure; same PR and exact-SHA HTTPS receipt/module hashes before handoff. No merge/public deployment or Lookdev gate bypass.
 
 ## Reproduced causes and bounded fixes
