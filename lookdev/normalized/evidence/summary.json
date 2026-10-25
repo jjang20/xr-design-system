@@ -1,0 +1,121 @@
+{
+  "sourceSha": "b0efff2de1860e5d2f39dc65b17db250f3c6b627",
+  "codeBaseSha": "a7d5d5142d24e212029edba7e3b11519843d2762",
+  "contractSha256": "2372f3a6d156416f37f5971130eb2e12d319aec0db7a9bb8698efe06398d6cad",
+  "normalizedSha256": "3fa4195e84ee612a1c660a560dbb3f0f7beeddea265d0689779de821d1666265",
+  "renderAdapterSha256": "1e53e210389a5fa4838b6911190a3fd31e30338d4fd6e9e84e19212c4a9a3595",
+  "blender": "5.2.3 LTS",
+  "backend": "OPTIX",
+  "state": "rest",
+  "view": "front",
+  "widthPx": 1600,
+  "heightPx": 1000,
+  "meshes": 104,
+  "texts": 10,
+  "icons": 8,
+  "nativeMaximumBoundsErrorM": 0.0,
+  "calibration": {
+    "allPassed": true,
+    "checks": {
+      "windowBoundsEqual": true,
+      "windowIoUAtLeast0995": true,
+      "allForegroundWithinTwoPixels": true,
+      "contentIoUAtLeast085": true
+    },
+    "masks": {
+      "window": {
+        "thresholdRed255": 90,
+        "browserBoundsPx": [
+          538,
+          202,
+          1061,
+          797
+        ],
+        "referenceBoundsPx": [
+          538,
+          202,
+          1061,
+          797
+        ],
+        "intersectionOverUnion": 0.999759462235571,
+        "symmetricMaximumDistancePx": 1.0,
+        "symmetricP99DistancePx": 0.0
+      },
+      "whiteContent": {
+        "thresholdRed255": 200,
+        "browserBoundsPx": [
+          578,
+          252,
+          1015,
+          751
+        ],
+        "referenceBoundsPx": [
+          578,
+          252,
+          1015,
+          752
+        ],
+        "intersectionOverUnion": 0.9127889371151711,
+        "symmetricMaximumDistancePx": 1.0,
+        "symmetricP99DistancePx": 1.0
+      }
+    },
+    "meanAbsoluteChannelDifference255": 0.339458125,
+    "inputs": [
+      {
+        "name": "browser-calibration.png",
+        "sha256": "922e666ff475cda52cbe0cce0789f3de2b4743d38d7e9fe823f64c15fb482af1"
+      },
+      {
+        "name": "rest-front-calibration.png",
+        "sha256": "1cc74d71b20c8e0733ccfb9317b5a4c116c37afe466c02e1b9afabdb687b1fae"
+      }
+    ],
+    "method": "Unaligned, unresampled opaque neutral captures. Fixed thresholds for silhouette registration only.",
+    "limits": [
+      "SDF/triangle rasterization and antialiasing differ",
+      "Not a physical-material or pixel-colour equivalence test",
+      "Not a headset acceptance test"
+    ]
+  },
+  "reference": {
+    "processExitCode": 0,
+    "renderSeconds": 5.163153300003614,
+    "returnedFilesHashMatched": 9,
+    "freshConnectionReadbackMatched": true
+  },
+  "environment": {
+    "sameLandmarkOrientation": true,
+    "leftBoundaryResidualPx": 5,
+    "exactPhotometricMatchClaimed": false
+  },
+  "images": [
+    {
+      "path": "browser-calibration.png",
+      "bytes": 74418,
+      "sha256": "922e666ff475cda52cbe0cce0789f3de2b4743d38d7e9fe823f64c15fb482af1"
+    },
+    {
+      "path": "browser-reference.png",
+      "bytes": 819102,
+      "sha256": "cd520cee8d93f6df878bf1a2debd0e166df1b0da4746add341b713c3b4156834"
+    },
+    {
+      "path": "blender-calibration.png",
+      "bytes": 770951,
+      "sha256": "1cc74d71b20c8e0733ccfb9317b5a4c116c37afe466c02e1b9afabdb687b1fae"
+    },
+    {
+      "path": "physical-reference.png",
+      "bytes": 1657101,
+      "sha256": "21fb306dfd58d36f35048c98d1a455fd5640eb6878f2ad23118e154d3fe4d3f1"
+    }
+  ],
+  "limits": [
+    "Rest/front only",
+    "Physical recipe is a labelled reference, not the WebXR shader",
+    "No new design adoption",
+    "R3 and new layout/opacity requests are separate",
+    "No Quest appearance, usability, frame time, or comfort acceptance"
+  ]
+}

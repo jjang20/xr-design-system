@@ -1,0 +1,642 @@
+{
+  "schemaVersion": 1,
+  "sourceSha": "b0efff2de1860e5d2f39dc65b17db250f3c6b627",
+  "tokenSha256": "d644cb4357e5124ee730de8b024d962e04cc84d6d17db58762337fbf111f11a6",
+  "inputDigest": "7128e3948de73654a078f93cf5de3d4759d29caa049c860e1c11931a87c40cce",
+  "comparisonContractSha256": "2372f3a6d156416f37f5971130eb2e12d319aec0db7a9bb8698efe06398d6cad",
+  "trackedInputs": [
+    {
+      "path": "arena/experiments/catalog-parent-dim.json",
+      "origin": "git-object",
+      "bytes": 1189,
+      "sha256": "1c43af05b0025c9e3d7dd6bae056f0d3e29d26ef26d7269c3ca28166266ed762",
+      "gitBlob": "7db2a7fb57af813ad4f71b8eaa158901246171ef"
+    },
+    {
+      "path": "arena/scenes/catalog-stack.mjs",
+      "origin": "git-object",
+      "bytes": 6054,
+      "sha256": "c7c6007f4f7955278d3afabda72f0f1d84ad27ce055bd3b7d8f3a45402f16ddd",
+      "gitBlob": "efaa34b4684e6d3bf49350d48eb69bf585620264"
+    },
+    {
+      "path": "demo/backdrop.js",
+      "origin": "git-object",
+      "bytes": 1335,
+      "sha256": "7307f55f26e17978a0f6071207dfb714cb9f48128f59fa2c87cec8b09a4da160",
+      "gitBlob": "8c5b92aa8d09a6c5be3f047444c9463bc86131d3"
+    },
+    {
+      "path": "demo/bench.html",
+      "origin": "git-object",
+      "bytes": 343,
+      "sha256": "f7c9d473338f3782586ac60da594c950ad79dc252c9d25877a458c7f0c399b63",
+      "gitBlob": "63ebe533dd1c481174531b294152105cb4644cc8"
+    },
+    {
+      "path": "demo/bench.js",
+      "origin": "git-object",
+      "bytes": 17970,
+      "sha256": "44020ff7fe6713bddf9a2c88799a685f5c130c05eec42cb01d93820f87f15029",
+      "gitBlob": "66715e684747d60c11a27e816778e63ebbec8ba4"
+    },
+    {
+      "path": "demo/catalog-data.js",
+      "origin": "git-object",
+      "bytes": 1055,
+      "sha256": "d0d1ea89f4f4272d37808e16ed23f8bf1fe4afc09c8177e190ff427ccf56d92b",
+      "gitBlob": "1243cbb2b8c8ebe46828ebae2f122fb23671da41"
+    },
+    {
+      "path": "demo/main.js",
+      "origin": "git-object",
+      "bytes": 6809,
+      "sha256": "fc97802b7264808c600d460c09b802cf467616ab8a6971fab1cf130a5d8f1037",
+      "gitBlob": "6b653f1325ec7eea236d6b5a0c37e9d7e226dce4"
+    },
+    {
+      "path": "demo/public/env/CREDITS.txt",
+      "origin": "git-object",
+      "bytes": 111,
+      "sha256": "4cdc44f26b456a2148fea3fdccc075f62ef2428df9ac4632ccebdca8b61267de",
+      "gitBlob": "e846bc3bbf437d9589cb3669afad08631d807ca8"
+    },
+    {
+      "path": "demo/public/env/lebombo_1k.hdr",
+      "origin": "git-object",
+      "bytes": 1476953,
+      "sha256": "a02c9615adeba91a753c3e4737c3ce7a719273df822eeaa85d24982bd43c9ecb",
+      "gitBlob": "3aee1937cd2dabc9ded2a7bd5a5a1bcc4ca13a7b"
+    },
+    {
+      "path": "docs/catalog-spec.md",
+      "origin": "git-object",
+      "bytes": 11989,
+      "sha256": "aa2bba7700d49685af41868cbd4531f6a07cd7a681a230f12319cd5e297e7d3f",
+      "gitBlob": "3fe0eaa917ab1b83a2167c5a74f8506b5a6ecf67"
+    },
+    {
+      "path": "docs/decisions.md",
+      "origin": "git-object",
+      "bytes": 30918,
+      "sha256": "6229e9b203fab12d5f8a24e4b210fcc847979e05b176da03bffd7568f64ee215",
+      "gitBlob": "3529da3220ec942fbc8dba68c18ac25c30a8907e"
+    },
+    {
+      "path": "lookdev/catalog.json",
+      "origin": "git-object",
+      "bytes": 1540,
+      "sha256": "ec92d222539c922feeebf705a03a532d1b7c09ae8523126780e17de35ef61376",
+      "gitBlob": "a842f70e0928013fd26c1d414de3c023ffbdc7fb"
+    },
+    {
+      "path": "lookdev/catalog.py",
+      "origin": "git-object",
+      "bytes": 20737,
+      "sha256": "4b3efc36dddc4fe2c6cfa9f4b953b21d30a074a19977289392cf05dbdbaebc4c",
+      "gitBlob": "5676423294af0014931afbfcd39022282e1c1743"
+    },
+    {
+      "path": "lookdev/fonts/inter-500.ttf",
+      "origin": "git-object",
+      "bytes": 66692,
+      "sha256": "e81cd232108864a9e4fd779de0a33f0e0699c4b52919b201e82c702df10117bb",
+      "gitBlob": "6643494f6c5929db55c7cb306d1b9a563d97cec1"
+    },
+    {
+      "path": "lookdev/fonts/inter-600.ttf",
+      "origin": "git-object",
+      "bytes": 66800,
+      "sha256": "a19676ae9cc125d1e1ca40181f2ce04fe9f724a888ad1ca80e2fc02fb88f5ef0",
+      "gitBlob": "6d8df67fa68acfd5ac0f6da3d64450a4e9f1be3d"
+    },
+    {
+      "path": "lookdev/fonts/inter-700.ttf",
+      "origin": "git-object",
+      "bytes": 66784,
+      "sha256": "b8428d70f7528ae0bdc5ac08d9303748a685aedd6365321396bc733c14db9b3f",
+      "gitBlob": "809bd82d36a2bc5b2b3b984b3b97f1fdede3e3c2"
+    },
+    {
+      "path": "package-lock.json",
+      "origin": "git-object",
+      "bytes": 39313,
+      "sha256": "c9ad7687650c5f73a07e2cc76d744144357d21f0f46f27d19319ee84aed7368f",
+      "gitBlob": "78935c05e0530d4c08c3709dcdfbdae84c2f862d"
+    },
+    {
+      "path": "package.json",
+      "origin": "git-object",
+      "bytes": 1181,
+      "sha256": "87870a17cacc17006010a8b1a4a91503c71f1d514f42899a8b09131a3782f516",
+      "gitBlob": "2bd83bed903a996cb58f59e86b3b31c312477625"
+    },
+    {
+      "path": "scripts/tokens-lib.mjs",
+      "origin": "git-object",
+      "bytes": 2487,
+      "sha256": "3809e3cda5dbec05390b563f8e608e9d29110966e8d1bebdd5c435c28ccb5672",
+      "gitBlob": "e7cfbe6e32b5c99adcb34f2e990099f24c320381"
+    },
+    {
+      "path": "src/components/Button.js",
+      "origin": "git-object",
+      "bytes": 22147,
+      "sha256": "98183e9184a4ff5e0c27d125211460c5c72a92af587cbbf5dfc1381e34535901",
+      "gitBlob": "ad2d7094c236de4563a6bcae7b5142096600a55a"
+    },
+    {
+      "path": "src/components/Dock.js",
+      "origin": "git-object",
+      "bytes": 36979,
+      "sha256": "dbbf7a8aafb97fdb5811d0157e6c5406a5595ca7c8414bf62bc1bce949083f1d",
+      "gitBlob": "4ad3ea6cbf7cba47f862c27172e8d0c05347bec1"
+    },
+    {
+      "path": "src/components/DockIcon.js",
+      "origin": "git-object",
+      "bytes": 11051,
+      "sha256": "008614086ee4e0ecdc07d315b5945a96a26afeea7cf2ab14793d7d8e445a0b3b",
+      "gitBlob": "dd4d6b14ab838ae27bddc824c607fdfb87b8c5d9"
+    },
+    {
+      "path": "src/components/PackagingPanel.js",
+      "origin": "git-object",
+      "bytes": 17202,
+      "sha256": "9ab9893c68f43135c20ad7be267decc71703ad243f1985c0de04401659d4a53e",
+      "gitBlob": "a700951e68f714e13d976a3c74b49a345a8e1d05"
+    },
+    {
+      "path": "src/components/Toolbar.js",
+      "origin": "git-object",
+      "bytes": 2971,
+      "sha256": "d3f62b1945e1d28b7f2dee192eb7705031de2c97ca280537ffcd77bd8bb9c134",
+      "gitBlob": "9e553e96df97ad13d3182f09d16a2f1c01d07eaf"
+    },
+    {
+      "path": "src/components/ZSlider.js",
+      "origin": "git-object",
+      "bytes": 21008,
+      "sha256": "29e0892655b76b788ad53cf317cf50edb9d48ddcfb105123bb71673ac8cb2cc9",
+      "gitBlob": "0846ef0bf651842d282b85f5bc33dd3d0110e481"
+    },
+    {
+      "path": "src/core/Hysteresis.js",
+      "origin": "git-object",
+      "bytes": 590,
+      "sha256": "c9a95b00a20e2cda72e565748dc4155975b808758472faafd8a2a2f304c9c30f",
+      "gitBlob": "391892392314c325869291c6cbb56312b6bf58d1"
+    },
+    {
+      "path": "src/core/InputSystem.js",
+      "origin": "git-object",
+      "bytes": 10204,
+      "sha256": "c76d91ec19b685b46000f4a7dcadba29514bddb517686a0f7cba3bc876e2a6ba",
+      "gitBlob": "aa7463dc3882cf16b3924c0a2991c062ff3cfbce"
+    },
+    {
+      "path": "src/core/Interactable.js",
+      "origin": "git-object",
+      "bytes": 2367,
+      "sha256": "43f4c5834df53595de83dcb3eabf0aadb3a32917e6337f293cda9808e9ba3140",
+      "gitBlob": "c8146c7e7983dbdd3d4eea64f7274d633f811fc3"
+    },
+    {
+      "path": "src/core/PressModel.js",
+      "origin": "git-object",
+      "bytes": 2883,
+      "sha256": "f1505c186d06ce01edebac42138fa201965be1e2ae6a9ddf34efa99b9f21b105",
+      "gitBlob": "5b8aace6e81b68dbb5c240641c0e6df7b67fc34c"
+    },
+    {
+      "path": "src/core/audio.js",
+      "origin": "git-object",
+      "bytes": 791,
+      "sha256": "936af560ba5512794e5f3b1bfb25f04319de620f187e1f9020a132f4d375b224",
+      "gitBlob": "214d8cdd098d4c10ee5688238253dce59c060948"
+    },
+    {
+      "path": "src/core/bubble.js",
+      "origin": "git-object",
+      "bytes": 10354,
+      "sha256": "c3eceda7b0a98574c4449c28fc88ef2e505a2bd47e702f5ce9ad6e1ee44ad62f",
+      "gitBlob": "32496070d4bb3241f6317cf03e2057a923661876"
+    },
+    {
+      "path": "src/core/bubbles.js",
+      "origin": "git-object",
+      "bytes": 1215,
+      "sha256": "29d1a3f33ee80c4ea7d17612678776273bccc2efe17623c5b1c2396fc2b9666f",
+      "gitBlob": "4288ef09669059d0561d18701274031d6644a507"
+    },
+    {
+      "path": "src/core/defaults.js",
+      "origin": "git-object",
+      "bytes": 21081,
+      "sha256": "db3bc04d0e631b8795393eafc6957fd8d03295c83b497d2cf00da19c3f4c5d36",
+      "gitBlob": "7145b25f8abc5ce7caf8d04bcb727dba9bb32330"
+    },
+    {
+      "path": "src/core/detent.js",
+      "origin": "git-object",
+      "bytes": 414,
+      "sha256": "f289267cf9c746b84a5230a87939090b4b592436ab6ba08f1878a288b534ffa7",
+      "gitBlob": "cbf9e363907428a9938ba9630122bd4a731d7bf7"
+    },
+    {
+      "path": "src/core/easing.js",
+      "origin": "git-object",
+      "bytes": 630,
+      "sha256": "09a7f0df65a1e337f8204935f2eebf2933497af5887769d17159718d54a5501f",
+      "gitBlob": "486f611946c01cb604ab1ece7a213348ff444c71"
+    },
+    {
+      "path": "src/core/follow.js",
+      "origin": "git-object",
+      "bytes": 1353,
+      "sha256": "b85f73fbf70de7bbed4a3a1e50e5b0cca60fb575be8891fcafb1bb01d8510e2c",
+      "gitBlob": "9dc1795dd767e41711e8d75d1fc499f8b0a700b7"
+    },
+    {
+      "path": "src/core/icons.js",
+      "origin": "git-object",
+      "bytes": 2849,
+      "sha256": "e11a29ddc36d275413d115a749f62e47d5ce188f01a142d98b1111009ed373bb",
+      "gitBlob": "618a9008e7ef11b75dc05c5aeff910d53a46b5a4"
+    },
+    {
+      "path": "src/core/look.js",
+      "origin": "git-object",
+      "bytes": 39157,
+      "sha256": "195eff58d15fea7a5b738fadf6a4b3b7c3f88e7efeaad70ca66a86eee32a5cba",
+      "gitBlob": "868a0a3313d1ffe3c4e91b75085d92e8f20f1aaf"
+    },
+    {
+      "path": "src/core/objects.js",
+      "origin": "git-object",
+      "bytes": 51120,
+      "sha256": "a0102c259587d927a383b5b5e8cb65a9696db11d2bf84fceb8cc3e9a52cbb0ab",
+      "gitBlob": "f032c29218a6c7fc0a45ca7695e5e2f41c32d968"
+    },
+    {
+      "path": "src/core/packaging.js",
+      "origin": "git-object",
+      "bytes": 4205,
+      "sha256": "2250abfb0f6ef7998fc84e1ba2907285416b59931b72aad07f920ece26b330a3",
+      "gitBlob": "1fd885c00adf376beb97d99eaab95aec2762d2c7"
+    },
+    {
+      "path": "src/core/refract.js",
+      "origin": "git-object",
+      "bytes": 27659,
+      "sha256": "46d529b34f8b6ffba1a53a3988147c2d8ae1b685ccca3f8ba02ca25d3fae3d50",
+      "gitBlob": "7b996804c16e6943c716224ae2eaf2a73e906d2e"
+    },
+    {
+      "path": "src/core/spring.js",
+      "origin": "git-object",
+      "bytes": 1637,
+      "sha256": "9fcadd149e593c03d3786f1b777ad8755e9c8777b987c1c954e97fe7ca6a3859",
+      "gitBlob": "f8d2d5a16787ca24f1b895fbeddff936f45cf57f"
+    },
+    {
+      "path": "src/index.js",
+      "origin": "git-object",
+      "bytes": 894,
+      "sha256": "6e6f65853658b860513e5dce0211ee2c0ba5b5269b30b02b7d84f58e63596c98",
+      "gitBlob": "1431396a0beed7d3b2049dd6583e53dbd781c5a9"
+    },
+    {
+      "path": "src/tokens.js",
+      "origin": "git-object",
+      "bytes": 2150,
+      "sha256": "1556812094b8146722df9ffcd83a3d88de38bbb36f3a3fdee1e1a3e9390dc5ea",
+      "gitBlob": "174079b79ac57c2ce22950c24c016f1fb398bbae"
+    },
+    {
+      "path": "tokens.json",
+      "origin": "git-object",
+      "bytes": 28758,
+      "sha256": "d644cb4357e5124ee730de8b024d962e04cc84d6d17db58762337fbf111f11a6",
+      "gitBlob": "9333463c08ac1f6a052d8a83abe227371b316789"
+    }
+  ],
+  "externalAssets": [
+    {
+      "path": "node_modules/@fontsource/inter/package.json",
+      "origin": "local-installed-dependency",
+      "role": "dependency-metadata",
+      "bytes": 1446,
+      "sha256": "05d03ec21754e37cf7da007c840e2f0a893c8161a53ee782d7c810e8a99c7cc5"
+    },
+    {
+      "path": "node_modules/lucide-static/package.json",
+      "origin": "local-installed-dependency",
+      "role": "dependency-metadata",
+      "bytes": 1699,
+      "sha256": "0a1af322fa567c8b3b65f36e5a3dcdd8ed5391f3c95fba6a1ff6be81dad50ff6"
+    },
+    {
+      "path": "node_modules/three/package.json",
+      "origin": "local-installed-dependency",
+      "role": "dependency-metadata",
+      "bytes": 3672,
+      "sha256": "f9c474a27c920b9435353a6235968f4453436bee0444fac7e5fd289c8fa463de"
+    },
+    {
+      "path": "node_modules/troika-three-text/package.json",
+      "origin": "local-installed-dependency",
+      "role": "dependency-metadata",
+      "bytes": 1157,
+      "sha256": "a31665fa30be50a7377223619121c2fd4cd48c0b9c5b84ae8b95c0981fadfcec"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/LICENSE",
+      "origin": "local-installed-dependency",
+      "role": "license",
+      "bytes": 4477,
+      "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345"
+    },
+    {
+      "path": "node_modules/lucide-static/LICENSE",
+      "origin": "local-installed-dependency",
+      "role": "license",
+      "bytes": 3208,
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-400-normal.woff",
+      "origin": "local-installed-dependency",
+      "role": "runtime-font",
+      "bytes": 30696,
+      "sha256": "e20fa0b4fd2dd26e4d14b3ac3cc922509c3a63fa5e910e90c614544aa042dd45"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-500-normal.woff",
+      "origin": "local-installed-dependency",
+      "role": "runtime-font",
+      "bytes": 31284,
+      "sha256": "9b42c108da48b5ed55a3072e815ffee2d271562e6c0dd6998910e8f9c09e0a3d"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-600-normal.woff",
+      "origin": "local-installed-dependency",
+      "role": "runtime-font",
+      "bytes": 31260,
+      "sha256": "6a9cb3a509b4eeaf12b7dda6c4aacac3e85d07f4201bf4dd716e332e692b87bd"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-700-normal.woff",
+      "origin": "local-installed-dependency",
+      "role": "runtime-font",
+      "bytes": 31320,
+      "sha256": "7c5ed5655730de337704d3fc94628515cd7e3d8d32368871709bf56ac0397e7a"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/sofa.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 536,
+      "sha256": "8a364e4cf73fa614cb38dbed5ce79613a9d2572467d4b830d8633866fbed73ae"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/armchair.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 516,
+      "sha256": "18e66d5b4ee2803dee08338c9dd9d34e4af5df45d39c75a3e5a4c12b2534cfc3"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/bed-double.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 449,
+      "sha256": "ae97074bca84365e844d445a7ff3b59be7158b33b7aafaee86e1a9fcadac87e9"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/table-2.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 385,
+      "sha256": "0120b45546a12c28b501a8458e449dd5c052bb8b4ef4aeb1bffc0c7ab69fedfe"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/lamp-floor.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 444,
+      "sha256": "835dee65b4728279cb484b158ec8fbfb4a77770b20c54fdcc383fe9020219aae"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/tv.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 363,
+      "sha256": "5c5b266331db6ecc31a51cd83b14cd48892dfb4119ea07aa2460709e06f3a9e0"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/bath.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 470,
+      "sha256": "5715b4b99549ee46ffb01e319a18b1f46d61e21f09403f05f79174c830702222"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/refrigerator.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 424,
+      "sha256": "0ab76dd2b07fe44cf0e9d629320e6bd0a9ade30ceebea602809bed3698970748"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/flower-2.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 582,
+      "sha256": "f9e553236a57ece7bc22416143802eb41b2d444f5bc9f9b4d04bb8f4780b38bf"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/chevron-right.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 321,
+      "sha256": "b9e4521dff43288a385af1421b625da8fd40cf28c272a508c933217002090776"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/chevron-left.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 321,
+      "sha256": "55855ba9ca6bd3f350d1f6e092f669518679d1c86a52607a1bd2640cbf5af31e"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/rotate-3d.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 451,
+      "sha256": "9ea65259c69b517369b7916555219783df8356b5aa405af00d524bcd64eb6a25"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/move-3d.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 395,
+      "sha256": "8a72196ad56d5a8fc8fe369aa991c2667c775b441fa3d09a0611c2de4120cbbe"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/lock.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 384,
+      "sha256": "4d641d71ba1962047f666b91143c0e136abe8dc7d2add28b0548e926571203be"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/trash-2.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 467,
+      "sha256": "56b7d27b706ff3d828fe7a2e2d5150b8bbd97d12f6d0908cf495563024dea127"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/plus.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 331,
+      "sha256": "faf0bab01219d720cdd3047f6b5755c78c8e5a6743008a8fcd1c48fec4879519"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/sun.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 559,
+      "sha256": "e00cbd74f9cf7b463d45f4980388d745095cea2188a1729d734b80fc5055187d"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/ruler.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 537,
+      "sha256": "452bb91fd1649fe640caa4b1c72260152022b012736683b65327446df1f7e7b3"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/mail.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 391,
+      "sha256": "172363fa06a5e2215731ad54e78593a06edbbfca8269fc8a644719e08eb12b44"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/globe.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 407,
+      "sha256": "084b094795834a9976e39342a35e17e51fbee5171d59cae80ffee05c0b34d4b6"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/image.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 434,
+      "sha256": "bd33f9ce149098d4729669e62e2c3ceb042083a3f294f51deaa54f92ef01c7bc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/music.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 426,
+      "sha256": "85ed33c32383151880ad19bad38eb5a41699311cd171d5a3f24e64c983a0c776"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/notebook.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 455,
+      "sha256": "4ed9ffbb8e180416f33a41288218788f377970bd090e09bfa5a7162ba3f0a328"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/settings.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 665,
+      "sha256": "c23eb8c13e7ee68672cca78ff5176f6fa89238ae5c0eec960a2e1e161e8d25cc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/layers.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 587,
+      "sha256": "2db56bec69d08216e9118099b76cab533791e7ab9c93894b3d26f7b9b9664fcc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/scan.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 441,
+      "sha256": "99fee916c69a0998a3bff0e515636126c0758d8275c41fdd3ce523f0f8d6ed80"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/square-dashed.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 616,
+      "sha256": "339d9092632d212e98b475faa2e9af470160286d99dbb3899d950244b3ba8dfb"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/house.svg",
+      "origin": "local-installed-dependency",
+      "role": "module-import-only",
+      "bytes": 459,
+      "sha256": "9491b2ae53be57db9f8a6a1c21766da4b9f54aeeb1f3ceb09768b78ee0e3199b"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/blocks.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 444,
+      "sha256": "632c8c6110ce158c227b525bb155c7cc21ac8af8e60252649d69251812a2075b"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/box.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 475,
+      "sha256": "0f35a77b1bbed74ad049132343a3286bf4c455772f3aa6b46d1fd1a2ecaca33f"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/circle.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 321,
+      "sha256": "2f23618b1570202425e48399878e86bebd43ea2e3760b149e7027083e752de6d"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/square.svg",
+      "origin": "local-installed-dependency",
+      "role": "catalog-icon",
+      "bytes": 338,
+      "sha256": "7ecd4bbe99b5f2e6d8e23549e9c6385e48501c9f30566d68500565acf2fcf6ce"
+    }
+  ],
+  "packages": {
+    "@fontsource/inter": {
+      "version": "5.3.0",
+      "lockIntegrity": "sha512-RofMylZmjlJEfELXeNHFWBRcSs75rGU/6bV2S2jfnvv/3rPXPGe0LgUJTklcHZ9lM4OZmAVFhcJPnACfb91A3g==",
+      "installedVersionMatches": true
+    },
+    "lucide-static": {
+      "version": "1.59.0",
+      "lockIntegrity": "sha512-MuHZYaXbHgzN2QO6D3OM19bj09A+8GJiFSdXIMlbnLLEGQQ9+NRH2KaCxuivevD3Y23vM74kV17XBifgtqhfEg==",
+      "installedVersionMatches": true
+    },
+    "three": {
+      "version": "0.186.1",
+      "lockIntegrity": "sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==",
+      "installedVersionMatches": true
+    },
+    "troika-three-text": {
+      "version": "0.52.4",
+      "lockIntegrity": "sha512-V50EwcYGruV5rUZ9F4aNsrytGdKcXKALjEtQXIOBfhVoZU9VAqZNIoGQ3TMiooVqFAbR1w15T+f+8gkzoFzawg==",
+      "installedVersionMatches": true
+    }
+  }
+}

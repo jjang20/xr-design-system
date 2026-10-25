@@ -1,0 +1,731 @@
+{
+  "schemaVersion": 1,
+  "taskId": "XR-01",
+  "runId": "XR01-CATALOG-B0EFF2-20261024",
+  "sourceSha": "b0efff2de1860e5d2f39dc65b17db250f3c6b627",
+  "inputDigest": "7128e3948de73654a078f93cf5de3d4759d29caa049c860e1c11931a87c40cce",
+  "scope": "comparison input contract; no rendered frames; not a deployable snapshot",
+  "catalog": {
+    "label": "Catalog",
+    "subtitle": "Living room · 4 categories",
+    "items": [
+      {
+        "label": "Sofas",
+        "icon": "sofa",
+        "items": [
+          {
+            "label": "Lounge 3-seat",
+            "icon": "sofa",
+            "sublabel": "214 × 96 cm"
+          },
+          {
+            "label": "Modular",
+            "icon": "blocks",
+            "items": [
+              {
+                "label": "Corner unit",
+                "icon": "box",
+                "sublabel": "96 × 96 cm"
+              },
+              {
+                "label": "Ottoman",
+                "icon": "box",
+                "items": [
+                  {
+                    "label": "Round",
+                    "icon": "circle",
+                    "sublabel": "ø 60 cm"
+                  },
+                  {
+                    "label": "Square",
+                    "icon": "square",
+                    "sublabel": "60 × 60 cm"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "label": "Loveseat",
+            "icon": "sofa",
+            "sublabel": "152 × 90 cm"
+          }
+        ]
+      },
+      {
+        "label": "Chairs",
+        "icon": "armchair",
+        "items": [
+          {
+            "label": "Lounge chair",
+            "icon": "armchair",
+            "sublabel": "78 × 82 cm"
+          },
+          {
+            "label": "Dining chair",
+            "icon": "armchair",
+            "sublabel": "46 × 52 cm"
+          }
+        ]
+      },
+      {
+        "label": "Tables",
+        "icon": "table-2",
+        "items": [
+          {
+            "label": "Coffee table",
+            "icon": "table-2",
+            "sublabel": "100 × 55 cm"
+          },
+          {
+            "label": "Side table",
+            "icon": "table-2",
+            "sublabel": "45 × 45 cm"
+          }
+        ]
+      },
+      {
+        "label": "Lighting",
+        "icon": "lamp-floor",
+        "items": [
+          {
+            "label": "Floor lamp",
+            "icon": "lamp-floor",
+            "sublabel": "165 cm"
+          }
+        ]
+      }
+    ]
+  },
+  "resolvedLevels": [
+    {
+      "path": [
+        "Catalog"
+      ],
+      "title": "Catalog",
+      "subtitle": "Living room · 4 categories",
+      "widthM": 0.144,
+      "heightM": 0.1641,
+      "headerHeightM": 0.0327,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Sofas",
+          "detail": "3 items",
+          "icon": "sofa",
+          "accessory": "chevron-right",
+          "centerYM": 0.02355,
+          "opensChild": true
+        },
+        {
+          "index": 1,
+          "label": "Chairs",
+          "detail": "2 items",
+          "icon": "armchair",
+          "accessory": "chevron-right",
+          "centerYM": -0.005249999999999991,
+          "opensChild": true
+        },
+        {
+          "index": 2,
+          "label": "Tables",
+          "detail": "2 items",
+          "icon": "table-2",
+          "accessory": "chevron-right",
+          "centerYM": -0.03405,
+          "opensChild": true
+        },
+        {
+          "index": 3,
+          "label": "Lighting",
+          "detail": "1 item",
+          "icon": "lamp-floor",
+          "accessory": "chevron-right",
+          "centerYM": -0.06285,
+          "opensChild": true
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Sofas"
+      ],
+      "title": "Sofas",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.12491999999999998,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Lounge 3-seat",
+          "detail": "214 × 96 cm",
+          "icon": "sofa",
+          "accessory": null,
+          "centerYM": 0.014339999999999992,
+          "opensChild": false
+        },
+        {
+          "index": 1,
+          "label": "Modular",
+          "detail": "2 items",
+          "icon": "blocks",
+          "accessory": "chevron-right",
+          "centerYM": -0.01446,
+          "opensChild": true
+        },
+        {
+          "index": 2,
+          "label": "Loveseat",
+          "detail": "152 × 90 cm",
+          "icon": "sofa",
+          "accessory": null,
+          "centerYM": -0.04325999999999999,
+          "opensChild": false
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Sofas",
+        "Modular"
+      ],
+      "title": "Modular",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.09611999999999998,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Corner unit",
+          "detail": "96 × 96 cm",
+          "icon": "box",
+          "accessory": null,
+          "centerYM": -6.0000000000004494e-05,
+          "opensChild": false
+        },
+        {
+          "index": 1,
+          "label": "Ottoman",
+          "detail": "2 items",
+          "icon": "box",
+          "accessory": "chevron-right",
+          "centerYM": -0.028859999999999997,
+          "opensChild": true
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Sofas",
+        "Modular",
+        "Ottoman"
+      ],
+      "title": "Ottoman",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.09611999999999998,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Round",
+          "detail": "ø 60 cm",
+          "icon": "circle",
+          "accessory": null,
+          "centerYM": -6.0000000000004494e-05,
+          "opensChild": false
+        },
+        {
+          "index": 1,
+          "label": "Square",
+          "detail": "60 × 60 cm",
+          "icon": "square",
+          "accessory": null,
+          "centerYM": -0.028859999999999997,
+          "opensChild": false
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Chairs"
+      ],
+      "title": "Chairs",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.09611999999999998,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Lounge chair",
+          "detail": "78 × 82 cm",
+          "icon": "armchair",
+          "accessory": null,
+          "centerYM": -6.0000000000004494e-05,
+          "opensChild": false
+        },
+        {
+          "index": 1,
+          "label": "Dining chair",
+          "detail": "46 × 52 cm",
+          "icon": "armchair",
+          "accessory": null,
+          "centerYM": -0.028859999999999997,
+          "opensChild": false
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Tables"
+      ],
+      "title": "Tables",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.09611999999999998,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Coffee table",
+          "detail": "100 × 55 cm",
+          "icon": "table-2",
+          "accessory": null,
+          "centerYM": -6.0000000000004494e-05,
+          "opensChild": false
+        },
+        {
+          "index": 1,
+          "label": "Side table",
+          "detail": "45 × 45 cm",
+          "icon": "table-2",
+          "accessory": null,
+          "centerYM": -0.028859999999999997,
+          "opensChild": false
+        }
+      ]
+    },
+    {
+      "path": [
+        "Catalog",
+        "Lighting"
+      ],
+      "title": "Lighting",
+      "subtitle": null,
+      "widthM": 0.144,
+      "heightM": 0.06731999999999999,
+      "headerHeightM": 0.02232,
+      "windowRadiusM": 0.020399999999999998,
+      "rows": [
+        {
+          "index": 0,
+          "label": "Floor lamp",
+          "detail": "165 cm",
+          "icon": "lamp-floor",
+          "accessory": null,
+          "centerYM": -0.01446,
+          "opensChild": false
+        }
+      ]
+    }
+  ],
+  "units": {
+    "layout": "legacy dmm in DEFAULTS and explicit Button sizes; do not relabel as vpt",
+    "layoutMetres": "dmm / 1000 * effectiveDistance(distanceM)",
+    "tokenViewMetres": "vpt * 0.00075 * effectiveDistance(distanceM)",
+    "distanceM": 0.6,
+    "effectiveDistanceM": 0.6,
+    "distanceCases": [
+      {
+        "distanceM": 0.4,
+        "effectiveDistanceM": 0.4
+      },
+      {
+        "distanceM": 0.6,
+        "effectiveDistanceM": 0.6
+      },
+      {
+        "distanceM": 1,
+        "effectiveDistanceM": 1
+      },
+      {
+        "distanceM": 1.75,
+        "effectiveDistanceM": 1.75
+      },
+      {
+        "distanceM": 2,
+        "effectiveDistanceM": 1.875
+      },
+      {
+        "distanceM": 3,
+        "effectiveDistanceM": 2.375
+      }
+    ],
+    "physicalLengths": "metres; thickness, press/release and packaging offsets are not dmm"
+  },
+  "geometry": {
+    "windowThicknessM": 0.008,
+    "rowThicknessM": 0.004,
+    "rowWidthM": 0.1356,
+    "rowHeightM": 0.0288,
+    "rowRadiusM": 0.009,
+    "bubbleRadiusM": 0.0144,
+    "beadDiameterM": 0.0156,
+    "beadHeightM": 0.0034319999999999997,
+    "glyphM": 0.0084,
+    "chevronM": 0.006599999999999999,
+    "separatorM": 0.00045,
+    "windowBackZ": 0,
+    "windowFrontZ": 0.008,
+    "headerZM": 0.0084,
+    "rowOriginZM": 0.008,
+    "rowFaceOffsetM": 0.0004,
+    "rowTextOffsetFromFaceM": 0.0004,
+    "rowFaceZFormula": "windowThicknessM + max(0, bubbleHeightM) + rowFaceOffsetM",
+    "beadBase": "rowFaceZ; glyph at rowFaceZ + beadHeightM + 0.0004"
+  },
+  "typeRamp": {
+    "title": {
+      "size": 21,
+      "weight": 700,
+      "tracking": -0.01,
+      "sizeUnit": "dmm",
+      "sizeM": 0.012599999999999998,
+      "trackingUnit": "em"
+    },
+    "headline": {
+      "size": 12.4,
+      "weight": 600,
+      "tracking": 0,
+      "sizeUnit": "dmm",
+      "sizeM": 0.0074399999999999996,
+      "trackingUnit": "em"
+    },
+    "body": {
+      "size": 12.4,
+      "weight": 500,
+      "tracking": 0,
+      "sizeUnit": "dmm",
+      "sizeM": 0.0074399999999999996,
+      "trackingUnit": "em"
+    },
+    "subheadline": {
+      "size": 11,
+      "weight": 500,
+      "tracking": 0,
+      "sizeUnit": "dmm",
+      "sizeM": 0.006599999999999999,
+      "trackingUnit": "em"
+    },
+    "footnote": {
+      "size": 9.5,
+      "weight": 500,
+      "tracking": 0.01,
+      "sizeUnit": "dmm",
+      "sizeM": 0.005699999999999999,
+      "trackingUnit": "em"
+    }
+  },
+  "assetPolicy": {
+    "canonicalFont": "@fontsource/inter 5.3.0 pinned WOFF table data",
+    "blenderFontInput": "lossless WOFF-to-SFNT conversion preserving decompressed table bytes; derived TTF hashes must be added to execution manifest",
+    "existingLookdevTtf": "historical input only; not the normalized comparison font",
+    "tracking": "explicit em spacing: title -0.01, footnote +0.01, other styles 0; do not equate Blender space_character with em tracking",
+    "glyphs": [
+      "armchair",
+      "blocks",
+      "box",
+      "chevron-right",
+      "circle",
+      "lamp-floor",
+      "sofa",
+      "square",
+      "table-2"
+    ],
+    "iconGeometry": "canonical pinned Lucide SVG viewBox 24x24, stroke 2, round cap/join",
+    "iconRendering": "2D stroke silhouette in both renderers; legacy tubular SVG bevel is not canonical",
+    "fontPlacementGate": "compare actual text strings and normalized advances/bounds in renderer preflight; no font fallback"
+  },
+  "states": {
+    "rest": {
+      "activePath": [
+        "Catalog"
+      ],
+      "hoveredRow": null,
+      "pressAmount": 0
+    },
+    "hover": {
+      "activePath": [
+        "Catalog"
+      ],
+      "hoveredRow": "Sofas",
+      "pressAmount": 0,
+      "style": "emboss",
+      "bubbleHeightM": 0.006,
+      "rampM": 0.004
+    },
+    "press": {
+      "activePath": [
+        "Catalog"
+      ],
+      "hoveredRow": "Sofas",
+      "pressAmount": 1,
+      "input": "captured ray held after front approach; no release/navigation before capture",
+      "rowLocalPointM": [
+        0,
+        0
+      ],
+      "pressModelTravelM": 0.0016,
+      "bubbleHeightM": 0.0051,
+      "dentDepthM": 0.0045,
+      "dentRadiusM": 0.0120112240878645,
+      "glow": 1
+    },
+    "levels": {
+      "activePath": [
+        "Catalog",
+        "Sofas",
+        "Modular"
+      ],
+      "rowIndicesToOpen": [
+        0,
+        1
+      ],
+      "hoveredRow": null,
+      "pressAmount": 0,
+      "mode": "compress",
+      "poses": [
+        {
+          "title": "Catalog",
+          "depthBehind": 2,
+          "positionM": [
+            0,
+            0.07,
+            -0.1
+          ],
+          "scale": 0.84,
+          "glassDim": 0.54,
+          "titleOpacity": 0.32499999999999996,
+          "headerOnly": true
+        },
+        {
+          "title": "Sofas",
+          "depthBehind": 1,
+          "positionM": [
+            0,
+            0.035,
+            -0.05
+          ],
+          "scale": 0.92,
+          "glassDim": 0.4,
+          "titleOpacity": 0.5,
+          "headerOnly": true
+        },
+        {
+          "title": "Modular",
+          "depthBehind": 0,
+          "positionM": [
+            0,
+            0.0,
+            0.0
+          ],
+          "scale": 1.0,
+          "glassDim": 0,
+          "titleOpacity": 1,
+          "headerOnly": false
+        }
+      ]
+    }
+  },
+  "capture": {
+    "widthPx": 1600,
+    "heightPx": 1000,
+    "dpr": 1,
+    "fovYDegrees": 26,
+    "outputFormat": "PNG",
+    "channels": "RGBA",
+    "bitDepth": 8,
+    "resolutionPercentage": 100,
+    "transparentFilm": false,
+    "views": {
+      "front": {
+        "cameraInUiM": [
+          0,
+          0,
+          0.6
+        ]
+      },
+      "angle": {
+        "cameraInUiM": [
+          0.3387854840370212,
+          0.06,
+          0.49520136894580696
+        ],
+        "azimuthRad": 0.6
+      }
+    },
+    "targetInUiM": [
+      0,
+      0,
+      0
+    ],
+    "blenderFromUi": "[x,y,z] -> [x,-z,y]",
+    "depthOfField": false,
+    "autoExposure": false,
+    "nearM": 0.02,
+    "farM": 50,
+    "webQuery": "bench.html?dist=0.6&fov=26&rot=1.6&hover=emboss&dpr=1[&view=angle]",
+    "stateInjection": "Catalog state is not driven by ?state; fixture must set actual input and verify component state",
+    "settle": {
+      "levelSettled": true,
+      "closingLevels": 0,
+      "fontAndIconReady": true,
+      "successiveStableFrames": 3,
+      "positionToleranceM": 1e-05,
+      "opacityTolerance": 0.001
+    },
+    "matrix": [
+      {
+        "state": "rest",
+        "view": "front"
+      },
+      {
+        "state": "rest",
+        "view": "angle"
+      },
+      {
+        "state": "hover",
+        "view": "front"
+      },
+      {
+        "state": "hover",
+        "view": "angle"
+      },
+      {
+        "state": "press",
+        "view": "front"
+      },
+      {
+        "state": "press",
+        "view": "angle"
+      },
+      {
+        "state": "levels",
+        "view": "front"
+      },
+      {
+        "state": "levels",
+        "view": "angle"
+      }
+    ]
+  },
+  "lightingAndColour": {
+    "environment": "demo/public/env/lebombo_1k.hdr",
+    "webYawRad": 1.6,
+    "legacyBlenderYawRad": -1.6,
+    "environmentOrientationStatus": "fixed conventions; matching background landmarks requires future capture",
+    "web": {
+      "toneMapping": "THREE.NeutralToneMapping",
+      "exposure": 1,
+      "backdropIntensity": 1,
+      "keyModel": "glass shader analytic key; no matching physical area-light unit"
+    },
+    "blenderReference": {
+      "engine": "Cycles",
+      "samples": 96,
+      "adaptiveSampling": false,
+      "seed": 0,
+      "denoising": true,
+      "maxBounces": 16,
+      "transmissionBounces": 16,
+      "glossyBounces": 8,
+      "refractiveCaustics": false,
+      "reflectiveCaustics": false,
+      "viewTransform": "AgX",
+      "look": "AgX - Medium High Contrast",
+      "exposure": 0,
+      "gamma": 1,
+      "keyEnergyW": 18,
+      "keySizeM": 0.6,
+      "legacyKeyWorldPositionM": [
+        -0.7,
+        -0.5,
+        0.9
+      ],
+      "legacyKeyColour": [
+        1,
+        0.92,
+        0.82
+      ],
+      "windowTint": [
+        0.55,
+        0.54,
+        0.53
+      ],
+      "windowRoughness": 0.4,
+      "windowAbsorptionPerM": 40,
+      "ior": 1.45,
+      "textEmission": 2.2,
+      "status": "fixed physical reference recipe; not asserted equivalent to WebXR shader"
+    },
+    "comparison": "Label transforms separately; no pixel-colour equivalence or headset contrast acceptance from these settings",
+    "geometryPassRequirement": "identical unlit neutral calibration and framing before material comparison"
+  },
+  "conformance": {
+    "specificationComplete": true,
+    "canonicalInput": "this contract, backed by pinned source-extraction.json and asset hashes",
+    "legacyRendererUsableUnchanged": false,
+    "implementationOwner": "XR lookdev; independent owned adapter only, never product checkout",
+    "implementationStage": "XR-03 preparation before first image; reject any unnormalized legacy input",
+    "unresolvedInputDecisions": [],
+    "futureExecutionChecks": [
+      "normalized renderer input dump matches contract",
+      "derived fonts preserve canonical tables",
+      "Blender and browser geometry/type preflight",
+      "background landmarks align",
+      "actual images and output hashes",
+      "GPU and transport evidence in their own tasks"
+    ],
+    "pixelColourEqualityRequired": false,
+    "appearanceComparison": "path-traced material reference versus real-time WebXR, with transforms labelled separately"
+  },
+  "round3Delta": {
+    "includedInBaseline": false,
+    "sourceMessageId": "10d2559f-99ee-47dc-8a7b-917a83200fd3",
+    "userConfirmed": {
+      "windowScale": 1.5,
+      "physicalLayerGapMultiplier": 0.7
+    },
+    "candidateImplementation": {
+      "mainRootScale": 1.5,
+      "localLayerSpacing": 0.4666666666666666
+    },
+    "safeSourceSha": null,
+    "previewOwner": "product session",
+    "promotionGate": "new safe SHA + tests/review + baseline delta readback; no live WIP substitution"
+  },
+  "renderGate": {
+    "ready": false,
+    "reason": "input specification is complete; renderer conformance and authorized execution prerequisites remain",
+    "requiredTasks": [
+      "MIG-01",
+      "MIG-02",
+      "XR-02"
+    ],
+    "executionAuthorizedNow": false
+  }
+}
