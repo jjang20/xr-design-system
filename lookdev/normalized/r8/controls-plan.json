@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "taskId": "XR07-R8-STATES-20261025-1312",
+  "status": "ACTUAL_SCOPE_VERIFIED_INDEPENDENT_REVIEW_PENDING",
+  "sourceSha": "61c7ba019eb6c1a535a7dbd8ce05265fc0be818e",
+  "parentContractSha256": "2c2d61074534eacce56b42a7e3ef8b571ae558ab3831ce6f8b33a30f34090fdc",
+  "inputDigest": "d46675f450a1bb78adef9c82e0abf513230c2807973904f2cdb20a482ffe11d8",
+  "runtimeHelperSha256": "f6c0fbb22d5c8bfb37a10e91b1a01199eaf0e79b4ad531dad27dc1b2c8303657",
+  "ownedPort": 5194,
+  "positiveStates": [
+    "rest",
+    "side-hover",
+    "side-held",
+    "side-released-hover",
+    "side-released-rest",
+    "corner-hover",
+    "corner-held",
+    "corner-released-hover",
+    "corner-released-rest"
+  ],
+  "negativeScenarios": [
+    "title-pinch",
+    "index-contact-only",
+    "tracking-loss",
+    "reset-cancel",
+    "one-owner"
+  ],
+  "multipointScenarios": [
+    "same-handle",
+    "same-row",
+    "distinct-leaves",
+    "full-hand-curled",
+    "navigation-release-01",
+    "navigation-release-10",
+    "navigation-press-order",
+    "navigation-stable-key",
+    "navigation-retained-loss",
+    "navigation-retained-side-exit",
+    "navigation-singleton",
+    "navigation-all-cancel",
+    "navigation-leaf-callback-cancel"
+  ],
+  "maximumJobs": 27,
+  "maximumTechnicalPngs": 31,
+  "pngBudget": {
+    "positiveBeauty": 9,
+    "fourHoverHeldAlphaDiagnostics": 16,
+    "twoMultipointOnOffRestored": 6,
+    "negativeAndNavigation": 0
+  },
+  "candidateCurrentReferenceRequired": [
+    "rest/front",
+    "side-held/front"
+  ],
+  "actualSoftwareInput": "All tested contacts/pinches/releases use actual InputSystem. Only initial canonical Sofas navigation for leaf cases is programmatic setup and is explicitly labelled.",
+  "content": "Unchanged actual Catalog; navigation uses original Sofas/Chairs siblings, leaf cases use canonical Sofas Lounge 3-seat/Loveseat.",
+  "singleContactFixtureIsolation": "For existing9/5 states, thumb joint is visible only during synthetic pinch select events; no thumb-index tracking classifier claim. Multipoint fixtures explicitly expose the tested fingers.",
+  "runtimeGates": [
+    "root frozen R8 source/contract/manifest pins",
+    "shared helper source-independent faults accepted; actual adapter integration still to verify",
+    "bounded-job and PNG-budget scope accepted",
+    "owned port/output paths confirmed"
+  ],
+  "historicalLimits": [
+    "R6 RGB nine-pixel/max2 failure stays failed, alpha is not a substitute",
+    "R6 original six-view FAIL and front-angle N/A preserved",
+    "R4 strict P2 unwaived",
+    "Blender evaluated dent/squash/multipoint export unsupported",
+    "browser synthetic input is not Quest tracking/comfort acceptance"
+  ],
+  "candidateProfilesExecuted": false,
+  "browserStarted": true,
+  "captureStarted": true,
+  "scopeAcceptedBy": "root",
+  "multipointPixelCriterion": {
+    "ROI": "actual secondary contact projected centre, fixed70px radius",
+    "rgbDifferenceGreaterThan": 2,
+    "changedGreaterThan": 20,
+    "maxDifferenceGreaterThan": 5,
+    "fullFrameRestorationMax": 0,
+    "notQuestOrLegacyLayerGate": true
+  },
+  "q48Expected": "Same-parent overlapping navigation waits for all release/cancel/loss; only last valid release opens one final child. Same-frame ties use recorded press epoch then canonical fallback key. Singleton immediate; all cancel none; leaf actions independent and callback back clears pending selections.",
+  "q48StableKeyLimit": "Canonical Catalog has no explicit item IDs. This finite harness verifies the real depth:rowIndex:label fallback and swaps hand identities; it does not independently exercise reverse explicit-ID sorting from the separate product regression suite.",
+  "adapterErrorIntegration": {
+    "separateFromTrace27": true,
+    "maximumNoPngRuns": 3,
+    "cases": [
+      "actual-fixture-eval-timeout",
+      "actual-font-readiness-timeout",
+      "actual-summary-failure"
+    ],
+    "requiresOwnedCleanup": true
+  },
+  "executionReceipt": {
+    "normalUniqueJobsPassed": 27,
+    "normalOutputPngs": 31,
+    "actualAdapterFaultCases": 3,
+    "singleAllGreenSuite": false,
+    "aggregateAudit": "controls-audit.json",
+    "failedRunsPreserved": [
+      "controls-rest-01",
+      "controls-multipoint-01",
+      "controls-multipoint-02"
+    ],
+    "firstReferences": [
+      "controls-rest-02/rest-evidence.json",
+      "controls-held-01/side-held-evidence.json"
+    ],
+    "finalNormalRemainder": "controls-multipoint-03",
+    "faults": "controls-integration-01/verification.json",
+    "independentReviewPending": true
+  },
+  "errata": [
+    {
+      "run": "controls-multipoint-01",
+      "cause": "Handle feedback xyz is normalized shader space, not handle-local metres; ROI used wrong matrix. Corrected to body.matrixWorld, with fixed camera and thresholds unchanged.",
+      "resolvedBy": "controls-multipoint-02 same-handle and same-row actual RGB on/off/restore pass"
+    },
+    {
+      "run": "controls-multipoint-02",
+      "cause": "3 mm contact to positive 0.1 mm separation is 3.1 mm retreat, not sub-hysteresis; corrected this test contact to 1 mm as the product fixture does.",
+      "resolvedBy": "controls-multipoint-03 full-hand actual pass"
+    },
+    {
+      "run": "preflight output-path typo",
+      "cause": "One local invocation omitted project/.scratch in output path; mkdir ENOENT occurred before server/Chrome or output creation. Corrected to owned fresh run path; no outside file created."
+    }
+  ]
+}

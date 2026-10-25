@@ -1,0 +1,173 @@
+{
+  "schemaVersion": 2,
+  "scope": "R8 bounded current-state diagnostics; exact executed results required, schema is not a pass",
+  "sourceSha": "61c7ba019eb6c1a535a7dbd8ce05265fc0be818e",
+  "acceptedBaseline": {
+    "manifestSha256": "b064f5d65df1d2ee17cbc0360b2ab114d47fd5318125893f0cdbb2dac1a34fd9",
+    "contractSha256": "2c2d61074534eacce56b42a7e3ef8b571ae558ab3831ce6f8b33a30f34090fdc",
+    "runtimeSha256": "f6c0fbb22d5c8bfb37a10e91b1a01199eaf0e79b4ad531dad27dc1b2c8303657",
+    "lifecycleSha256": "105acac8718a0c072e8eed34488a1fd20c58fd6a91586e2ca063fa401200c871"
+  },
+  "executionGate": "Accepted R8 baseline and independently reviewed runtime pins must match before browser launch",
+  "dock": {
+    "hdr": {
+      "trace": "dock-hdr-trace.json",
+      "checks": [
+        "R8 Dock physical construction and fixed observer",
+        "R8 body and shelf alpha exact",
+        "R8 pressure and sphere feedback exact",
+        "R8 fixed stem sphere and profile dimensions",
+        "R8 actual stem joins plate level and sphere",
+        "All five Dock labels are shaped before any shot",
+        "R8 flat symmetric rolled profile and 11.2mm thickness",
+        "R8 fixed 42mm input pads",
+        "R8 rounded-end analytic hit agrees with actual mesh",
+        "R8 body contributes actual RGBA target and restores",
+        "R8 actual end pressure reaches 5mm without icon action",
+        "R8 narrow actual mesh dent restores and both cap surfaces remain ordered",
+        "R8 above-skin end pinch has 3.5mm floor and locks icons",
+        "R8 plate Glow radius remains 22.4mm independently of pad",
+        "R8 above-skin sphere pinch has actual 3mm floor",
+        "R8 sphere physical pressure creates concave vertices and rendered dent contribution",
+        "R8 sphere pinch preserves deeper pressure and icon lock",
+        "R8 held ownership and deformation recover",
+        "R8 plate has independent spatial pressure and Glow",
+        "R8 secondary plate Glow contributes pixels and restores",
+        "R8 secondary plate dent changes actual mesh and restores",
+        "R8 distinct icons acquire independent owners",
+        "R8 same icon additional fingertip exports dent and Glow",
+        "R8 secondary icon feedback contributes pixels and restores",
+        "R8 first icon separation executes one item",
+        "R8 second item executes once despite two fingertips",
+        "R8 loss/reset creates no additional item action",
+        "R8 owned fixture ends with no held manipulation"
+      ],
+      "shots": [
+        "rest",
+        "plate-pressure",
+        "end-held",
+        "sphere-pressure",
+        "sphere-held",
+        "plate-multi",
+        "icon-multi",
+        "icon-release"
+      ],
+      "requiredDiagnostics": [
+        "geometry",
+        "body",
+        "pressure",
+        "plateExtraGlow",
+        "plateExtraDent",
+        "iconExtra",
+        "caps",
+        "sphereWell",
+        "sphereDentPixels"
+      ]
+    },
+    "noenv": {
+      "trace": "dock-noenv-trace.json",
+      "checks": [
+        "R8 Dock physical construction and fixed observer",
+        "R8 body and shelf alpha exact",
+        "R8 pressure and sphere feedback exact",
+        "R8 fixed stem sphere and profile dimensions",
+        "R8 actual stem joins plate level and sphere",
+        "All five Dock labels are shaped before any shot",
+        "R8 flat symmetric rolled profile and 11.2mm thickness",
+        "R8 fixed 42mm input pads",
+        "R8 rounded-end analytic hit agrees with actual mesh",
+        "R8 body contributes actual RGBA target and restores",
+        "R8 noenv body has alpha contribution",
+        "R8 plate has independent spatial pressure and Glow",
+        "R8 secondary plate Glow contributes pixels and restores",
+        "R8 secondary plate dent changes actual mesh and restores",
+        "R8 owned fixture ends with no held manipulation"
+      ],
+      "shots": [
+        "rest",
+        "plate-multi"
+      ],
+      "requiredDiagnostics": [
+        "geometry",
+        "body",
+        "plateExtraGlow",
+        "plateExtraDent"
+      ]
+    }
+  },
+  "pushGlow": {
+    "lanes": [
+      "hdr-normal",
+      "noenv-normal",
+      "hdr-reduced"
+    ],
+    "tracePattern": "push-glow-{lane}-trace.json",
+    "numericStates": [
+      "commit-0ms",
+      "after-100ms",
+      "after-200ms"
+    ],
+    "shotsByLane": {
+      "hdr-normal": [
+        "commit-0ms",
+        "after-100ms",
+        "after-200ms"
+      ],
+      "noenv-normal": [
+        "commit-0ms",
+        "after-100ms",
+        "after-200ms"
+      ],
+      "hdr-reduced": [
+        "commit-0ms"
+      ]
+    },
+    "checks": [
+      "R8 preserves inner Glow settings",
+      "Same-frame acquire commits without delayed navigation",
+      "Committed inner Glow changes actual pixels and restores",
+      "Committed Glow remains high for first100ms",
+      "Following Glow recovers with100ms exponential decay",
+      "Success light stays on departing layer",
+      "Glow does not keep closing layer alive",
+      "R8 Catalog root survives committed child close",
+      "R8 source pane thickness and front alpha are explicit",
+      "No broad hand leaks a row click"
+    ],
+    "diagnostics": [
+      "commitGlowPixels"
+    ],
+    "actualSubcaseScenario": "same-frame-glow"
+  },
+  "capturedKindCountsExpected": {
+    "dock": 10,
+    "push-delta": 7
+  },
+  "expectedCheckEntries": {
+    "dock-hdr": 28,
+    "dock-noenv": 15,
+    "push-hdr-normal": 10,
+    "push-noenv-normal": 10,
+    "push-hdr-reduced": 10
+  },
+  "uniqueMeaningfulChecks": 39,
+  "requiredPreflight": [
+    "Exact source, all manifest bytes and SHA256 before and after",
+    "All five Dock labels and all Push scene text shaped before capture",
+    "Entire setup/import/font/fixture evaluation phase has one bounded deadline",
+    "Runtime guard pins and actual root fault closure before launch",
+    "RGBA target alpha is not visibility or physical optical equivalence"
+  ],
+  "limits": [
+    "Actual product software input, shader uniforms, mesh and pixel counterfactuals with synthetic joints; no hardware tracking or Quest acceptance.",
+    "Secondary Glow measurements use a fixed full-frame RGBA target; contribution is not perceptual salience or local ROI visibility.",
+    "Above-skin sphere held floor is numeric trace only; end-held is right-end only.",
+    "Dock icon rub/cancel policy and wider Push regressions are source/product evidence, not re-run by this bounded lane.",
+    "Blender evaluated dent/squash remains unsupported.",
+    "Legacy oldest-sheet RGB 9 pixels/max2 FAIL and separate alpha evidence remain preserved; this lane cannot close that visibility failure.",
+    "No candidate material profile, board, remote render, product preview or PR mutation.",
+    "Sphere concavity is CPU evaluation of actual mesh vertices and live shader uniforms. Separate GPU uDent counterfactual proves rendered contribution including dent shading, not exact optical equivalence.",
+    "Cap ordering checks both end caps with actual software input; no extra cap PNG or new camera is introduced. Hover is numeric approach trace, not an extra screenshot.",
+    "Actual navigation transaction arbitration is product source evidence and is not exercised by independent Dock app selections."
+  ]
+}
