@@ -63,7 +63,9 @@ for(const distance of [.4,Math.hypot(.28,.48)])test(`Dock sphere actual vertices
  const point=gap=>h.localToWorld(new THREE.Vector3(0,0,h.r+.008+gap));
  for(const gap of [.04,.02,.01,.005,0,-.002,-.004]){r.tip.position.copy(point(gap));r.frame();}
  for(let i=0;i<60;i++){r.tip.position.copy(point(-.004));r.frame();}
- assert.equal(h.press.pressed,true);assert.ok(Math.abs(h.dent.x*h.inputScale-.004)<1e-6);assert.equal(h.skin.uGlow.value,.8);
+ // R9 increases sphere-only response gain/depth; retain R8's real concavity
+ // and unchanged Glow contract without freezing the superseded 4mm trial.
+ assert.equal(h.press.pressed,true);assert.ok(h.dent.x*h.inputScale>=.004);assert.equal(h.skin.uGlow.value,.8);
  const theta=Math.PI/12,centre=actualVertexOutput(h,new THREE.Vector3(0,0,1)),left=actualVertexOutput(h,new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta))),right=actualVertexOutput(h,new THREE.Vector3(Math.sin(theta),0,Math.cos(theta)));
  const concavity=(left.z+right.z)/2-centre.z;
  console.log(JSON.stringify({distance,radius:h.r*h.inputScale,width:h.skin.uDentWidth.value*h.r*h.inputScale,dent:h.dent.x*h.inputScale,glow:h.skin.uGlow.value,bodyAlpha:h.skin.uBodyOpacity.value,centre:centre.toArray(),left:left.toArray(),right:right.toArray(),concavity,method:'CPU shader equation with actual vertices; not rendered pixel evidence'}));

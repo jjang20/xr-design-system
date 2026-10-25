@@ -76,6 +76,7 @@ export const DEFAULTS = {
     palmRearmDistance: 0.04,
     palmAlignment: 0.7,
     fingerExtension: 1.35,
+    fingerStraightness: .93, // R9 trial: row proximity only; palm recognition unchanged
     palmTipLead: 0.025, // a pointing index finger is not a flat palm
     palmContactBand: 0.02,
     palmBehindLimit: 0.08,

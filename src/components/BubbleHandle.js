@@ -84,15 +84,19 @@ export class BubbleHandle extends Interactable {
       else this.spot.copy(probe.point).normalize();
     }
     const F = this.feedback;
-    const physicalDepth = this.press.pressed ? Math.min(F.depth, .0003 + Math.max(0, -(separation ?? -F.depth))) : 0;
-    const depth = Math.max(held ? F.hold : 0, physicalDepth);
-    springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
+    const maxDepth = F.followInput && !this.rectangular ? Math.min(F.depth, this.r * scale * .45) : F.depth;
+    const physicalDepth = this.press.pressed ? Math.min(maxDepth, .0003 + Math.max(0, -(separation ?? -F.depth)) * (F.gain ?? 1)) : 0;
+    const depth = Math.min(maxDepth, Math.max(held ? F.hold : 0, physicalDepth));
+    // Dock pressure follows the finger immediately. Only recovery springs;
+    // other controls retain their existing response and shape settings.
+    if (F.followInput && depth / scale >= this.dent.x) { this.dent.x = depth / scale; this.dent.v = 0; }
+    else springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
     const contacts = contactFeedback(this, this.enabled && !held ? probes : [], this.grab?.id ?? (this.press.pressed ? this.pressOwner : null), dt, p => {
       if (!this.inside(p.point, true) || p.point.z <= 0) return null;
       const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
       const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : p.point.clone().normalize();
-      return { x: at.x, y: at.y, z: at.z, depth: Math.min(F.depth, .0003-gap)/scale, maxDepth:F.depth/scale };
+      return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale };
     });
     writeBubbleContacts(this.skin, contacts, this.r);
     const u = this.skin;
@@ -103,7 +107,7 @@ export class BubbleHandle extends Interactable {
     u.uLipWidth.value = .001 / (scale * this.r);
     u.uDentSlope.value = this.dent.x / F.width;
     u.uGlow.value = held || this.press.pressed ? .8 : this.hovered ? .12 : 0;
-    u.uSquash.value = this.rectangular ? 0 : .03 * Math.min(1, this.dent.x / (F.depth / scale));
+    u.uSquash.value = this.rectangular ? 0 : (F.squash ?? .03) * Math.min(1, this.dent.x / (maxDepth / scale));
     this.affordance.visible = !this.reveal || this.hovered || held;
     if (this.arrow) this.arrow.position.z = -Math.max(0, this.dent.x);
   }

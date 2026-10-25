@@ -125,7 +125,23 @@ export class InputSystem {
     const w = wrist.getWorldPosition(new THREE.Vector3());
     const b = base.getWorldPosition(new THREE.Vector3()).distanceTo(w);
     if (b < 1e-6) return true;
-    return tip.getWorldPosition(new THREE.Vector3()).distanceTo(w) > b * DEFAULTS.handInput.fingerExtension;
+    if (tip.getWorldPosition(new THREE.Vector3()).distanceTo(w) <= b * DEFAULTS.handInput.fingerExtension) return false;
+    // A half-curled finger can still reach far from the wrist. When its
+    // phalanges are tracked, compare the chord with the full bone chain.
+    // This is per-finger pose eligibility, never a hand-wide target cap.
+    const names = name === 'thumb-tip'
+      ? ['thumb-phalanx-proximal', 'thumb-phalanx-distal', name]
+      : ['phalanx-proximal','phalanx-intermediate','phalanx-distal','tip'].map(part => name.replace('tip', part));
+    const chain = names.map(n => joints[n]);
+    if (chain.some(j => !j?.visible)) return true; // incomplete pose: legacy fallback
+    const points = chain.map(j => j.getWorldPosition(new THREE.Vector3()));
+    let length = 0;
+    for (let i=1; i<points.length; i++) {
+      const bone = points[i].distanceTo(points[i-1]);
+      if (bone < 1e-5) return true; // degenerate tracking is not a known curl
+      length += bone;
+    }
+    return points[0].distanceTo(points.at(-1)) / length >= DEFAULTS.handInput.fingerStraightness;
   }
 
   // WebXR exposes joints, not a palm point. Estimate its centre and plane
