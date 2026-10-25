@@ -18,7 +18,10 @@ export function contactFeedback(object, probes, primaryId, dt, sample) {
   const D = DEFAULTS.look.emboss.dent;
   for (const [id, state] of states) {
     if (id === primaryId) { states.delete(id); continue; }
-    springTo(state.spring, seen.has(id) ? state.depth : 0, D.response, prefersReducedMotion() ? 1 : D.damping, dt);
+    const target = seen.has(id) ? state.depth : 0;
+    if (state.followInput && target >= state.spring.x) { state.spring.x = target; state.spring.v = 0; }
+    else springTo(state.spring, target, D.response, prefersReducedMotion() ? 1 : D.damping, dt);
+    if (state.followInput && state.spring.x > state.maxDepth) { state.spring.x = state.maxDepth; state.spring.v = Math.min(0, state.spring.v); }
     if (!seen.has(id) && Math.abs(state.spring.x) < 1e-6 && Math.abs(state.spring.v) < 1e-5) states.delete(id);
   }
   // Two hands expose at most ten tips. Keep the nine additional contacts

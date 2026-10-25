@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import {createTokens,PackagingPanel,Dock,InputSystem} from '../src/index.js';
 const T=createTokens(JSON.parse(readFileSync(new URL('../tokens.json',import.meta.url)))),dt=1/60;
 const apps=['house','ruler','scan','image','settings','notes','clock'].map(icon=>({icon,label:icon}));
+const media={matches:false};globalThis.matchMedia=()=>media;
 function rig(){
  const p=new PackagingPanel(T,{title:'List',items:['A','B','C','D'].map(label=>({id:label,label}))});p.scale.setScalar(1.5);
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();camera.position.y=1.6;scene.add(p,camera);
@@ -40,7 +41,7 @@ function dockRig(dockOptions={}){
  const src=input.xr[0],tip=new THREE.Group();src.hand.add(tip);tip.jointRadius=.008;src.hand.joints={'index-finger-tip':tip};src.grip.visible=false;
  const frame=()=>{scene.updateMatrixWorld(true);input.update();d.update(dt,camera,input.handPoints);scene.updateMatrixWorld(true);};
  for(let i=0;i<120;i++)frame();src.connected=true;
- return {d,scene,src,tip,frame};
+ return {d,scene,input,src,tip,frame};
 }
 
 function actualVertexOutput(h,wanted){
@@ -97,4 +98,19 @@ for(const distance of [.4,Math.hypot(.28,.48)])test('R9: Dock sphere follows rea
  assert.ok((left.z+right.z)/2-centre.z>=.001,'held centre at least1mm behind its15degree neighbors (R9 trial)');
  assert.equal(h.skin.uGlow.value,.8);assert.equal(h.skin.uBodyOpacity.value,.38);
  r.src.connected=false;for(let i=0;i<120;i++)r.frame();assert.ok(Math.abs(h.dent.x)<1e-5);assert.equal(r.d.rail.held,null);
+});
+for(const reduced of [false,true])test('R9: second sphere contact follows pressure, stays bounded and recovers without taking ownership, reduced='+reduced,()=>{
+ media.matches=reduced;
+ try{
+  const r=dockRig(),h=r.d.handle,src=r.input.xr[1],tip=new THREE.Group();tip.jointRadius=.008;src.hand.add(tip);src.hand.joints={'index-finger-tip':tip};src.grip.visible=false;
+  const at=(angle,gap)=>h.localToWorld(new THREE.Vector3(Math.sin(angle),0,Math.cos(angle)).multiplyScalar(h.r+(.008+gap)/h.inputScale));
+  for(const gap of [.04,.025,.015,.005,-.004]){r.tip.position.copy(at(0,gap));r.frame();}
+  assert.equal(h.pressOwner,'xr0');src.connected=true;
+  for(const gap of [.04,.025,.015,.005,-.004]){r.tip.position.copy(at(-Math.PI/6,-.004));tip.position.copy(at(Math.PI/6,gap));r.frame();}
+  const worldDepth=()=>h.skin.uExtraDent.value[0].w*h.r*h.inputScale;
+  assert.equal(h.skin.uExtraCount.value,1);assert.ok(worldDepth()>=.004,'secondary contact has no extra inward delay');
+  for(let i=0;i<30;i++){r.frame();assert.ok(worldDepth()<=Math.min(h.feedback.depth,h.r*h.inputScale*.45)+1e-8);}
+  assert.equal(h.pressOwner,'xr0');assert.equal(h.grab,null);
+  src.connected=false;r.src.connected=false;for(let i=0;i<120;i++)r.frame();assert.equal(h.skin.uExtraCount.value,0);assert.equal(r.d.rail.held,null);
+ }finally{media.matches=false;}
 });

@@ -96,7 +96,7 @@ export class BubbleHandle extends Interactable {
       const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
       const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : p.point.clone().normalize();
-      return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale };
+      return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale, followInput:F.followInput };
     });
     writeBubbleContacts(this.skin, contacts, this.r);
     const u = this.skin;

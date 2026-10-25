@@ -16,6 +16,8 @@ The fixed61c sphere has actual geometry deformation, but held3mm at.4m produces 
 
 Sphere-only adjustable trials: max physical dent6mm, held floor5mm, width6mm, physical-depth gain1.5, axial squash.06; held/pressure depth limited to45% of world radius. Rest dimensions, position, hit geometry, alpha.38, Glow.8 and core12mm remain. No plate or general bubble material changes. R8's exact4mm sphere expectation is superseded only for this request; real concavity and other behavior remain regression requirements.
 
+Additional contacts on the Dock sphere use the same immediate inward response and output depth bound. Their recovery remains spring driven. This opt-in does not alter other components' extra-contact timing; execution and grab ownership are unchanged.
+
 ## Verification and next two
 
 1. Preserve baseline red traces; validate actual InputSystem straight/bent/rotated/incomplete-pose contacts and sphere rest/pressure/pinch/release/loss. Check GPU HDR/noenv front/angle, geometry versus illumination, and finite, non-inverted mesh output. Synthetic joints and desktop pixels do not establish Quest usability or hand occlusion.
