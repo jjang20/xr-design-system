@@ -514,8 +514,9 @@ export class PackagingPanel extends THREE.Group {
     }
     this.collectingSelections=false;
     this.pendingSelections.sort((a,b)=>a.started-b.started || (a.key<b.key ? -1 : a.key>b.key ? 1 : 0));
-    for (const request of this.pendingSelections) this.queueSelection(request);
-    this.pendingSelections=[];
+    // A leaf callback can reset/back/cancel synchronously. Drain the live
+    // queue so that cancellation also invalidates its undelivered requests.
+    while (this.pendingSelections.length) this.queueSelection(this.pendingSelections.shift());
     this.flushNavigation();
     this.applyInputGates();
     if (!reduced) for (const child of this.closing) {

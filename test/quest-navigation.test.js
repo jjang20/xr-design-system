@@ -191,3 +191,11 @@ test('Q48: multiple contacts on the same item cannot create duplicate navigation
  for(const{src,tip}of r.hands)tip.position.copy(src.hand.worldToLocal(r.point(0,.015)));r.frame();
  r.final(['nav-alpha']);assert.equal(r.events.filter(e=>e.type==='select').length,1);
 });
+
+for(const action of ['back','resetInteraction','cancelSelections'])for(const order of [[0,1],[1,0]])
+ test('Q48: a leaf callback cancellation invalidates same-frame navigation '+action+' order='+order,()=>{
+  const r=rig({leaf:true}),selected=[];
+  r.p.addEventListener('select',e=>{selected.push(e.item.id);if(action==='back')r.p.back(0);else r.p[action]();});
+  r.arm(order);r.tick([.015,.015]);assert.deepEqual(selected,['leaf']);
+  assert.deepEqual(r.opens(),[],'cancelled collected navigation cannot reappear after a callback');assert.equal(r.p.levels.length,1);
+ });

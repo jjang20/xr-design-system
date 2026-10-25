@@ -42,7 +42,12 @@ try{
    const waiting={opens:opens(),active:p.active,secondHeld:rows[1].press.pressed};images.waiting=c.pass('beauty');
    if(scenario==='last-loss'){input.xr[1].connected=false;step([.015,-.003]);}else step([.015,.015]);
    const first=frames.at(-1).front;images.transitionStart=c.pass('beauty');input.xr.forEach(s=>s.connected=false);
-   for(let i=0;i<20;i++)step();const after=frames.at(-1).front;images.final=c.pass('beauty');
+   for(let i=0;i<20;i++)step();const after=frames.at(-1).front;
+   // New child labels layout in a worker. Keep simulation frozen while
+   // awaiting them, so the screenshot and recorded motion state agree.
+   c.renderer.render(c.scene,c.camera);const deadline=performance.now()+5000;
+   while(true){let pending=false;c.scene.traverse(o=>{if('textRenderInfo'in o&&!o.textRenderInfo)pending=true;});if(!pending)break;if(performance.now()>deadline)throw new Error('Child text layout deadline');await new Promise(r=>setTimeout(r,20));}
+   images.final=c.pass('beauty');
    const expected=scenario==='last-loss'?'Sofas':'Chairs';
    const moving=scenario==='reduced'?Math.abs(after.y-first.y)<1e-8:Math.abs(after.y-first.y)>.001;
    return{mode,scenario,bothPressed,waiting,opens:opens(),active:p.active,first,after,moving,events,frames,images,
