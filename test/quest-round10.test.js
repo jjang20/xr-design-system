@@ -74,3 +74,21 @@ test('R10: a different hand can establish an opposite surface direction after re
   assert.equal(r.h.pressOwner, 'xr1');
   assert.ok(direction(r.h).z < -.999, 'an old stroke cannot lock a new contact to the previous hemisphere');
 });
+
+for (const pinch of [false, true]) test(`R10: ${pinch ? 'held' : 'pressed'} dent cannot jump at the lateral core exit`, () => {
+  const r = rig(); r.approach(); r.move(new THREE.Vector3(0, 0, .001), pinch);
+  r.move(new THREE.Vector3(.0079, 0, .0001), pinch); const before = direction(r.h).clone();
+  r.move(new THREE.Vector3(.0081, 0, .0001), pinch);
+  assert.equal(r.h.press.pressed, true);
+  assert.ok(direction(r.h).distanceTo(before) < .01, 'a .2mm lateral step cannot teleport the dent across the sphere');
+});
+
+test('R10: a new pinch first seen inside the core can acquire its own first surface direction', () => {
+  const r = rig(); r.approach(); r.hands[0].src.connected = false;
+  for (let n = 0; n < 120; n++) r.frame();
+  r.move(new THREE.Vector3(0, 0, -.001), true, 1);
+  assert.equal(r.dock.rail.held?.id, 'xr1');
+  r.move(new THREE.Vector3(0, 0, -.013), true, 1);
+  assert.equal(r.dock.rail.held?.id, 'xr1');
+  assert.ok(direction(r.h).z < -.999, 'first surface cannot inherit the previous owner direction');
+});
