@@ -58,7 +58,8 @@ export class BubbleHandle extends Interactable {
   pokeDistance(p) { return this.inside(p, true) || !this.rectangular ? this.faceDistance(p) : Infinity; }
 
   update(dt) {
-    const D = DEFAULTS.look.emboss, scale = this.inputScale;
+    const D = DEFAULTS.look.emboss, F = this.feedback, scale = this.inputScale;
+    const maxDepth = F.followInput && !this.rectangular ? Math.min(F.depth, this.r * scale * .45) : F.depth;
     const probes = this.consumeProbes();
     const owner = this.grab?.id ?? (this.press.pressed ? this.pressOwner : null);
     const { probe } = pickProbe(this.enabled ? probes : [],
@@ -81,10 +82,11 @@ export class BubbleHandle extends Interactable {
       if (this.rectangular) this.spot.set(
         THREE.MathUtils.clamp(probe.point.x, -this.w / 2, this.w / 2) / this.r,
         THREE.MathUtils.clamp(probe.point.y, -this.h / 2, this.h / 2) / this.r, this.t / this.r);
-      else this.spot.copy(probe.point).normalize();
+      // Deep inside the Dock sphere, the joint no longer identifies the
+      // touched skin. Keep the last surface direction through its centre;
+      // normal rubbing outside the maximum dent depth still follows input.
+      else if (!F.followInput || probe.point.length() >= this.r - maxDepth / scale) this.spot.copy(probe.point).normalize();
     }
-    const F = this.feedback;
-    const maxDepth = F.followInput && !this.rectangular ? Math.min(F.depth, this.r * scale * .45) : F.depth;
     const physicalDepth = this.press.pressed ? Math.min(maxDepth, .0003 + Math.max(0, -(separation ?? -F.depth)) * (F.gain ?? 1)) : 0;
     const depth = Math.min(maxDepth, Math.max(held ? F.hold : 0, physicalDepth));
     // Dock pressure follows the finger immediately. Only recovery springs;
