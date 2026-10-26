@@ -82,11 +82,19 @@ export class BubbleHandle extends Interactable {
       if (this.rectangular) this.spot.set(
         THREE.MathUtils.clamp(probe.point.x, -this.w / 2, this.w / 2) / this.r,
         THREE.MathUtils.clamp(probe.point.y, -this.h / 2, this.h / 2) / this.r, this.t / this.r);
-      // Deep inside the Dock sphere, the joint no longer identifies the
-      // touched skin. Keep the last surface direction through its centre;
-      // normal rubbing outside the maximum dent depth still follows input.
-      else if (!F.followInput || probe.point.length() >= this.r - maxDepth / scale) this.spot.copy(probe.point).normalize();
+      else if (!F.followInput) this.spot.copy(probe.point).normalize();
+      else {
+        // A joint travelling through the sphere cannot move its well to
+        // the opposite skin. Surface rubbing follows successive directions;
+        // the deep core and opposite exit preserve the last valid one.
+        const direction = probe.point.clone().normalize();
+        const activeOwner = this.grab?.id ?? this.pressOwner;
+        if (probe.point.length() >= this.r - maxDepth / scale
+          && (this.spotOwner !== activeOwner || direction.dot(this.spot) >= 0)) this.spot.copy(direction);
+        this.spotOwner = activeOwner;
+      }
     }
+    else this.spotOwner = null;
     const physicalDepth = this.press.pressed ? Math.min(maxDepth, .0003 + Math.max(0, -(separation ?? -F.depth)) * (F.gain ?? 1)) : 0;
     const depth = Math.min(maxDepth, Math.max(held ? F.hold : 0, physicalDepth));
     // Dock pressure follows the finger immediately. Only recovery springs;

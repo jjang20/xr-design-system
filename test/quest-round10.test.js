@@ -38,7 +38,7 @@ const direction = h => new THREE.Vector3(h.skin.uDent.value.x, h.skin.uDent.valu
 for (const pinch of [false, true]) test(`R10: ${pinch ? 'pinch-held' : 'physical'} sphere dent keeps its entry direction through the centre`, () => {
   const r = rig(); r.approach();
   const entry = direction(r.h).clone();
-  for (const z of [.001, 0, -.001]) {
+  for (const z of [.001, 0, -.001, -.0079, -.0081, -.014, -.02]) {
     r.move(new THREE.Vector3(0, 0, z), pinch);
     assert.equal(r.h.press.pressed, true);
     assert.equal(r.h.pressOwner, 'xr0');
@@ -63,4 +63,14 @@ test('R10: the sphere still follows surface rubbing and re-acquires a new direct
   const other = new THREE.Vector3(-.5, 0, Math.sqrt(.75)); r.approach(other, 1);
   assert.equal(r.h.pressOwner, 'xr1');
   assert.ok(direction(r.h).distanceTo(other) < 1e-9, 'a new surface approach replaces the previous direction');
+});
+
+test('R10: a different hand can establish an opposite surface direction after release', () => {
+  const r = rig(); r.approach();
+  r.move(new THREE.Vector3(0, 0, r.h.r + .008 + .02));
+  assert.equal(r.h.press.pressed, false);
+  r.hands[0].src.connected = false; r.frame();
+  r.approach(new THREE.Vector3(0, 0, -1), 1);
+  assert.equal(r.h.pressOwner, 'xr1');
+  assert.ok(direction(r.h).z < -.999, 'an old stroke cannot lock a new contact to the previous hemisphere');
 });
