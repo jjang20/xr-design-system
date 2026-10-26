@@ -1,0 +1,18 @@
+
+> contour-xr@0.2.0 regress
+> node scripts/regress.mjs
+
+ok   packaging: open, back, open again mid-exit  (levels Catalog > Chairs, closing Sofas)
+ok   packaging: input gates follow the logical stack
+ok   packaging: the closed level is removed once settled  (28 frames)
+ok   reduced motion: the path differs from full motion  (at 100 ms parent z -0.0368 vs -0.0500 m, child scale 0.985 vs 1.000)
+ok   reduced motion: no travel or growth after the first frame
+ok   reduced motion: hierarchy still shows by fading  (child opacity 0.07 to 1.00, parent dim 0.03 to 0.40)
+ok   reduced motion: interrupted navigation still works
+FAIL button: a hovering ray does not end another ray's press  ( | )
+FAIL button: losing the pressing ray cancels, no select
+ok   dock: a ray press keeps its dent where the pinch began  (moved 0.0e+0 rad)
+FAIL dock: a hovering ray does not end another ray's press
+ok   dock: no page errors
+
+9/12 browser checks passed

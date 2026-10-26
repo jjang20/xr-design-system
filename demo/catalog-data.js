@@ -1,0 +1,14 @@
+// Demo content for the Catalog window.
+export const catalogItems = [
+  { label: 'Sofas', icon: 'sofa', items: [
+    { label: 'Lounge 3-seat', icon: 'sofa', sublabel: '214 × 96 cm' },
+    { label: 'Modular', icon: 'blocks', items: [
+      { label: 'Corner unit', icon: 'box', sublabel: '96 × 96 cm' },
+      { label: 'Ottoman', icon: 'box', items: [{ label: 'Round', icon: 'circle', sublabel: 'ø 60 cm' }, { label: 'Square', icon: 'square', sublabel: '60 × 60 cm' }] },
+    ] },
+    { label: 'Loveseat', icon: 'sofa', sublabel: '152 × 90 cm' },
+  ] },
+  { label: 'Chairs', icon: 'armchair', items: [{ label: 'Lounge chair', icon: 'armchair', sublabel: '78 × 82 cm' }, { label: 'Dining chair', icon: 'armchair', sublabel: '46 × 52 cm' }] },
+  { label: 'Tables', icon: 'table-2', items: [{ label: 'Coffee table', icon: 'table-2', sublabel: '100 × 55 cm' }, { label: 'Side table', icon: 'table-2', sublabel: '45 × 45 cm' }] },
+  { label: 'Lighting', icon: 'lamp-floor', items: [{ label: 'Floor lamp', icon: 'lamp-floor', sublabel: '165 cm' }] },
+];
