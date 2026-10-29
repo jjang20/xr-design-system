@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "appliesToContractSha256": "ecd31c42b902136df2e6f3494911f111cc584c11c2b0126245393960cb8bddb3",
+  "kind": "unit field naming correction; no runtime value or camera change",
+  "corrections": [
+    {
+      "jsonPointer": "/r5/controls/heldLocalDentM",
+      "recordedValue": 0.0015,
+      "correctMeaning": "physical world metres, not local metres",
+      "futureFieldName": "heldPhysicalDentM",
+      "localFormula": "physicalDentM / actual handle world scale",
+      "examples": [
+        {"worldScale": 1.5, "physicalDentM": 0.0015, "localDentM": 0.001},
+        {"worldScale": 1.425, "physicalDentM": 0.0015, "localDentM": 0.0010526315789473684}
+      ]
+    }
+  ],
+  "executionContractPreserved": true,
+  "evidenceUsesExplicitFields": ["physicalDentM", "dentLocalM", "worldScale"],
+  "consumerRule": "Read this correction with the pinned execution contract. Do not interpret heldLocalDentM as a local displacement. A future contract revision must rename the field; it must not rewrite completed capture evidence."
+}
