@@ -34,11 +34,12 @@ try{
     const u=h.skin.uniforms,trace={state,held:p.controls.held?.handle===h,sideBubbles:l.moves.length,dent:u.uPaneDent.value.toArray(),sheet:p.manipulationOpacity,position:p.position.toArray(),cornerCount:l.corners.length};
     for(const angle of [0,35]){camera.position.set(.6*Math.sin(angle*Math.PI/180),0,.6*Math.cos(angle*Math.PI/180));camera.lookAt(0,0,0);camera.updateMatrixWorld(true);renderer.render(scene,camera);images[state+'-'+angle]=renderer.domElement.toDataURL();
      if(state==='hover'&&angle===0){
+      const background=scene.background; scene.background=null; renderer.render(scene,camera);
       const gl=renderer.getContext(),row=l.rows[0],alphas=[];
       for(const x of [.25,.35,.4])for(const y of [-.2,0,.2]){
        const q=row.localToWorld(new THREE.Vector3(row.w*x,row.h*y,row.surfaceZ(new THREE.Vector3(row.w*x,row.h*y,0)))).project(camera),b=new Uint8Array(4);
        gl.readPixels(Math.round((q.x+1)*640),Math.round((q.y+1)*400),1,1,gl.RGBA,gl.UNSIGNED_BYTE,b);alphas.push(b[3]);
-      }trace.hoverAlpha=alphas;trace.rowHover=l.rows.map(r=>({hover:r.hovered,pressed:r.press.pressed,bulge:r.bulge,contacts:r.contactDents?.length??0,dent:r.dz??0}));
+      }scene.background=background; renderer.render(scene,camera);trace.hoverAlpha=alphas;trace.rowHover=l.rows.map(r=>({hover:r.hovered,pressed:r.press.pressed,bulge:r.bulge,contacts:r.contactDents?.length??0,dent:r.dz??0}));
      }
 
      if(state==='held'){
