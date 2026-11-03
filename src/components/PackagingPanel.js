@@ -26,6 +26,7 @@ import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, s
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
+import { WindowSurface } from './WindowSurface.js';
 import { BubbleHandle } from './BubbleHandle.js';
 import { WindowControls } from '../core/WindowControls.js';
 import { HoverGroup } from '../core/HoverGroup.js';
@@ -231,8 +232,8 @@ export class PackagingPanel extends THREE.Group {
     this.controls.cancel(); this.palmPush = null;
     this.palmPrevious.clear(); this.palmBlocked.clear();
     this.palmDiagnostic = {};
-    for (const l of this.stack.all) for (const h of [l.panel, ...l.rows, ...l.moves, ...l.corners]) {
-      h.probes = []; h.press.update(0, null, false);
+    for (const l of this.stack.all) for (const h of [l.panel, l.surface, ...l.rows, ...l.corners]) {
+      h.probes = []; h.press?.update(0, null, false);
     }
     this.retarget();
   }
@@ -296,12 +297,17 @@ export class PackagingPanel extends THREE.Group {
       handle.arrow.scale.x = side;
       group.add(handle); return handle;
     });
-    const moves = [-1, 1].map(side => {
-      const handle = new BubbleHandle(T, { width: M.moveWidth, height: M.moveHeight,
-        distance: dist, rectangular: true, reveal: true, feedback: { controlShape: true, followInput: true } });
-      handle.position.set(side * (W / 2 + handle.w / 2 + dmm(M.handleGap)), 0, panel.t);
-      group.add(handle); return handle;
+    // Q71: pinch the real left/right pane skin. Keep the rear title's Back
+    // target separate, and leave non-pinching content input untouched.
+    const moves = [];
+    const surface = new WindowSurface(T, panel, point => {
+      const band = Math.min(.012 / surface.inputScale, dmm(D.rowInset));
+      const x = Math.abs(point.x), y = Math.abs(point.y), r = panel.r;
+      const qx = x - (W / 2 - r), qy = y - (H / 2 - r);
+      const sdf = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+      return sdf <= 0 && x >= W / 2 - band;
     });
+    group.add(surface);
     const front = panel.t + 0.0004;
     const left = -W / 2 + dmm(D.panelPadding);
 
@@ -388,7 +394,7 @@ export class PackagingPanel extends THREE.Group {
       if (idx >= 0 && idx < this.active) this.back(idx);
     });
 
-    const level = { item, group, panel, title, corners, moves, rows, hoverGroup: new HoverGroup(rows), separators, size: { W, H, titleBand } };
+    const level = { item, group, panel, title, corners, moves, surface, rows, hoverGroup: new HoverGroup(rows), separators, size: { W, H, titleBand } };
     return level;
   }
 
@@ -486,7 +492,7 @@ export class PackagingPanel extends THREE.Group {
         r.inputCaptureInverse=r.continuingOwner ? r.navigationClaim.inverse : null;
       });
       l.panel.enabled = l.panelEnabled && !l.closing && !this.palmPush && !owner;
-      [...l.moves, ...l.corners].forEach(h => { h.enabled = l === this.levels.at(-1) && !this.palmPush && (!owner || owner === h); });
+      [l.surface, ...l.corners].forEach(h => { h.enabled = l === this.levels.at(-1) && !l.closing && !this.palmPush && (!owner || owner === h); });
     }
   }
 
@@ -503,7 +509,7 @@ export class PackagingPanel extends THREE.Group {
     this.collectingSelections=true;
     for (const l of this.stack.all) {
       l.panel.update(dt);
-      [...l.moves, ...l.corners].forEach(h => h.update(dt));
+      [l.surface, ...l.corners].forEach(h => h.update(dt));
       const contact = this.palmPush?.level === l ? 0.4 + 0.6 * Math.min(1, this.palmPush.depth / DEFAULTS.handInput.palmCloseTravel) : 0;
       if (contact) { l.palmGlow = contact; l.palmGlowHold = 0; }
       else if (l.palmGlowHold > 0) {

@@ -31,8 +31,8 @@ try{
    const s=input.xr[0],tip=new THREE.Group(),thumb=new THREE.Group();tip.jointRadius=thumb.jointRadius=.008;s.hand.add(tip,thumb);s.hand.joints={'index-finger-tip':tip,'thumb-tip':thumb};thumb.visible=false;
    const step=()=>{scene.updateMatrixWorld(true);input.update();p.update(dt);scene.updateMatrixWorld(true);};
    const traces=[],images={};
-   for(const type of ['side','corner']){
-    const h=type==='side'?p.levels[0].moves[1]:p.levels[0].corners[1];
+   for(const type of ['corner']){
+    const h=p.levels[0].corners[1];
     const put=(gap,pinch=false)=>{s.connected=true;s.hand.visible=true;s.selecting=pinch;const at=new THREE.Vector3(0,0,h.t+(.008+gap)/h.inputScale);tip.position.copy(h.localToWorld(at.clone()));thumb.visible=pinch;thumb.position.copy(h.localToWorld(at.add(new THREE.Vector3(-.018/h.inputScale,0,0))));};
     const capture=state=>{const row={type,state,rectangular:h.rectangular,visible:h.affordance.visible,pressed:h.press.pressed,held:p.controls.held?.handle===h,dent:h.dent.x,compression:h.softShape?.compression??0,matrix:h.softShape?.matrix.toArray(),arrow:h.arrow?.matrix.toArray(),alpha:h.skin.uBodyOpacity.value,sheet:p.manipulationOpacity,marks:['uDentLight','uDentGlint','uDentShadow','uGlowCore','uRing'].map(k=>h.skin[k].value)};
      for(const angle of (state==='press'||state==='held'?[0,35]:[0])){camera.position.set(.6*Math.sin(angle*Math.PI/180),0,.6*Math.cos(angle*Math.PI/180));camera.lookAt(0,0,0);camera.updateMatrixWorld(true);renderer.render(scene,camera);images[type+'-'+state+'-'+angle]=renderer.domElement.toDataURL();}
@@ -44,7 +44,7 @@ try{
    renderer.dispose();return{traces,images};
   },{root,mode});
   const name=mode+'-'+(reduced?'reduced':'normal');for(const[label,png]of Object.entries(data.images))await writeFile(`${out}/${name}-${label}.png`,Buffer.from(png.split(',')[1],'base64'));delete data.images;
-  result.cases.push({name,...data});for(const type of ['side','corner']){const t=data.traces.filter(x=>x.type===type);result.checks.push({name:name+' '+type+' actual shape and lifecycle',pass:!t[0].visible&&t[1].visible&&t[2].pressed&&t[2].compression>.08&&t[3].held&&t[3].compression>.08&&!t[4].held&&t[4].visible&&!t[5].visible&&t[5].compression<1e-5&&t[3].sheet<.95&&t[5].sheet>.999});result.checks.push({name:name+' '+type+' mark opt-in',pass:t.every(x=>x.marks.every(v=>v===0))});}await page.close();
+  result.cases.push({name,...data});for(const type of ['corner']){const t=data.traces.filter(x=>x.type===type);result.checks.push({name:name+' '+type+' actual shape and lifecycle',pass:!t[0].visible&&t[1].visible&&t[2].pressed&&t[2].compression>.08&&t[3].held&&t[3].compression>.08&&!t[4].held&&t[4].visible&&!t[5].visible&&t[5].compression<1e-5&&t[3].sheet<.95&&t[5].sheet>.999});result.checks.push({name:name+' '+type+' mark opt-in',pass:t.every(x=>x.marks.every(v=>v===0))});}await page.close();
  }
  result.checks.push({name:'browser errors',pass:result.errors.length===0});if(result.checks.some(x=>!x.pass))process.exitCode=1;
 }catch(e){result.failure=String(e.stack??e);process.exitCode=1;}finally{clearTimeout(deadline);await browser?.close();await server.close();result.cleanedUp=true;await writeFile(out+'/result.json',JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));}

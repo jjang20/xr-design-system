@@ -345,10 +345,10 @@ test('Window overlap exposes each actual header despite variable heights; back o
 });
 
 
-test('Window side bubble drag and corner resize capture whole stack for hand and ray',()=>{
+test('Window direct pane drag and corner resize capture whole stack for hand and ray',()=>{
  for(const kind of ['poke','ray']) {
-  const r=palmRig(),p=r.p,h=p.levels[1].moves[1];
-  const start=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
+  const r=palmRig(),p=r.p,h=p.levels[1].surface;
+  const start=h.localToWorld(new THREE.Vector3(h.panel?h.panel.w/2-.003/h.inputScale:0,0,(h.panel?.t??h.t)+.012));
   const frame=(handle,point,hold)=>{p.updateMatrixWorld(true);handle.feed({kind,id:'owner',point:handle.worldToLocal(point.clone()),radius:.008,pinch:hold,pressed:hold,captured:hold});p.update(dt);};
   frame(h,start,true);const initial=p.position.clone();frame(h,start.clone().add(new THREE.Vector3(.06,-.03,.02)),true);
   assert.ok(p.position.distanceTo(initial.clone().add(new THREE.Vector3(.06,-.03,.02)))<1e-8);
@@ -366,7 +366,7 @@ test('Window side bubble drag and corner resize capture whole stack for hand and
 test('Dock distance and height manipulation preserves oval ratio and icon physical size',()=>{
  const r=rig(.4,3),d=r.dock,h=d.handle;
  const frame=point=>{r.tip.position.copy(point);r.scene.updateMatrixWorld(true);r.input.update();d.update(dt,r.camera,r.input.handPoints);};
- const point=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
+ const point=h.localToWorld(new THREE.Vector3(h.panel?h.panel.w/2-.003/h.inputScale:0,0,(h.panel?.t??h.t)+.012));
  frame(point);r.input.xr[0].selecting=true;frame(point);
  const side=d.side;frame(point.clone().add(new THREE.Vector3(.12,-.05,-.08)));
  assert.ok(d.rail.radius>DEFAULTS.dockRail.radius);assert.ok(d.rail.height<DEFAULTS.dockRail.height);
@@ -405,7 +405,7 @@ test('Reference reset blocks held controller capture until release and a new pre
   const r=target==='dock'?rayRig():palmRig();
   const p=r.dock??r.p,src=r.src??r.input.xr[0];src.hand.visible=false;src.grip.visible=false;
   if(r.tip)r.tip.visible=false;else Object.values(src.hand.joints).forEach(j=>{j.visible=false;});
-  const h=r.dock?.handle??r.p.levels.at(-1).moves[1];
+  const h=r.dock?.handle??r.p.levels.at(-1).corners[1];
   const at=()=>h.localToWorld(new THREE.Vector3(0,0,h.t));
   const frame=pressed=>{const point=at();src.selecting=pressed;src.ray.position.copy(point.clone().add(new THREE.Vector3(0,0,1)));src.ray.quaternion.identity();r.scene.updateMatrixWorld(true);r.input.update();if(r.dock)p.update(dt,r.camera,r.input.handPoints);else p.update(dt);};
   frame(false);frame(true);assert.ok(r.dock?p.rail.held:p.controls.held);
@@ -428,10 +428,10 @@ test('Releasing a moved window control preserves current hover without navigatin
  for(const kind of ['poke','ray']) {
   const r=palmRig(),p=r.p,h=p.levels[1].corners[1];
   const feed=(point,hold)=>{p.updateMatrixWorld(true);h.feed({kind,id:'owner',point:h.worldToLocal(point.clone()),radius:.008,pinch:hold,pressed:hold,captured:hold});p.update(dt);};
-  const start=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));
+  const start=h.localToWorld(new THREE.Vector3(h.panel?h.panel.w/2-.003/h.inputScale:0,0,(h.panel?.t??h.t)+.012));
   feed(start,true);feed(start.clone().add(new THREE.Vector3(.04,0,0)),true);
   assert.ok(p.controls.held?.moved);
-  const at=h.localToWorld(new THREE.Vector3(0,0,h.t+.012));feed(at,false);
+  const at=h.localToWorld(new THREE.Vector3(h.panel?h.panel.w/2-.003/h.inputScale:0,0,(h.panel?.t??h.t)+.012));feed(at,false);
   assert.equal(p.controls.held,null);assert.equal(h.hovered,true);assert.equal(h.affordance.visible,true);
   assert.equal(p.active,1);p.update(dt);assert.equal(h.affordance.visible,false);
  }
@@ -448,15 +448,15 @@ test('Every exposed rear title keeps its full opacity while sheets fade',()=>{
 });
 
 
-test('Q20/Q21: side bubbles require pinch and the front title cannot move the stack',()=>{
+test('Q71: pane edges require pinch and front title cannot move the stack',()=>{
  const {p}=palmRig(), l=p.levels.at(-1), at=p.position.clone();
- for(const h of [l.panel,l.moves[0]]) {
-   const point=new THREE.Vector3(0,h===l.panel?h.h/2-l.size.titleBand/2:0,h.t+.05);
+ for(const h of [l.panel,l.surface]) {
+   const point=new THREE.Vector3(h===l.panel?0:l.panel.w/2-.003, h===l.panel?h.h/2-l.size.titleBand/2:0,l.panel.t+.05);
    h.feed({kind:'poke',id:'finger',point:point.clone(),radius:.008,pressOffset:.01,pinch:h===l.panel});p.update(dt);
-   point.z=h.t+.004;h.feed({kind:'poke',id:'finger',point,radius:.008,pressOffset:.01,pinch:h===l.panel});p.update(dt);
+   point.z=l.panel.t+.004;h.feed({kind:'poke',id:'finger',point,radius:.008,pressOffset:.01,pinch:h===l.panel});p.update(dt);
    assert.equal(p.controls.held,null);assert.ok(p.position.equals(at));
  }
- assert.equal(l.panel.enabled,false);assert.ok(l.moves[0].press.pressed);
+ assert.equal(l.panel.enabled,false);assert.equal(l.surface.currentDent.depth,0);
 });
 
 test('Q23: full rear plates and body fade in depth order while titles stay at one',()=>{
@@ -468,15 +468,15 @@ test('Q23: full rear plates and body fade in depth order while titles stay at on
  for(const l of p.levels){assert.ok(Math.abs(l.title.fillOpacity-1)<1e-8);assert.equal(l.panel.body.visible,true);}
 });
 
-test('Q20: held side bubble has local feedback and stack opacity recovers on release',()=>{
- const {p}=palmRig(),l=p.levels.at(-1),h=l.moves[1];
- const feed=pinch=>{h.feed({kind:'poke',id:'finger',point:new THREE.Vector3(0,0,h.t+.012),radius:.008,pinch});p.update(dt);};
+test('Q71: held pane has local feedback and stack opacity recovers on release',()=>{
+ const {p}=palmRig(),l=p.levels.at(-1),h=l.surface;
+ const feed=pinch=>{h.feed({kind:'poke',id:'finger',point:new THREE.Vector3(h.panel?h.panel.w/2-.003/h.inputScale:0,0,(h.panel?.t??h.t)+.012),radius:.008,pinch});p.update(dt);};
  for(let i=0;i<30;i++)feed(true);
- assert.ok(h.skin.uDent.value.w>0);assert.ok(h.skin.uGlow.value>.5);assert.ok(l.panel.skin.uniforms.uOpacity.value<.95);
+ assert.ok(h.skin.uniforms.uPaneDent.value.w>0);assert.ok(l.panel.skin.uniforms.uOpacity.value<.95);
  assert.ok(Math.abs(l.title.fillOpacity-1)<1e-8);
- feed(false);assert.equal(h.affordance.visible,true);assert.equal(p.controls.held,null);
+ feed(false);assert.equal(h.body.visible,true);assert.equal(p.controls.held,null);
  for(let i=0;i<90;i++)p.update(dt);
- assert.equal(h.affordance.visible,false);assert.ok(l.panel.skin.uniforms.uOpacity.value>.999);assert.ok(Math.abs(h.skin.uDent.value.w)<.001);
+ assert.equal(h.body.visible,true);assert.ok(l.panel.skin.uniforms.uOpacity.value>.999);assert.ok(Math.abs(h.skin.uniforms.uPaneDent.value.w)<.001);
 });
 
 test('Smallest window scale preserves the 22mm fingertip target without entering the sheet body',()=>{

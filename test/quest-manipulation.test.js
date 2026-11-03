@@ -15,7 +15,7 @@ function rig(kind='window'){
  const events=[];obj.addEventListener('select',e=>events.push('select'));obj.addEventListener('back',e=>events.push('back'));
  const frame=()=>{scene.updateMatrixWorld(true);input.update();if(kind==='dock')obj.update(dt,camera,input.handPoints);else obj.update(dt);scene.updateMatrixWorld(true);};
  const normal=h=>new THREE.Vector3(0,0,1).transformDirection(h.matrixWorld);
- const point=(h,gap=.012)=>{scene.updateMatrixWorld(true);const inv=h.matrixWorld.clone().invert(),box=new THREE.Box3();for(const m of h.hitMeshes){m.geometry.computeBoundingBox();box.union(m.geometry.boundingBox.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));}assert.equal(box.isEmpty(),false,'handle needs actual hit geometry');const p=box.getCenter(new THREE.Vector3());p.z=box.max.z+gap/Math.abs(h.getWorldScale(new THREE.Vector3()).z);return h.localToWorld(p);};
+ const point=(h,gap=.012)=>{scene.updateMatrixWorld(true);const inv=h.matrixWorld.clone().invert(),box=new THREE.Box3();for(const m of h.hitMeshes){m.geometry.computeBoundingBox();box.union(m.geometry.boundingBox.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));}assert.equal(box.isEmpty(),false,'handle needs actual hit geometry');const p=box.getCenter(new THREE.Vector3());if(h.panel)p.x=h.panel.w/2-.003/h.inputScale;p.z=box.max.z+gap/Math.abs(h.getWorldScale(new THREE.Vector3()).z);return h.localToWorld(p);};
  const hand=(n,p,pinch=false)=>{const{src,tip}=sources[n];src.connected=true;src.selecting=pinch;src.hand.visible=tip.visible=true;tip.position.copy(p);};
  const ray=(n,p,down=false,axis=new THREE.Vector3(0,0,1))=>{const{src,tip}=sources[n];src.connected=true;src.selecting=down;src.hand.visible=tip.visible=false;src.ray.position.copy(p).addScaledVector(axis,.5);src.ray.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),axis.clone().negate());};
  const put=(mode,n,p,held=false,axis)=>mode==='poke'?hand(n,p,held):ray(n,p,held,axis);
@@ -24,11 +24,11 @@ function rig(kind='window'){
  return {obj,scene,camera,input,sources,events,frame,point,normal,hand,ray,put,step,lose};
 }
 function visual(h){const node=h.affordance??h.bubble??h.body;assert.ok(node,'API assumption: affordance or bubble/body');for(let p=node;p;p=p.parent)if(!p.visible)return false;return true;}
-function moves(r){const l=r.obj.levels.at(-1);assert.ok(Array.isArray(l.moves)&&l.moves.length===2,'new contract: level.moves contains two side movement bubbles');return l.moves;}
+function moves(r){const l=r.obj.levels.at(-1);assert.equal(l.moves.length,0,'Q71 removes both pane edges and hit targets');assert.ok(l.surface);return [l.surface,l.surface];}
 function capture(r){return r.obj.controls?.held??r.obj.rail?.held;}
 const same=(a,b,msg)=>assert.ok(a.distanceTo(b)<1e-6,msg);
 
-for(const mode of ['poke','ray'])test('Title '+mode+' cannot drag; movement is confined to side bubbles',()=>{
+for(const mode of ['poke','ray'])test('Title '+mode+' cannot drag; movement is confined to pane edges',()=>{
  const r=rig(),h=r.obj.levels.at(-1).panel,start=r.point(h,.012),axis=r.normal(h),position=r.obj.position.clone();
  r.step(mode,0,start,false,axis);r.step(mode,0,start,true,axis);r.step(mode,0,start.clone().add(new THREE.Vector3(.04,0,0)),true,axis);
  assert.equal(!!capture(r),false,'title must not own WindowControls');same(r.obj.position,position,'title must not move the stack');
@@ -41,21 +41,21 @@ test('Rear title remains a direct finger back target',()=>{
 
 for(const mode of ['poke','ray'])for(const kind of ['move','resize'])test(kind+' '+mode+' captures, drags beyond initial bounds, releases with hover and hides on loss',()=>{
  const r=rig(),h=kind==='move'?moves(r)[0]:r.obj.levels.at(-1).corners[1],p=r.obj;
- assert.equal(visual(h),false,'window affordance hidden at rest');
- const start=r.point(h,.012),axis=r.normal(h);r.step(mode,0,start,false,axis);assert.equal(h.hovered,true);assert.equal(visual(h),true);
+ if(kind==='resize')assert.equal(visual(h),false,'resize affordance hidden at rest');
+ const start=r.point(h,.012),axis=r.normal(h);r.step(mode,0,start,false,axis);if(kind==='resize')assert.equal(h.hovered,true);assert.equal(visual(h),true);
  const pos=p.position.clone(),scale=p.scale.x;r.step(mode,0,start,true,axis);assert.equal(capture(r)?.id,'xr0');
  const delta=kind==='move'?new THREE.Vector3(.04,.015,0):h.getWorldPosition(new THREE.Vector3()).sub(p.getWorldPosition(new THREE.Vector3())).normalize().multiplyScalar(.04);
  r.step(mode,0,start.clone().add(delta),true,axis);assert.equal(capture(r)?.id,'xr0');assert.equal(visual(h),true);
  if(kind==='move'){assert.ok(p.position.clone().sub(pos).distanceTo(delta)<.003);assert.equal(p.scale.x,scale);}else{assert.ok(p.scale.x>scale+.03);same(p.position,pos,'resize keeps stack centre');assert.equal(p.scale.x,p.scale.y);assert.equal(p.scale.y,p.scale.z);}
- r.step(mode,0,r.point(h,.012),false,axis);assert.equal(!!capture(r),false);assert.equal(h.hovered,true);assert.equal(visual(h),true,'release while hovering must not flash hidden');
- assert.equal(p.active,1);assert.equal(r.events.length,0,'manipulation must not navigate');r.lose(0);assert.equal(visual(h),false);
+ r.step(mode,0,r.point(h,.012),false,axis);assert.equal(!!capture(r),false);if(kind==='resize')assert.equal(h.hovered,true);assert.equal(visual(h),true,'pane stays visible and resize keeps release hover');
+ assert.equal(p.active,1);assert.equal(r.events.length,0,'manipulation must not navigate');r.lose(0);if(kind==='resize')assert.equal(visual(h),false);
  r.step(mode,0,r.point(h,.012),false,axis);r.step(mode,0,r.point(h,.012),true,axis);assert.equal(capture(r)?.id,'xr0','fresh input reacquires');
 });
 
 for(const kind of ['move','resize'])test(kind+' physical press alone gives feedback without dragging',()=>{
  const r=rig(),h=kind==='move'?moves(r)[0]:r.obj.levels.at(-1).corners[1],p=r.obj,pos=p.position.clone(),scale=p.scale.x;
  for(const gap of [.06,.03,.017,.004])r.step('poke',0,r.point(h,gap),false);
- assert.equal(h.press.pressed,true,'physical press remains independent feedback');
+ if(kind==='resize')assert.equal(h.press.pressed,true,'corner contact remains feedback');else assert.equal(h.currentDent.depth,0,'pane movement requires pinch');
  r.step('poke',0,r.point(h,.004).add(new THREE.Vector3(.008,.003,0)),false);
  assert.equal(!!capture(r),false);same(p.position,pos,'no pinch means no movement');assert.equal(p.scale.x,scale);
 });
@@ -112,7 +112,7 @@ test('Explicit real ray geometry receipts for side, corner and Dock sphere',()=>
 function combined(){
  const r=rig('dock'),d=r.obj,p=new PackagingPanel(T,{title:'Catalog',items:[{label:'Sofas',items:[{label:'Chair'},{label:'Table'}]}]});
  p.scale.setScalar(1.5);p.levels[0].rows[0].dispatchEvent({type:'select'});r.scene.add(p);for(let i=0;i<120;i++)p.update(dt);r.scene.updateMatrixWorld(true);
- const h=p.levels.at(-1).moves[0],target=r.point(d.handle,.012).add(new THREE.Vector3(-.08,0,0));p.position.add(target.sub(r.point(h,.012)));r.scene.updateMatrixWorld(true);
+ const h=p.levels.at(-1).surface,target=r.point(d.handle,.012).add(new THREE.Vector3(-.08,0,0));p.position.add(target.sub(r.point(h,.012)));r.scene.updateMatrixWorld(true);
  r.frame=()=>{r.scene.updateMatrixWorld(true);r.input.update();p.update(dt);d.update(dt,r.camera,r.input.handPoints);r.scene.updateMatrixWorld(true);};
  r.step=(mode,n,pt,hold,axis)=>{r.put(mode,n,pt,hold,axis);r.frame();};r.p=p;r.d=d;r.h=h;return r;
 }

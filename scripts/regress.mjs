@@ -40,9 +40,9 @@ try {
       const gates = P.levels.every((l, i) => l.rows.every(r => r.enabled === (i === P.active))
         && l.panel.enabled === (i < P.active) && !l.panel.inside({ x: 0, y: 0 })
         && l.panel.inside({ x: 0, y: l.size.H / 2 - l.size.titleBand / 2 })
-        && [...l.moves, ...l.corners].every(h => h.enabled === (i === P.active)))
+        && [l.surface, ...l.corners].every(h => h.enabled === (i === P.active)))
         && P.closing.every(l => l.rows.every(r => !r.enabled) && !l.panel.enabled
-          && [...l.moves, ...l.corners].every(h => !h.enabled));
+          && [l.surface, ...l.corners].every(h => !h.enabled));
       let frames = 0;
       while (!P.settled && frames < 600) { c.tick(1); frames++; }
       return { closingBefore, mid, gates, settled: P.settled, closingAfter: P.closing.length, frames };

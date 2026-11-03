@@ -8,14 +8,14 @@ const media={matches:false};globalThis.matchMedia=()=>media;
 function rig(type,scale=1.5){
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(),p=new PackagingPanel(T,{title:'Catalog',items:[{label:'One'},{label:'Two'}]});scene.add(camera,p);p.scale.setScalar(scale);
  for(let n=0;n<120;n++){scene.updateMatrixWorld(true);p.update(1/60);}scene.updateMatrixWorld(true);
- const h=type==='side'?p.levels[0].moves[1]:p.levels[0].corners[1];
+ const h=p.levels[0].corners[1];
  const group=()=>new THREE.Group(),input=new InputSystem({T,scene,camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
  input.xr.forEach(s=>{s.connected=false;s.grip.visible=false;});const s=input.xr[0],tip=new THREE.Group(),thumb=new THREE.Group();tip.jointRadius=thumb.jointRadius=.008;s.hand.add(tip,thumb);s.hand.joints={'index-finger-tip':tip,'thumb-tip':thumb};thumb.visible=false;
  const frame=()=>{scene.updateMatrixWorld(true);input.update();p.update(1/60);scene.updateMatrixWorld(true);};
  const move=(gap,pinch=false)=>{s.connected=true;s.hand.visible=tip.visible=true;s.selecting=pinch;const at=new THREE.Vector3(0,0,h.t+(.008+gap)/h.inputScale);tip.position.copy(h.localToWorld(at.clone()));thumb.visible=pinch;thumb.position.copy(h.localToWorld(at.add(new THREE.Vector3(-.018/h.inputScale,0,0))));frame();};
  return{scene,p,h,s,tip,thumb,frame,move};
 }
-for(const reduced of [false,true])for(const type of ['side','corner'])test(`R12 ${type} actual press/pinch deforms body and restores; reduced=${reduced}`,()=>{
+for(const reduced of [false,true])for(const type of ['corner'])test(`R12 ${type} actual press/pinch deforms body and restores; reduced=${reduced}`,()=>{
  media.matches=reduced;const r=rig(type),{h,p}=r,position=h.position.clone(),rest=h.hitMeshes[0].geometry.attributes.position.array.slice();
  assert.equal(h.rectangular,type==='side');assert.equal(!!h.arrow,type==='corner');assert.equal(h.affordance.visible,false);
  for(const gap of [.04,.02,.005,-.0015])r.move(gap);for(let n=0;n<60;n++)r.move(-.0015);
@@ -41,7 +41,7 @@ for(const scale of [.9,2.2])test(`R12 arrow and visible hit surface agree at sca
  const p=h.worldToLocal(hit.point.clone());assert.ok(h.faceDistance(p,0)<1e-5);
 });
 
-for(const type of ['side','corner'])test(`R12 ${type} stationary owner is not moved by body deformation or another hand`,()=>{
+for(const type of ['corner'])test(`R12 ${type} stationary owner is not moved by body deformation or another hand`,()=>{
  const r=rig(type),{h,p}=r;r.move(.005,true);const point=r.tip.position.clone(),position=p.position.clone(),scale=p.scale.x;
  for(let i=0;i<120;i++)r.frame();
  assert.ok(p.position.distanceTo(position)<1e-9);assert.equal(p.scale.x,scale);assert.ok(r.tip.position.distanceTo(point)<1e-9);assert.equal(p.controls.held?.handle,h);

@@ -10,7 +10,7 @@ export class WindowControls {
     if (this.held) {
       const h = this.held.handle;
       h.grab = null;
-      h.press.update(0, null, false);
+      h.press?.update(0, null, false);
       if (!keepProbes) h.probes = [];
     }
     this.held = null;
@@ -20,7 +20,7 @@ export class WindowControls {
     const p = this.panel, D = DEFAULTS.windowManipulation;
     if (p.palmPush) { this.cancel(); return; }
     const holding = probe => probe.kind === 'poke' ? probe.pinch : probe.pressed && probe.captured;
-    const handles = p.levels.flatMap(l => [...l.moves, ...l.corners]);
+    const handles = p.levels.flatMap(l => [...l.corners, l.surface]);
     let h = this.held?.handle;
     let probe = h?.probes.find(q => q.id === this.held.id);
     if (!this.held) {
@@ -43,7 +43,7 @@ export class WindowControls {
       const centre = h.getWorldPosition(new THREE.Vector3());
       const localCentre = p.parent ? p.parent.worldToLocal(centre) : centre;
       const axis = localCentre.sub(p.position);
-      this.held = { id: probe.id, handle: h, point, position: p.position.clone(), scale: p.scale.x,
+      this.held = { id: probe.id, handle: h, point, localPoint: probe.point.clone(), position: p.position.clone(), scale: p.scale.x,
         axis: axis.clone().normalize(), extent: axis.length(), resize: !!h.userData.resize, moved: false };
     }
     const g = this.held, delta = point.clone().sub(g.point);
@@ -53,7 +53,7 @@ export class WindowControls {
       p.scale.setScalar(THREE.MathUtils.clamp(g.scale * factor, ...D.scaleRange));
     } else p.position.copy(g.position).add(delta);
     h.grab = g;
-    if (g.moved) h.press.update(0, null, false);
+    if (g.moved) h.press?.update(0, null, false);
     p.updateMatrixWorld(true);
   }
 }

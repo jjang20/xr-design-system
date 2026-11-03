@@ -159,8 +159,8 @@ for(const reason of ['external-back','manipulation','palm'])test('Q48: ownership
  const r=rig({nested:true});r.arm();r.tick([.015,-.003]);assert.deepEqual(r.opens(),[]);
  if(reason==='external-back'){r.p.back(0);r.frame();assert.equal(r.p.levels.includes(r.parent),false);}
  if(reason==='manipulation'){
-  const h=r.p.levels.at(-1).moves[0],src=r.hands[0].src;r.scene.updateMatrixWorld(true);
-  const scale=h.getWorldScale(new THREE.Vector3()).z,world=h.localToWorld(new THREE.Vector3(0,0,h.frontZ+.012/scale));
+  const h=r.p.levels.at(-1).surface,src=r.hands[0].src;r.scene.updateMatrixWorld(true);
+  const scale=h.getWorldScale(new THREE.Vector3()).z,world=h.localToWorld(new THREE.Vector3(h.panel.w/2-.003/scale,0,h.frontZ+.012/scale));
   r.hands[0].tip.position.copy(src.hand.worldToLocal(world));src.selecting=false;r.frame();
   src.selecting=true;r.frame();assert.ok(r.p.controls.held,'fixture: actual pinch capture');
  }

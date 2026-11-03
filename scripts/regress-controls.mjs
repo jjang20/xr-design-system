@@ -51,11 +51,11 @@ try {
       c.tick(120);
     }, {root,mode});
     await capture(page, 'controls-'+mode+'-rest');
-    for (const type of ['move','resize']) {
+    for (const type of ['resize']) {
       const trace = result.traces[mode+type] = {};
       for (const state of ['hover','held','release','rest']) {
         trace[state] = await page.evaluate(({type,state})=>{
-          const c=window.contour,r=window.replay,p=c.panel,l=p.levels[0],h=type==='move'?l.moves[1]:l.corners[1];
+          const c=window.contour,r=window.replay,p=c.panel,l=p.levels[0],h=l.corners[1];
           const point=()=>h.localToWorld(new r.THREE.Vector3(0,0,h.t+.012));
           if(state==='rest'){r.src.connected=false;r.input.update();c.tick(90);r.src.connected=true;}
           else for(let i=0;i<30;i++)r.step(point(),state==='held');

@@ -28,7 +28,7 @@ try{
    const group=()=>new THREE.Group(),obj=c.panel??c.dock;
    const input=new InputSystem({T:obj.T,scene:c.scene,camera:c.camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
    const tips=input.xr.map(src=>{src.connected=true;src.grip.visible=false;const tip=new THREE.Group();tip.jointRadius=.008;src.hand.add(tip);src.hand.joints={'index-finger-tip':tip};return tip;});
-   const target=kind==='row'?c.panel.levels[0].rows[0]:kind==='icon'?c.dock.icons[3]:kind==='handle'?c.panel.levels[0].moves[0]:c.dock.shelf;
+   const target=kind==='row'?c.panel.levels[0].rows[0]:kind==='icon'?c.dock.icons[3]:kind==='handle'?c.panel.levels[0].corners[0]:c.dock.shelf;
    const point=(n,gap)=>{
     const side=n?1:-1;
     if(kind==='plate'){

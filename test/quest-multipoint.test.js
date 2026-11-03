@@ -17,7 +17,7 @@ function rig(kind='window', dockOptions={}){
  const events=[];obj.addEventListener('select',e=>events.push('select'));obj.addEventListener('back',e=>events.push('back'));
  let delivered=[]; const frame=()=>{scene.updateMatrixWorld(true);input.update();delivered=input.collect().items.filter(i=>i.probes.length).map(i=>({item:i,probes:i.probes.map(p=>({id:p.id,kind:p.kind,point:p.point.toArray()}))}));if(kind==='dock')obj.update(dt,camera,input.handPoints);else obj.update(dt);scene.updateMatrixWorld(true);};
  const normal=h=>new THREE.Vector3(0,0,1).transformDirection(h.matrixWorld);
- const point=(h,gap=.012)=>{scene.updateMatrixWorld(true);const inv=h.matrixWorld.clone().invert(),box=new THREE.Box3();for(const m of h.hitMeshes){m.geometry.computeBoundingBox();box.union(m.geometry.boundingBox.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));}assert.equal(box.isEmpty(),false,'handle needs actual hit geometry');const p=box.getCenter(new THREE.Vector3());p.z=box.max.z+gap/Math.abs(h.getWorldScale(new THREE.Vector3()).z);return h.localToWorld(p);};
+ const point=(h,gap=.012)=>{scene.updateMatrixWorld(true);const inv=h.matrixWorld.clone().invert(),box=new THREE.Box3();for(const m of h.hitMeshes){m.geometry.computeBoundingBox();box.union(m.geometry.boundingBox.clone().applyMatrix4(inv.clone().multiply(m.matrixWorld)));}assert.equal(box.isEmpty(),false,'handle needs actual hit geometry');const p=box.getCenter(new THREE.Vector3());if(h.panel)p.x=h.panel.w/2-.003/h.inputScale;p.z=box.max.z+gap/Math.abs(h.getWorldScale(new THREE.Vector3()).z);return h.localToWorld(p);};
  const hand=(n,p,pinch=false)=>{const{src,tip}=sources[n];src.connected=true;src.selecting=pinch;src.hand.visible=tip.visible=true;tip.position.copy(p);};
  const ray=(n,p,down=false,axis=new THREE.Vector3(0,0,1))=>{const{src,tip}=sources[n];src.connected=true;src.selecting=down;src.hand.visible=tip.visible=false;src.ray.position.copy(p).addScaledVector(axis,.5);src.ray.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1),axis.clone().negate());};
  const put=(mode,n,p,held=false,axis)=>mode==='poke'?hand(n,p,held):ray(n,p,held,axis);
@@ -106,13 +106,13 @@ test('R7: same-hand distinct items select independently on full separation',()=>
 });
 
 test('R7: a hand pinch captures the window control and cancels its other fingertip action',()=>{
- const r=rig('window'),l=r.obj.levels.at(-1),row=l.rows[0],h=l.moves[0],src=r.sources[0].src;
+ const r=rig('window'),l=r.obj.levels.at(-1),row=l.rows[0],h=l.surface,src=r.sources[0].src;
  const middle=new THREE.Group();middle.jointRadius=.008;src.hand.add(middle);src.hand.joints['middle-finger-tip']=middle;
  for(const gap of [.04,.025,.015,.005,-.003]){
-  r.hand(0,r.point(h,.012));middle.position.copy(rowPoint(r,row,0,gap));r.frame();
+  r.hand(0,r.point(h,.06));middle.position.copy(rowPoint(r,row,0,gap));r.frame();
  }
  assert.equal(row.press.pressed,true);
- src.selecting=true;r.frame();assert.equal(r.obj.controls.held?.id,src.id);assert.equal(row.press.pressed,false);assert.equal(r.events.length,0);
+ r.hand(0,r.point(h,.012),true);r.frame();assert.equal(r.obj.controls.held?.id,src.id);assert.equal(row.press.pressed,false);assert.equal(r.events.length,0);
  src.selecting=false;r.frame();assert.equal(r.obj.controls.held,null);assert.equal(r.events.length,0);
 });
 
@@ -182,7 +182,7 @@ test('R7: explicit controller reconnect after hand loss retains ray click suppor
 });
 
 test('R7: index loss during pinch blocks recapture even while another tip stays near',()=>{
- const r=rig('window'),l=r.obj.levels.at(-1),h=l.moves[0],src=r.sources[0].src;
+ const r=rig('window'),l=r.obj.levels.at(-1),h=l.surface,src=r.sources[0].src;
  r.hand(0,r.point(h,.012));r.frame();src.selecting=true;r.frame();assert.equal(r.obj.controls.held?.id,src.id);
  const middle=new THREE.Group();middle.position.copy(r.sources[0].tip.position);middle.jointRadius=.008;src.hand.add(middle);src.hand.joints['middle-finger-tip']=middle;
  r.sources[0].tip.visible=false;r.frame();assert.equal(r.obj.controls.held,null);

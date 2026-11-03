@@ -310,7 +310,17 @@ export class InputSystem {
     src.pokeHistory = { frame: this.frame, point: worldPoint.clone(), samples };
     // One fingertip has one proximity target, including hover. Captured
     // presses/grabs keep that target until release or tracking loss.
-    let target = probes.find(({ item, point }) => item.pokeDistance &&
+    let target = probes.find(({ item }) => item.grab?.id === src.id)?.item;
+    // An explicit edge pinch may take ownership from content; proximity
+    // alone cannot. Existing manipulations (including resize/Dock) win.
+    if (!target && src.selecting) {
+      let nearest = DEFAULTS.dockRail.handleReach;
+      for (const { item, point } of probes) {
+        const distance = item.pinchDistance?.(point, radius) ?? Infinity;
+        if (distance < nearest) { nearest = distance; target = item; }
+      }
+    }
+    target ??= probes.find(({ item, point }) => item.pokeDistance &&
       ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id
         && (item.retainsPokeCapture?.(point, radius, crossings.get(item)) ?? true))
         || item.grab?.id === src.id))?.item;
@@ -341,7 +351,11 @@ export class InputSystem {
     } else {
       st.captured = null;
       this.raycaster.ray.copy(worldRay);
-      const hit = this.raycaster.intersectObjects(items.filter(i=>!i.continuingOwner).flatMap(i => i.hitMeshes), false)[0];
+      const hit = this.raycaster.intersectObjects(items.filter(i=>!i.continuingOwner).flatMap(i => i.hitMeshes), false)
+        .find(hit => {
+          const owner = hit.object.userData.owner;
+          return !owner.acceptRayHit || owner.acceptRayHit(owner.worldToLocal(hit.point.clone()));
+        });
       if (hit) { target = hit.object.userData.owner; worldPoint = hit.point; }
     }
     st.hover = !!target;
