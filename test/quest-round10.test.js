@@ -92,3 +92,16 @@ test('R10: a new pinch first seen inside the core can acquire its own first surf
   assert.equal(r.dock.rail.held?.id, 'xr1');
   assert.ok(direction(r.h).z < -.999, 'first surface cannot inherit the previous owner direction');
 });
+
+for (const degrees of [35,48,65,90]) test(`R11: oblique sphere approach at ${degrees}deg keeps front history and primary deformation`,()=>{
+ const r=rig(),angle=degrees*Math.PI/180,dir=new THREE.Vector3(0,Math.sin(angle),Math.cos(angle));
+ r.approach(dir);
+ assert.equal(r.h.press.pressed,true);
+ assert.equal(r.h.pressOwner,'xr0');
+ assert.ok(r.h.dent.x>.003,'actual primary deformation, not only a secondary light');
+ assert.ok(r.h.skin.uSquash.value>0,'primary physical feedback must retain its shape cue');
+ r.move(dir.clone().multiplyScalar(r.h.r+.008+.03));
+ assert.equal(r.h.press.pressed,false);
+ r.hands[0].src.connected=false;for(let i=0;i<180;i++)r.frame();
+ assert.ok(Math.abs(r.h.dent.x)<1e-6);
+});

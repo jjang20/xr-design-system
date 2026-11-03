@@ -12,6 +12,7 @@ import { DEFAULTS } from '../core/defaults.js';
 import { setTint } from '../core/look.js';
 import { driveBubbles } from '../core/bubbles.js';
 import { Button } from './Button.js';
+import { HoverGroup } from '../core/HoverGroup.js';
 
 export class Toolbar extends THREE.Group {
   /**
@@ -34,6 +35,7 @@ export class Toolbar extends THREE.Group {
     this.buttons = o.tools.map(t => new Button(T, {
       ...t, variant: 'plain', hoverStyle: 'emboss', thickness: 'thin', distance: dist,
     }));
+    this.hoverGroup = new HoverGroup(this.buttons);
     const W = this.buttons.reduce((w, b) => w + b.w, 0) + gap * (this.buttons.length - 1) + pad * 2;
     const H = side + pad * 2;
     // The bar: rigid glass, like a window (it barely gives).
@@ -61,6 +63,7 @@ export class Toolbar extends THREE.Group {
 
   update(dt) {
     this.bar.update(dt);
+    this.hoverGroup.update();
     for (const b of this.buttons) b.update(dt);
     driveBubbles(this.bar.body.material, this.buttons);
   }

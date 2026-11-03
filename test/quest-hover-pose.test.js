@@ -70,10 +70,12 @@ test('R8: two physically contacted same-hand rows retain independent execution',
  assert.equal(r.events.filter(e=>e.type==='select').length,2);
 });
 
-test('R8: unknown finger pose retains proximity and loss cancels a direct contact',()=>{
+test('R11: unknown tips retain eligibility within one group hover and loss cancels contact',()=>{
  const r=rig();r.add('middle-finger-tip');
  r.put('index-finger-tip',r.at(0,.025));r.put('middle-finger-tip',r.at(1,.025));for(let i=0;i<40;i++)r.step();
- assert.equal(r.rows.filter(row=>row.hovered).length,2,'missing pose is not a global one-row policy');
+ assert.equal(r.input.fingerProximity(r.src,'index-finger-tip'),true);
+ assert.equal(r.input.fingerProximity(r.src,'middle-finger-tip'),true);
+ assert.equal(r.rows.filter(row=>row.hovered).length,1,'Q62 selects one proximity item in this explicit list group');
  for(const gap of [.015,.005,-.003]){r.put('middle-finger-tip',r.at(1,gap));r.step();}
  assert.equal(r.rows[1].press.pressed,true);r.src.hand.joints['middle-finger-tip'].visible=false;r.step();
  assert.equal(r.rows[1].press.pressed,false);assert.equal(r.events.filter(e=>e.type==='select').length,0);

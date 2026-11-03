@@ -262,7 +262,9 @@ export class Button extends Interactable {
   get glow() {
     const E = DEFAULTS.look.emboss;
     const dent = this.dz > 0 ? clamp(this.dz / (E.dent.depth * this.k / 1000), 0, 1) : 0;
-    return Math.max(dent, this.press.pressed && !this.disabled ? E.glow.contact : 0);
+    const contact = this.press.pressed && !this.disabled &&
+      (this.groupHoverAllowed !== false || this.groupContacted);
+    return Math.max(dent, contact ? E.glow.contact : 0);
   }
 
   stepBulge(dt) {
@@ -338,6 +340,24 @@ export class Button extends Interactable {
       Math.max(0, Math.abs(p.y) - this.h / 2) * inputScale.y, Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z);
   }
 
+  // Explicit peer groups compare eligible non-contact probes in world metres.
+  // Physical contact and acquired presses do not compete for this visual slot.
+  proximityDistance() {
+    if (!this.enabled || this.disabled || (this.press.pressed && this.groupContacted)) return Infinity;
+    let nearest = Infinity;
+    const reach = this.hoverBand.on ? this.hoverBand.exit : this.hoverBand.enter;
+    for (const p of this.probes) {
+      if (p.allowHover === false) continue;
+      if (p.kind === 'ray') {
+        if (this.inside(p.point) && !p.pressed) nearest = 0;
+        continue;
+      }
+      const distance = this.faceDistance(p.point, p.radius);
+      if (distance > 0 && distance < reach) nearest = Math.min(nearest, distance);
+    }
+    return nearest;
+  }
+
   update(dt) {
     this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getInputScale(inputScale).z);
     const probes = this.consumeProbes();
@@ -375,11 +395,13 @@ export class Button extends Interactable {
     }
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
-    const hoverProbes = probes.filter(p => p.allowHover !== false || p.id === owner || (
+    const hoverProbes = probes.filter(p => (p.allowHover !== false && this.groupHoverAllowed !== false) ||
+      (p.id === owner && (this.groupHoverAllowed !== false || this.groupContacted)) ||
+      (p.kind === 'ray' && p.pressed && p.captured) || (p.kind === 'poke' &&
       // faceDistance is an approach metric: it clamps everything behind
       // the front face to zero. A contact-only tip must still overlap the
       // sheet's finite depth; a detached tip behind it is not touching.
-      distance(p) === 0 && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
+      distance(p) === 0 && this.inside(p.point, true) && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
     ));
     const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
 
@@ -405,6 +427,7 @@ export class Button extends Interactable {
     if (best && this.press.amount < 0.01) this.pressKind = best.kind;
     const ev = this.press.update(dt, penetration, inside, separation);
     if (ev === 'press') {
+      this.groupContacted = false;
       this.pressOwner = best.id;
       this.pokeFront = frontFor(best);
       this.pokePressOffset = best.pressOffset ?? 0;
@@ -415,6 +438,12 @@ export class Button extends Interactable {
       if (!this.disabled) this.dispatchEvent({ type: 'select' });
     }
     if (ev === 'cancel') this.dispatchEvent({ type: 'cancel' });
+    // PressModel's release plane is frozen at early acquisition. Its
+    // contacted latch is not proof of touching the currently drawn skin.
+    // Only observed finite skin contact grants the group's press exception.
+    if (!this.press.pressed) this.groupContacted = false;
+    else this.groupContacted ||= best?.kind === 'ray' || (best && distance(best) === 0 &&
+      this.inside(best.point, true) && best.point.z + (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t);
 
     // Hover fade, eased by motion.enter (out mirrors in, see DEFAULTS).
     const target = this.hovered && !this.disabled ? 1 : 0;

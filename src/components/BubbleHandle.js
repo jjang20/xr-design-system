@@ -74,7 +74,11 @@ export class BubbleHandle extends Interactable {
       if (!this.press.pressed && this.probeId !== probe.id) this.press.lastPenetration = null;
       this.probeId = probe.id;
     }
-    const event = this.press.update(dt, penetration, !!probe && (!!this.grab || this.inside(probe.point, probe.kind === 'poke')),
+    // This sphere has skin on every radial approach. A projected XY disc
+    // rejects oblique tips until after they have crossed the press plane,
+    // losing their front-approach history and leaving only secondary dents.
+    const radialPoke = F.followInput && !this.rectangular && probe?.kind === 'poke';
+    const event = this.press.update(dt, penetration, !!probe && (!!this.grab || radialPoke || this.inside(probe.point, probe.kind === 'poke')),
       probe?.kind === 'poke' ? separation : null);
     if (event === 'press') { this.pressOwner = probe.id; this.pressKind = probe.kind; }
     const held = !!this.grab;

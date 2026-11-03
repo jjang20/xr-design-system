@@ -28,6 +28,7 @@ import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPac
 import { Button } from './Button.js';
 import { BubbleHandle } from './BubbleHandle.js';
 import { WindowControls } from '../core/WindowControls.js';
+import { HoverGroup } from '../core/HoverGroup.js';
 
 export { PACKAGING_MODES, packagingPose };
 
@@ -387,7 +388,7 @@ export class PackagingPanel extends THREE.Group {
       if (idx >= 0 && idx < this.active) this.back(idx);
     });
 
-    const level = { item, group, panel, title, corners, moves, rows, separators, size: { W, H, titleBand } };
+    const level = { item, group, panel, title, corners, moves, rows, hoverGroup: new HoverGroup(rows), separators, size: { W, H, titleBand } };
     return level;
   }
 
@@ -510,6 +511,7 @@ export class PackagingPanel extends THREE.Group {
         l.palmGlowHold = Math.max(0, l.palmGlowHold - dt);
       } else l.palmGlow = (l.palmGlow ?? 0) * Math.exp(-dt / DEFAULTS.look.palmGlow.recovery);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
+      l.hoverGroup.update();
       l.rows.forEach(r => r.update(dt));
       const push = this.palmPush;
       const held = this.controls.held || push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
