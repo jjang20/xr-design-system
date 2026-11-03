@@ -7,6 +7,7 @@ import { makeBubble } from '../core/bubble.js';
 import { contactFeedback, writeBubbleContacts } from '../core/contactFeedback.js';
 import { glassSlabGeometry } from '../core/look.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
+import { SoftSphere } from '../core/SoftSphere.js';
 
 // A material handle, not a navigation button. Contact supplies feedback;
 // WindowControls/DockRail alone decide when pinch/ray capture manipulates.
@@ -23,11 +24,14 @@ export class BubbleHandle extends Interactable {
       ? glassSlabGeometry(this.w, this.h, this.t, this.w * .3, { tessellate: .002 }).scale(1 / this.r, 1 / this.r, 1 / this.r)
       : new THREE.SphereGeometry(1, 48, 32);
     this.affordance = new THREE.Group(); this.add(this.affordance);
-    this.body = makeBubble({ geometry, planar: rectangular });
+    this.softShape = feedback.wholeShape && !rectangular ? new SoftSphere() : null;
+    this.body = makeBubble({ geometry, planar: rectangular, softSphere: !!this.softShape });
+    if (this.softShape) { geometry.computeBoundingSphere(); geometry.boundingSphere.radius = 1.6; }
     this.body.scale.setScalar(this.r); this.affordance.add(this.body);
     this.skin = this.body.uniforms;
     const hit = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     hit.scale.setScalar(this.r); this.add(hit); this.hitMeshes = [hit];
+    this.shapeAxis = new THREE.Vector3(0, 0, 1);
     if (resize) {
       // Local diagonal with two arrowheads; mirrored at the left corner.
       const pts = [[-.36,-.36],[.36,.36],[-.36,-.36],[-.36,-.06],[-.36,-.36],[-.06,-.36],
@@ -52,7 +56,7 @@ export class BubbleHandle extends Interactable {
   surfaceZ() { return this.t; }
   faceDistance(p, radius = 0) {
     const d = this.rectangular ? Math.hypot(Math.max(0,Math.abs(p.x)-this.w/2),Math.max(0,Math.abs(p.y)-this.h/2),p.z-this.t)
-      : Math.abs(p.length()-this.r);
+      : Math.abs(p.length() - this.r * (this.softShape && p.lengthSq() > 1e-12 ? this.softShape.radiusAt(p) : 1));
     return Math.max(0,d*this.inputScale-radius);
   }
   pokeDistance(p) { return this.inside(p, true) || !this.rectangular ? this.faceDistance(p) : Infinity; }
@@ -106,8 +110,8 @@ export class BubbleHandle extends Interactable {
     if (F.followInput && depth / scale >= this.dent.x) { this.dent.x = depth / scale; this.dent.v = 0; }
     else springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
     const contacts = contactFeedback(this, this.enabled && !held ? probes : [], this.grab?.id ?? (this.press.pressed ? this.pressOwner : null), dt, p => {
-      if (!this.inside(p.point, true) || p.point.z <= 0) return null;
-      const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r) * scale - (p.radius ?? 0);
+      if ((!this.softShape && !this.inside(p.point, true)) || p.point.z <= 0) return null;
+      const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r * (this.softShape ? this.softShape.radiusAt(p.point) : 1)) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
       const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : p.point.clone().normalize();
       return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale, followInput:F.followInput };
@@ -122,6 +126,23 @@ export class BubbleHandle extends Interactable {
     u.uDentSlope.value = this.dent.x / F.width;
     u.uGlow.value = held || this.press.pressed ? .8 : this.hovered ? .12 : 0;
     u.uSquash.value = this.rectangular ? 0 : (F.squash ?? .03) * Math.min(1, this.dent.x / (maxDepth / scale));
+    if (this.softShape) {
+      // Real thumb-index direction is optional visual data, never a new
+      // capture condition. Missing joints keep the acquired radial axis.
+      const axis = held && probe?.pinchAxis ? probe.pinchAxis.clone() : this.spot.clone();
+      if (axis.dot(this.shapeAxis) < 0) axis.negate();
+      if (this.dent.x < 1e-6) this.shapeAxis.copy(axis);
+      else this.shapeAxis.lerp(axis, prefersReducedMotion() ? 1 : 1 - Math.exp(-dt / .05)).normalize();
+      this.softShape.update(this.shapeAxis, Math.max(0, this.dent.x), this.r, this.spot);
+      u.uShape.value.copy(this.softShape.matrix); u.uShapeInverse.value.copy(this.softShape.inverse);
+      u.uShapeOffset.value.copy(this.softShape.offset);
+      // The ray and proximity envelope use the same whole shape. The local
+      // well is pressure feedback within that envelope, as for other bubbles.
+      const hit = this.hitMeshes[0]; hit.matrixAutoUpdate = false;
+      hit.matrix.setFromMatrix3(this.softShape.matrix).scale(new THREE.Vector3(this.r, this.r, this.r));
+      hit.matrix.setPosition(this.softShape.offset.clone().multiplyScalar(this.r));
+      hit.matrixWorldNeedsUpdate = true;
+    }
     this.affordance.visible = !this.reveal || this.hovered || held;
     if (this.arrow) this.arrow.position.z = -Math.max(0, this.dent.x);
   }

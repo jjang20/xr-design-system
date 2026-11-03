@@ -1,3 +1,4 @@
+import {evaluateBubbleVertex as actualVertexOutput} from './support/evaluateBubbleVertex.js';
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -44,17 +45,7 @@ function dockRig(dockOptions={}){
  return {d,scene,input,src,tip,frame};
 }
 
-function actualVertexOutput(h,wanted){
- const a=h.body.children[0].geometry.attributes.position,u=h.skin;
- let p,nearest=Infinity;
- for(let i=0;i<a.count;i++){const v=new THREE.Vector3().fromBufferAttribute(a,i).normalize(),dd=v.distanceToSquared(wanted);if(dd<nearest){p=v;nearest=dd;}}
- assert.ok(nearest<1e-10,'centre and 15-degree samples must be actual mesh vertices');
- const d=new THREE.Vector3(u.uDent.value.x,u.uDent.value.y,u.uDent.value.z),q=p.clone().sub(d);
- const e=Math.exp(-q.lengthSq()/(u.uDentWidth.value**2));
- const pos=p.clone().multiplyScalar(1-u.uDent.value.w*e),along=d.clone().multiplyScalar(pos.dot(d)),transverse=pos.clone().sub(along);
- pos.addScaledVector(along,-u.uSquash.value).addScaledVector(transverse,u.uSquash.value*.5);
- pos.y=Math.max(-1,pos.y);return pos.multiplyScalar(h.r*h.inputScale);
-}
+
 
 
 for(const angles of [[50,90,130],[60,100,140]])test('R9: articulated bent neighbors '+angles+' do not sustain list hover without contact',()=>{

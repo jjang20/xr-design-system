@@ -239,9 +239,13 @@ export class InputSystem {
           const hand = joints.length > 0;
           const radius = hand ? (Number.isFinite(joint?.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;
           if (tip && (!hand || joint?.visible)) {
+            const thumb = src.hand.joints?.['thumb-tip'];
+            const pinchAxis = hand && src.selecting && thumb?.visible
+              ? tip.clone().sub(thumb.getWorldPosition(new THREE.Vector3())) : null;
             this.handPoints.push(tip);
             this.pokeStep(src, tip, items, radius, hand ? DEFAULTS.handInput.pressOffset : 0,
-              !hand || this.fingerProximity(src, 'index-finger-tip'));
+              !hand || this.fingerProximity(src, 'index-finger-tip'),
+              pinchAxis?.lengthSq() > 1e-8 && pinchAxis.toArray().every(Number.isFinite) ? pinchAxis.normalize() : null);
           } else src.pokeHistory = null;
           // History belongs to each fingertip, while pinch/palm capture
           // belongs to the hand. The index keeps the legacy source id.
@@ -287,7 +291,7 @@ export class InputSystem {
     }
   }
 
-  pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0, proximity = true) {
+  pokeStep(src, worldPoint, items, radius = 0, pressOffset = 0, proximity = true, pinchAxis = null) {
     const probes = items.filter(item=>!item.continuingOwner || item.continuingOwner===src.id)
       .map(item => ({ item, point: item.inputCaptureInverse ? worldPoint.clone().applyMatrix4(item.inputCaptureInverse) : item.worldToLocal(worldPoint.clone()) }));
     const previous = src.pokeHistory;
@@ -324,6 +328,7 @@ export class InputSystem {
         (item.thumbContactOnly && src.id.endsWith(':thumb-tip')));
       item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius,
         pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly, pinch: src.selecting,
+        pinchAxis: item.softShape && pinchAxis ? pinchAxis.clone().transformDirection(item.matrixWorld.clone().invert()) : null,
         surfaceCrossing: crossings.get(item) });
     }
   }

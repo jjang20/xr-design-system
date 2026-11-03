@@ -22,8 +22,12 @@
 import * as THREE from 'three';
 import { DEFAULTS } from './defaults.js';
 import { backdropUniforms, trackGlass } from './look.js';
+import { softSphereGLSL } from './SoftSphere.js';
 
 const VERT = /* glsl */`
+  #ifdef SOFT_SPHERE
+  ${softSphereGLSL}
+  #endif
   uniform vec4 uExtraDent[9];
   uniform int uExtraCount;
   uniform vec4 uDent;        // press point (unit direction, local) and depth (x radius)
@@ -59,40 +63,64 @@ const VERT = /* glsl */`
     gl_Position = projectionMatrix * viewMatrix * w;
     #else
     vec3 p = normalize(position);
+    vec4 dent = uDent;
+    float width = uDentWidth;
+    #ifdef SOFT_SPHERE
+    dent = shapeDent(uDent, false);
+    // Some of the travel now compresses the whole body. Keep the remaining
+    // local hollow readable, without increasing physical depth or light.
+    width *= 0.6;
+    #endif
     // The dent: the skin moves in along its normal by a bell curve of the
     // distance to the press point. Its normal is exact: the slope of the
     // bell curve tilts it toward the dent's centre.
-    vec3 q = p - uDent.xyz;
-    float e = exp(-dot(q, q) / (uDentWidth * uDentWidth));
-    float h = -uDent.w * e;
-    vec3 g = 2.0 * uDent.w * e / (uDentWidth * uDentWidth) * (dot(uDent.xyz, p) * p - uDent.xyz);
+    vec3 q = p - dent.xyz;
+    float e = exp(-dot(q, q) / (width * width));
+    float h = -dent.w * e;
+    vec3 g = 2.0 * dent.w * e / (width * width) * (dot(dent.xyz, p) * p - dent.xyz);
     vec3 n = normalize(p - g / (1.0 + h));
     vec3 pos = p * (1.0 + h);
     for (int i=0; i<9; i++) {
       if (i >= uExtraCount) break;
-      vec3 at=uExtraDent[i].xyz, dq=p-at;
-      float de=exp(-dot(dq,dq)/(uDentWidth*uDentWidth));
-      float dh=-uExtraDent[i].w*de;
+      vec4 extra = uExtraDent[i];
+      #ifdef SOFT_SPHERE
+      extra = shapeDent(extra, true);
+      #endif
+      vec3 at=extra.xyz, dq=p-at;
+      float de=exp(-dot(dq,dq)/(width*width));
+      float dh=-extra.w*de;
       if (dh < h) {
         h=dh; e=de;
-        vec3 dg=2.0*uExtraDent[i].w*de/(uDentWidth*uDentWidth)*(dot(at,p)*p-at);
+        vec3 dg=2.0*extra.w*de/(width*width)*(dot(at,p)*p-at);
         n=normalize(p-dg/max(.05,1.0+h)); pos=p*(1.0+h);
       }
     }
     // Pressed, the skin gives a little along the press and bulges round it
     // (volume kept), as a soft ball does: the list pillow's sag.
+    #ifdef SOFT_SPHERE
+    pos = uShape * pos + uShapeOffset;
+    n = normalize(uShapeInverse * n); // symmetric A: inverse = inverse transpose
+    #else
     vec3 d = uDent.xyz;
     pos += -d * dot(pos, d) * uSquash + (pos - d * dot(pos, d)) * uSquash * 0.5;
     n = normalize(n + d * dot(n, d) * uSquash - (n - d * dot(n, d)) * uSquash * 0.5);
     // It rests on the shelf: where the bulge would sink into the glass, it
     // flattens against it instead.
     if (pos.y < -1.0) { pos.y = -1.0; n = normalize(mix(n, vec3(0.0, -1.0, 0.0), 0.5)); }
+    #endif
     vDent = e;
     vLocal = p;
+    #ifdef SOFT_SPHERE
+    vLocal = normalize(uShape * p + uShapeOffset);
+    #endif
     vec4 w = modelMatrix * vec4(pos, 1.0);
     vWorld = w.xyz;
     vNormal = normalize(mat3(modelMatrix) * n);
+    #ifdef SOFT_SPHERE
+    vRadial = normalize(mat3(modelMatrix) * (uShapeInverse * p));
+    #else
     vRadial = normalize(mat3(modelMatrix) * p);   // the undented skin's normal
+    #endif
     gl_Position = projectionMatrix * viewMatrix * w;
     #endif
   }`;
@@ -206,7 +234,7 @@ const FRAG = /* glsl */`
  * set of uniforms. Scale the returned group by the bubble's radius.
  * @returns {THREE.Group & {uniforms: object}}
  */
-export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false } = {}) {
+export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false, softSphere = false } = {}) {
   const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
   // The objects' key light: one light for the objects and the skin round
   // them. It is in front, so a dent, being hollow, catches its own highlight
@@ -233,6 +261,9 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
     uDent: { value: new THREE.Vector4(0, 0, 1, 0) },
     uDentWidth: { value: 0.3 },
     uSquash: { value: 0 },
+    uShape: { value: new THREE.Matrix3() },
+    uShapeInverse: { value: new THREE.Matrix3() },
+    uShapeOffset: { value: new THREE.Vector3() },
     uDentLight: { value: B.dentLight },
     uDentSlope: { value: 1 },
     uLipAt: { value: B.lipAt },
@@ -249,7 +280,7 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
   for (const side of [THREE.BackSide, THREE.FrontSide]) {
     const m = trackGlass(new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, uniforms, side,
-      defines: planar ? { PLANAR_BUBBLE: '' } : {},
+      defines: planar ? { PLANAR_BUBBLE: '' } : softSphere ? { SOFT_SPHERE: '' } : {},
       transparent: true, depthWrite: false, premultipliedAlpha: true,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     }));
