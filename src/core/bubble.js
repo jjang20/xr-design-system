@@ -27,6 +27,9 @@ import { softSphereGLSL } from './SoftSphere.js';
 const VERT = /* glsl */`
   #ifdef SOFT_SPHERE
   ${softSphereGLSL}
+  #elif defined(SOFT_CONTROL)
+  uniform mat3 uShape, uShapeInverse;
+  uniform vec3 uShapeOffset;
   #endif
   uniform vec4 uExtraDent[9];
   uniform int uExtraCount;
@@ -54,6 +57,12 @@ const VERT = /* glsl */`
         e=de;
       }
     }
+    #ifdef SOFT_CONTROL
+    // Whole control deformation is shared with the actual hit mesh. The
+    // old point well is not layered on top as a second stamped mark.
+    pos = uShape * p;
+    n = normalize(uShapeInverse * normal);
+    #endif
     vDent = e;
     vLocal = p;
     vec4 w = modelMatrix * vec4(pos, 1.0);
@@ -71,6 +80,9 @@ const VERT = /* glsl */`
     // local hollow readable, without increasing physical depth or light.
     width *= 0.6;
     #endif
+    #ifdef DEFORMATION_ONLY
+    dent.w = 0.0;
+    #endif
     // The dent: the skin moves in along its normal by a bell curve of the
     // distance to the press point. Its normal is exact: the slope of the
     // bell curve tilts it toward the dent's centre.
@@ -85,6 +97,9 @@ const VERT = /* glsl */`
       vec4 extra = uExtraDent[i];
       #ifdef SOFT_SPHERE
       extra = shapeDent(extra, true);
+      #endif
+      #ifdef DEFORMATION_ONLY
+      extra.w = 0.0;
       #endif
       vec3 at=extra.xyz, dq=p-at;
       float de=exp(-dot(dq,dq)/(width*width));
@@ -234,7 +249,7 @@ const FRAG = /* glsl */`
  * set of uniforms. Scale the returned group by the bubble's radius.
  * @returns {THREE.Group & {uniforms: object}}
  */
-export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false, softSphere = false } = {}) {
+export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false, softSphere = false, softControl = false, contactMark = true } = {}) {
   const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
   // The objects' key light: one light for the objects and the skin round
   // them. It is in front, so a dent, being hollow, catches its own highlight
@@ -276,11 +291,12 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
     uRing: { value: E.glow.ring * B.glow },
     uGlowColor: { value: new THREE.Color(...E.glow.color) },
   };
+  if (!contactMark) for (const key of ['uDentLight','uDentGlint','uDentShadow','uGlowCore','uRing']) uniforms[key].value = 0;
   const group = new THREE.Group();
   for (const side of [THREE.BackSide, THREE.FrontSide]) {
     const m = trackGlass(new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, uniforms, side,
-      defines: planar ? { PLANAR_BUBBLE: '' } : softSphere ? { SOFT_SPHERE: '' } : {},
+      defines: { ...(planar ? { PLANAR_BUBBLE: '' } : softSphere ? { SOFT_SPHERE: '' } : {}), ...(softControl ? { SOFT_CONTROL: '' } : {}), ...(!contactMark ? { DEFORMATION_ONLY: '' } : {}) },
       transparent: true, depthWrite: false, premultipliedAlpha: true,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     }));

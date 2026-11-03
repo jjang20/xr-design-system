@@ -62,8 +62,8 @@ for(const kind of ['move','resize'])test(kind+' physical press alone gives feedb
 
 test('Window one owner blocks the other hand and loss permits fresh acquisition',()=>{
  const r=rig(),[left,right]=moves(r),p=r.obj;
- r.step('poke',0,r.point(left,.012),false);r.step('poke',0,r.point(left,.012),true);
- const heldPoint=r.point(left,.012),pos=p.position.clone();r.hand(0,heldPoint,true);r.hand(1,r.point(right,.012),true);r.frame();
+ const heldPoint=r.point(left,.012);r.step('poke',0,heldPoint,false);r.step('poke',0,heldPoint,true);
+ const pos=p.position.clone();r.hand(0,heldPoint,true);r.hand(1,r.point(right,.012),true);r.frame();
  assert.equal(capture(r)?.id,'xr0');same(p.position,pos,'second hand must not take over');
  r.hand(1,r.point(right,.012).add(new THREE.Vector3(.04,0,0)),true);r.frame();assert.equal(capture(r)?.id,'xr0');same(p.position,pos,'non-owner motion is ignored');
  r.sources[0].src.connected=r.sources[1].src.connected=false;r.frame();assert.equal(!!capture(r),false);

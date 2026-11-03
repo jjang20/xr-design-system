@@ -8,6 +8,7 @@ import { contactFeedback, writeBubbleContacts } from '../core/contactFeedback.js
 import { glassSlabGeometry } from '../core/look.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
 import { SoftSphere } from '../core/SoftSphere.js';
+import { SoftControl } from '../core/SoftControl.js';
 
 // A material handle, not a navigation button. Contact supplies feedback;
 // WindowControls/DockRail alone decide when pinch/ray capture manipulates.
@@ -24,9 +25,11 @@ export class BubbleHandle extends Interactable {
       ? glassSlabGeometry(this.w, this.h, this.t, this.w * .3, { tessellate: .002 }).scale(1 / this.r, 1 / this.r, 1 / this.r)
       : new THREE.SphereGeometry(1, 48, 32);
     this.affordance = new THREE.Group(); this.add(this.affordance);
-    this.softShape = feedback.wholeShape && !rectangular ? new SoftSphere() : null;
-    this.body = makeBubble({ geometry, planar: rectangular, softSphere: !!this.softShape });
-    if (this.softShape) { geometry.computeBoundingSphere(); geometry.boundingSphere.radius = 1.6; }
+    this.softControl = !!feedback.controlShape;
+    this.softShape = this.softControl ? new SoftControl({ width:this.w, height:this.h, thickness:this.t, rectangular })
+      : feedback.wholeShape && !rectangular ? new SoftSphere() : null;
+    this.body = makeBubble({ geometry, planar: rectangular, softSphere: !!this.softShape && !rectangular, softControl: this.softControl, contactMark: feedback.contactMark !== false && !this.softControl });
+    if (this.softShape) { geometry.computeBoundingSphere(); geometry.boundingSphere.radius = Math.max(1.6, geometry.boundingSphere.radius * 1.4); }
     this.body.scale.setScalar(this.r); this.affordance.add(this.body);
     this.skin = this.body.uniforms;
     const hit = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
@@ -50,13 +53,14 @@ export class BubbleHandle extends Interactable {
   get inputScale() { return Math.abs(this.getWorldScale(new THREE.Vector3()).x); }
   inside(p, touch = false) {
     const minimum = touch ? this.T.get('input.touch.size.minimum') / this.inputScale : 0;
+    if (this.softControl) p = p.clone().applyMatrix3(this.softShape.inverse);
     const w = Math.max(this.w, minimum), h = Math.max(this.h, minimum);
     return this.rectangular ? Math.abs(p.x) <= w / 2 && Math.abs(p.y) <= h / 2
       : p.x * p.x + p.y * p.y <= w * w / 4;
   }
   surfaceZ() { return this.t; }
   faceDistance(p, radius = 0) {
-    const d = this.rectangular ? Math.hypot(Math.max(0,Math.abs(p.x)-this.w/2),Math.max(0,Math.abs(p.y)-this.h/2),p.z-this.t)
+    const d = this.softControl && this.rectangular ? Math.abs(this.softShape.frontSample(p, this.r).distance) * this.r : this.rectangular ? Math.hypot(Math.max(0,Math.abs(p.x)-this.w/2),Math.max(0,Math.abs(p.y)-this.h/2),p.z-this.t)
       : this.softShape ? Math.abs(this.softShape.sample(p.clone().divideScalar(this.r)).distance)*this.r : Math.abs(p.length()-this.r);
     return Math.max(0,d*this.inputScale-radius);
   }
@@ -111,9 +115,9 @@ export class BubbleHandle extends Interactable {
     if (F.followInput && depth / scale >= this.dent.x) { this.dent.x = depth / scale; this.dent.v = 0; }
     else springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
     const contacts = contactFeedback(this, this.enabled && !held ? probes : [], this.grab?.id ?? (this.press.pressed ? this.pressOwner : null), dt, p => {
-      if ((!this.softShape && !this.inside(p.point, true)) || p.point.z <= 0) return null;
-      const sample = this.softShape?.sample(p.point.clone().divideScalar(this.r));
-      const gap = (this.rectangular ? p.point.z - this.t : sample ? sample.distance*this.r : p.point.length()-this.r) * scale - (p.radius ?? 0);
+      if ((!this.softShape && !this.inside(p.point, true)) || (this.softControl && this.rectangular && !this.inside(p.point)) || p.point.z <= 0) return null;
+      const sample = this.softControl && this.rectangular ? this.softShape.frontSample(p.point, this.r) : this.softShape?.sample(p.point.clone().divideScalar(this.r));
+      const gap = (sample ? sample.distance*this.r : this.rectangular ? p.point.z - this.t : p.point.length()-this.r) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
       const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : (sample?.point ?? p.point).clone().normalize();
       return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale, followInput:F.followInput };
@@ -153,6 +157,14 @@ export class BubbleHandle extends Interactable {
       hit.matrixWorldNeedsUpdate = true;
     }
     this.affordance.visible = !this.reveal || this.hovered || held;
-    if (this.arrow) this.arrow.position.z = -Math.max(0, this.dent.x);
+    if (this.arrow) {
+      if (this.softControl) {
+        // Preserve the existing left/right arrow mirror, then transform the
+        // entire arrow with the same positive affine map as its skin.
+        this.arrow.matrixAutoUpdate = false;
+        this.arrow.matrix.setFromMatrix3(this.softShape.matrix).scale(this.arrow.scale);
+        this.arrow.matrixWorldNeedsUpdate = true;
+      } else this.arrow.position.z = -Math.max(0, this.dent.x);
+    }
   }
 }

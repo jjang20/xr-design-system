@@ -291,14 +291,14 @@ export class PackagingPanel extends THREE.Group {
     panel.faceDistance = (point, radius = 0) => Math.max(0, panel.pokeDistance(point) - radius);
     const M = D.windowManipulation;
     const corners = [-1, 1].map(side => {
-      const handle = new BubbleHandle(T, { width: M.cornerSize, distance: dist, reveal: true, resize: true });
+      const handle = new BubbleHandle(T, { width: M.cornerSize, distance: dist, reveal: true, resize: true, feedback: { controlShape: true, followInput: true } });
       handle.position.set(side * (W / 2 + handle.w / 2 + dmm(M.handleGap)), -H / 2, panel.t);
       handle.arrow.scale.x = side;
       group.add(handle); return handle;
     });
     const moves = [-1, 1].map(side => {
       const handle = new BubbleHandle(T, { width: M.moveWidth, height: M.moveHeight,
-        distance: dist, rectangular: true, reveal: true });
+        distance: dist, rectangular: true, reveal: true, feedback: { controlShape: true, followInput: true } });
       handle.position.set(side * (W / 2 + handle.w / 2 + dmm(M.handleGap)), 0, panel.t);
       group.add(handle); return handle;
     });

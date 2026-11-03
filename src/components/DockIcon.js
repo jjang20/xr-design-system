@@ -149,7 +149,7 @@ export class DockIcon extends Interactable {
   // Q63 limits proximity bubble/name/glyph feedback, not the Dock's
   // independent spatial magnification or real contact ownership.
   proximityDistance() {
-    if (!this.enabled || !this.exclusive || (this.press.pressed && this.press.contacted)) return Infinity;
+    if (!this.enabled || !this.exclusive) return Infinity;
     let nearest=Infinity;
     const reach=this.hoverBand.on ? this.hoverBand.exit : this.hoverBand.enter;
     for(const p of this.frameProbes ?? []) {
@@ -211,7 +211,6 @@ export class DockIcon extends Interactable {
     // may coexist with the group's single non-contact hover.
     const hoverProbes=this.exclusive ? this.frameProbes.filter(p=>
       (p.allowHover!==false && this.groupHoverAllowed!==false) ||
-      (this.press.pressed && this.press.contacted && p.id===this.pressOwner) ||
       (p.kind==='ray' && p.pressed && p.captured) ||
       (p.kind==='poke' && p.point.z>this.centre.z &&
         (p.point.distanceTo(this.centre)-this.rb)*scale <= (p.radius??0))) : [];
@@ -225,7 +224,10 @@ export class DockIcon extends Interactable {
     const calm = prefersReducedMotion();
     const on = this.hovered && this.enabled;
     springTo(this.grow, on ? 1 : 0, E.response, on && !calm ? E.damping : 1, dt);
-    const g = Math.max(0, this.grow.x);
+    // Historical contact and a recovering spring do not own a second
+    // non-contact bubble. Keep those states for actions/recovery, but only
+    // render current group hover or current physical contact/ray capture.
+    const g = on ? Math.max(0, this.grow.x) : 0;
     this.hover = Math.min(1, g);
     // The dent: placed where the press lands, springing back past flat once
     // (emboss.dent). A fingertip drags it along; a ray (gaze and pinch) pins
@@ -261,14 +263,14 @@ export class DockIcon extends Interactable {
     u.uDentSlope.value = Math.max(1e-3, Math.SQRT2 * Math.exp(-0.5) * Math.abs(this.dent.x / this.rb) / w);
     u.uLipWidth.value = B.lipWidth * this.k / 1000 / this.rb;   // mm, like the dent
     u.uCoreWidth.value = E.glow.coreRadius * this.k / 1000 / this.rb;
-    u.uGlow.value = Math.max(this.dent.x > 0 ? Math.min(1, this.dent.x / this.dentMax) : 0,
-      this.press.pressed && on ? E.glow.contact : 0);
+    u.uGlow.value = on ? Math.max(this.dent.x > 0 ? Math.min(1, this.dent.x / this.dentMax) : 0,
+      this.press.pressed && on ? E.glow.contact : 0) : 0;
     u.uSquash.value = B.squash * this.dent.x / this.dentMax;
     // The object rises to the bubble's middle, and when pressed gives way
     // with the skin: it moves back from the finger and shrinks a touch.
     const lift = Math.max(0, this.rb - this.objectHeight / 2) * B.lift;
-    this.holder.position.set(0, lift * g, 0).addScaledVector(this.dentAt, -Math.max(0, this.dent.x) * B.push);
-    this.holder.scale.setScalar(1 - B.pressScale * Math.max(0, Math.min(1, this.dent.x / this.dentMax)));
+    this.holder.position.set(0, lift * g, 0).addScaledVector(this.dentAt, on ? -Math.max(0, this.dent.x) * B.push : 0);
+    this.holder.scale.setScalar(1 - (on ? B.pressScale * Math.max(0, Math.min(1, this.dent.x / this.dentMax)) : 0));
     this.nameTag.visible = this.hover > 0.01;
     this.nameText.fillOpacity = this.hover;
     this.nameGlass.uniforms.uOpacity.value = this.hover;
