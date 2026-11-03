@@ -136,17 +136,25 @@ export class BubbleHandle extends Interactable {
       // Optional joints may disappear while the same pinch remains captured.
       // Retain its last valid axis, including recovery after release/loss.
       // A new actual contact starts from its own valid axis or radial fallback.
-      const shapeOwner = held ? `grab:${this.grab.id}` : this.press.pressed ? `press:${this.pressOwner}` : null;
+      const secondary = held ? null : contacts.reduce((best, c) => !best || c.depth > best.depth ? c : best, null);
+      const shapeOwner = held ? `grab:${this.grab.id}` : this.press.pressed ? `press:${this.pressOwner}`
+        : secondary ? `contact:${secondary.id}` : null;
+      const shapeSpot = !held && !this.press.pressed && secondary
+        ? new THREE.Vector3(secondary.x,secondary.y,secondary.z) : this.spot;
+      // Point stamps are disabled on these handles. Surviving physical
+      // secondary pressure still drives whole-body feedback, never actions
+      // or manipulation ownership. An acquired grab keeps its own shape.
+      const shapeDepth = held ? Math.max(0,this.dent.x) : Math.max(0,this.dent.x,secondary?.depth ?? 0);
       if (shapeOwner) {
         if (shapeOwner !== this.shapeOwner || !held || probe?.pinchAxis)
-          this.shapeAxisTarget.copy(held && probe?.pinchAxis ? probe.pinchAxis : this.spot);
+          this.shapeAxisTarget.copy(held && probe?.pinchAxis ? probe.pinchAxis : shapeSpot);
       }
       this.shapeOwner = shapeOwner;
       const axis = this.shapeAxisTarget.clone();
       if (axis.dot(this.shapeAxis) < 0) axis.negate();
-      if (this.dent.x < 1e-6) this.shapeAxis.copy(axis);
+      if (shapeDepth < 1e-6) this.shapeAxis.copy(axis);
       else this.shapeAxis.lerp(axis, prefersReducedMotion() ? 1 : 1 - Math.exp(-dt / .05)).normalize();
-      this.softShape.update(this.shapeAxis, Math.max(0, this.dent.x), this.r, this.spot);
+      this.softShape.update(this.shapeAxis, shapeDepth, this.r, shapeSpot);
       u.uShape.value.copy(this.softShape.matrix); u.uShapeInverse.value.copy(this.softShape.inverse);
       u.uShapeOffset.value.copy(this.softShape.offset);
       // The ray and proximity envelope use the same whole shape. The local

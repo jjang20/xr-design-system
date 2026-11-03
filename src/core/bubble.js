@@ -68,7 +68,11 @@ const VERT = /* glsl */`
     vec4 w = modelMatrix * vec4(pos, 1.0);
     vWorld = w.xyz;
     vNormal = normalize(mat3(modelMatrix) * n);
+    #ifdef SOFT_CONTROL
+    vRadial = normalize(mat3(modelMatrix) * (uShapeInverse * normal));
+    #else
     vRadial = normalize(mat3(modelMatrix) * normal);
+    #endif
     gl_Position = projectionMatrix * viewMatrix * w;
     #else
     vec3 p = normalize(position);

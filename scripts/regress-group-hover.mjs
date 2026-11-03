@@ -18,6 +18,7 @@ const port=reservation.address().port;
 await new Promise((resolve,reject)=>reservation.close(e=>e?reject(e):resolve()));
 const server=await createServer({root:path.join(root,'demo'),configFile:path.join(root,'vite.config.js'),logLevel:'error',optimizeDeps:{noDiscovery:true,include:[]},server:{host:'127.0.0.1',port,strictPort:true}});
 let browser;
+const deadline=setTimeout(()=>{result.failure="360s bounded browser deadline";browser?.close();},360000);
 try {
  await server.listen();
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
@@ -78,4 +79,4 @@ try {
  result.checks.push({name:'no browser errors',pass:result.errors.length===0});
  if(result.checks.some(c=>!c.pass))process.exitCode=1;
 }catch(e){result.failure=String(e.stack??e);process.exitCode=1;}
-finally{await browser?.close();await server.close();result.cleanedUp=true;if(out)await writeFile(path.join(out,'result.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));}
+finally{clearTimeout(deadline);await browser?.close();await server.close();result.cleanedUp=true;if(out)await writeFile(path.join(out,'result.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result));}

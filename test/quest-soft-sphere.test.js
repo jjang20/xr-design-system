@@ -115,3 +115,13 @@ for(const reduced of [false,true])test(`Q64: captured optional-axis loss and rec
   assert.equal(h.pressOwner,'xr1');assert.ok(h.shapeAxis.z>.99,'new owner uses its own surface direction');
   media.matches=false;
 });
+
+for(const reduced of [false,true])test(`R12 surviving secondary pressure retains whole shape without taking actions; reduced=${reduced}`,()=>{
+ media.matches=reduced;const r=rig(),h=r.h;r.approach();const direction=new THREE.Vector3(.5,0,Math.sqrt(.75));
+ for(const gap of [.04,.02,.005,-.003])r.move(direction.clone().multiplyScalar(h.r+.008+gap),false,1);
+ for(let i=0;i<30;i++)r.frame();assert.equal(h.pressOwner,'xr0');assert.ok(h.contactDents.some(c=>c.id==='xr1'&&c.depth>0));
+ r.hands[0].src.connected=false;r.frame();for(let i=0;i<180;i++)r.frame();
+ assert.ok(h.contactDents.some(c=>c.id==='xr1'&&c.depth>0));assert.ok(h.softShape.compression>.01);
+ assert.equal(h.press.pressed,false);assert.equal(r.dock.rail.held,null);
+ r.hands[1].src.connected=false;for(let i=0;i<180;i++)r.frame();assert.ok(h.softShape.compression<1e-5);media.matches=false;
+});

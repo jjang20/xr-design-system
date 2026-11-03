@@ -10,7 +10,7 @@ Keep the action/contact history, release/cancel/loss and independent selections 
 
 ## Lower sphere mark removal
 
-A bounded normal-distance fixed-f5 comparison separates explicit lip/glint/shadow/core/ring from the local well's geometry/normal lighting. Turning off only explicit light leaves a bright circular mark; omitting the local well as well removes that mark. Lower sphere opts into deformation-only rendering: retain its accepted affine compression, axis, pressure, recovery, body opacity, rest size/position and ordinary reflected/key/rim lighting, without the stamped local hollow or its additional lighting. No Current/plate/icon/global material change. Contact state and capture remain intact; contact-well uniforms are retained for diagnostics but no longer draw point wells on these opted-in controls.
+A bounded normal-distance fixed-f5 comparison separates explicit lip/glint/shadow/core/ring from the local well's geometry/normal lighting. Turning off only explicit light leaves a bright circular mark; omitting the local well as well removes that mark. Lower sphere opts into deformation-only rendering: retain its accepted affine compression, axis, pressure, recovery, body opacity, rest size/position and ordinary reflected/key/rim lighting, without the stamped local hollow or its additional lighting. No Current/plate/icon/global material change. Surviving secondary physical pressure contributes to whole-body deformation after primary loss without acquiring actions or manipulation; a held grab retains its own shape. Contact state and capture remain intact; contact-well uniforms are retained for diagnostics but no longer draw point wells on these opted-in controls.
 
 ## Existing window controls
 
@@ -23,3 +23,5 @@ The same transform is applied to shader vertices/normals, ray hit geometry and a
 ## Gates
 
 Fixed regressions, normal-distance HDR/no-env and normal/reduced screens, independent Spec/Standards/motion closure precede same Draft PR5 and exact-SHA HTTPS5187. Existing f5 preview remains until then. No new device capture, material proposal, merge or public deployment. #12 same-device baseline/refresh/budget and #13 device acceptance remain open.
+
+The CPU vertex mirror now honors `DEFORMATION_ONLY`. R8/R9 local-concavity assertions are superseded by Q67 smooth whole-deformation/no-local-well checks; previous PASS using the stale mirror is not R12 rendered geometry evidence.

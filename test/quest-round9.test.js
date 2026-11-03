@@ -77,7 +77,7 @@ test('R9: curled physical contact and extended contact still execute independent
  r.put('index-finger-tip',r.at(0,.02));r.put('middle-finger-tip',r.at(1,.02));r.step();
  assert.equal(r.events.filter(e=>e.type==='select').length,2);
 });
-for(const distance of [.4,Math.hypot(.28,.48)])test('R9: Dock sphere follows real pressure immediately and held shape has a clear concave well at '+distance,()=>{
+for(const distance of [.4,Math.hypot(.28,.48)])test('R12: Dock sphere follows real pressure immediately and held shape stays compressed without a local well at '+distance,()=>{
  const r=dockRig({distance}),h=r.d.handle,at=gap=>h.localToWorld(new THREE.Vector3(0,0,h.r+.008+gap));
  for(const gap of [.04,.025,.015,.005]){r.tip.position.copy(at(gap));r.frame();}
  const early=h.dent.x*h.inputScale;r.tip.position.copy(at(-.004));r.frame();
@@ -86,7 +86,8 @@ for(const distance of [.4,Math.hypot(.28,.48)])test('R9: Dock sphere follows rea
  r.src.selecting=true;for(let i=0;i<60;i++){r.tip.position.copy(at(.005));r.frame();}
  assert.equal(r.d.rail.held?.id,'xr0');const theta=Math.PI/12;
  const centre=actualVertexOutput(h,new THREE.Vector3(0,0,1)),left=actualVertexOutput(h,new THREE.Vector3(-Math.sin(theta),0,Math.cos(theta))),right=actualVertexOutput(h,new THREE.Vector3(Math.sin(theta),0,Math.cos(theta)));
- assert.ok((left.z+right.z)/2-centre.z>=.001,'held centre at least1mm behind its15degree neighbors (R9 trial)');
+ assert.ok((left.z+right.z)/2-centre.z<0,'Q67 removes the stamped local well while retaining smooth whole compression');
+ assert.ok(centre.z<h.r*h.inputScale && h.softShape.compression>0,'held whole deformation remains visible in geometry');
  assert.equal(h.skin.uGlow.value,.8);assert.equal(h.skin.uBodyOpacity.value,.38);
  r.src.connected=false;for(let i=0;i<120;i++)r.frame();assert.ok(Math.abs(h.dent.x)<1e-5);assert.equal(r.d.rail.held,null);
 });

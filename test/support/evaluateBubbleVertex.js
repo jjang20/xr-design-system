@@ -18,7 +18,8 @@ export function evaluateBubbleVertex(h, wanted) {
   };
   const dents=[map(u.uDent.value,false),...u.uExtraDent.value.slice(0,u.uExtraCount.value).map(d=>map(d,true))];
   const width=u.uDentWidth.value*(h.softShape ? .6 : 1);
-  const depth=Math.max(...dents.map(d=>d.depth*Math.exp(-p.distanceToSquared(d.at)/(width**2))));
+  const deformationOnly = h.body.children[0].material.defines.DEFORMATION_ONLY !== undefined;
+  const depth=deformationOnly ? 0 : Math.max(...dents.map(d=>d.depth*Math.exp(-p.distanceToSquared(d.at)/(width**2))));
   const pos=p.clone().multiplyScalar(1-depth);
   if(h.softShape)pos.applyMatrix3(u.uShape.value).add(u.uShapeOffset.value);
   else{
