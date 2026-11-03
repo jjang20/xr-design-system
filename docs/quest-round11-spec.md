@@ -14,6 +14,8 @@ Toolbar's explicit buttons array/shared bar uses its own independent HoverGroup 
 
 Independent review reproduced a false exception: PressModel's `contacted` latch refers to an early frozen release plane. With both tips still 1/8 mm in front of the actual skin, it can become true and bypass the slot limit. Group feedback now records observed finite visible-skin contact separately, without changing navigation/action or release history. The original failed normal/reduced trace is preserved.
 
+Release/cancel clears the contact feedback exception before the same frame's hover is resolved. Independent review found the previous ordering retained two active hovers for one release frame in list/Toolbar poke and controller-ray paths. The four red cases are preserved; recovery geometry can settle after release but is not a second active hover.
+
 ## Lower sphere
 
 Q61 remains unresolved on02e including6d. Only the lower sphere at the Dock stem is in scope. Preserve accepted plate geometry/end grips, alpha/Glow, Current material, icons and input. Diagnose normal-distance no-env front/oblique actual geometry, normal response and hand occlusion separately. A bright ring, magnified image or CPU concavity does not establish readable Quest deformation. Bounded real-component comparisons and independent visual review precede any correction; no diagnostic recapture is automatic.

@@ -27,6 +27,23 @@ function rig({scale=1.5,navigation=false,twoGroups=false,toolbar=false}={}) {
  return {scene,input,panels,rows,events,opens,at,put,step};
 }
 const index='index-finger-tip',middle='middle-finger-tip';
+for(const toolbar of [false,true])for(const mode of ['poke','ray'])test(`R11 ${toolbar?'Toolbar':'list'} ${mode}: release drops contact exception in the same frame`,()=>{
+ const r=rig({toolbar});r.put(1,index,0,1,.025);r.step(180);
+ if(mode==='poke'){
+  for(const gap of [.05,.03,.015,.005,.001,-.003]){r.put(0,index,0,0,gap);r.step();}r.step(90);
+ }else{
+  const s=r.input.xr[0];s.connected=true;s.handSource=false;s.hand.visible=false;
+  const target=r.rows[0][0].localToWorld(new THREE.Vector3());
+  s.ray.position.copy(target.add(new THREE.Vector3(0,0,.3)));s.ray.quaternion.identity();
+  r.step();s.selecting=true;r.step(90);
+ }
+ assert.equal(r.rows[0][0].press.pressed,true);
+ if(mode==='poke')r.put(0,index,0,0,.025);else r.input.xr[0].selecting=false;
+ r.step();assert.equal(r.rows[0][0].press.pressed,false);
+ assert.equal(r.rows[0].filter(b=>b.hovered).length,1,'release cannot leave two active proximity hovers');
+ assert.deepEqual(r.events,[[0,0]],'the original action still executes exactly once');
+ r.step(180);assert.equal((r.panels[0].bar??r.panels[0].levels[0].panel).skin.uniforms.uBulgeCount.value,1);
+});
 for(const scale of [.75,1.5,2.25])test('R11 group: closest world surface wins across two tips at scale '+scale,()=>{
  const r=rig({scale});r.put(0,index,0,0,.035);r.put(0,middle,0,1,.02);r.step(180);
  assert.deepEqual(r.rows[0].map(x=>x.hovered),[false,true,false]);

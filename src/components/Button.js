@@ -394,21 +394,6 @@ export class Button extends Interactable {
       this.press.lastPenetration = prior?.eligible ? -prior.separation : null;
     }
     this.probeId = best?.id;
-    // Press eligibility cannot hide a closer hand's proximity feedback.
-    const hoverProbes = probes.filter(p => (p.allowHover !== false && this.groupHoverAllowed !== false) ||
-      (p.id === owner && (this.groupHoverAllowed !== false || this.groupContacted)) ||
-      (p.kind === 'ray' && p.pressed && p.captured) || (p.kind === 'poke' &&
-      // faceDistance is an approach metric: it clamps everything behind
-      // the front face to zero. A contact-only tip must still overlap the
-      // sheet's finite depth; a detached tip behind it is not touching.
-      distance(p) === 0 && this.inside(p.point, true) && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
-    ));
-    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
-
-    // Hover with hysteresis (pokes) or direct hit (rays).
-    this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
-    if (!hoverProbe) this.hoverBand.update(Infinity);
-
     // Press: pokes press by depth; a ray press pushes all the way in.
     let penetration = null, inside = false, separation = null;
     if (best && this.enabled) {
@@ -444,6 +429,23 @@ export class Button extends Interactable {
     if (!this.press.pressed) this.groupContacted = false;
     else this.groupContacted ||= best?.kind === 'ray' || (best && distance(best) === 0 &&
       this.inside(best.point, true) && best.point.z + (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t);
+
+    // Resolve release/cancel before granting a contact feedback exception.
+    // Press eligibility cannot hide a closer hand's proximity feedback.
+    const hoverProbes = probes.filter(p => (p.allowHover !== false && this.groupHoverAllowed !== false) ||
+      (this.press.pressed && p.id === this.pressOwner && (this.groupHoverAllowed !== false || this.groupContacted)) ||
+      (p.kind === 'ray' && p.pressed && p.captured) || (p.kind === 'poke' &&
+      // faceDistance is an approach metric: it clamps everything behind
+      // the front face to zero. A contact-only tip must still overlap the
+      // sheet's finite depth; a detached tip behind it is not touching.
+      distance(p) === 0 && this.inside(p.point, true) && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
+    ));
+    const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
+
+    // Hover with hysteresis (pokes) or direct hit (rays).
+    this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
+    if (!hoverProbe) this.hoverBand.update(Infinity);
+
 
     // Hover fade, eased by motion.enter (out mirrors in, see DEFAULTS).
     const target = this.hovered && !this.disabled ? 1 : 0;

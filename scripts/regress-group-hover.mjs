@@ -5,14 +5,19 @@ import { chromium } from 'playwright-core';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import net from 'node:net';
 const root=process.env.GROUP_SOURCE ?? fileURLToPath(new URL('../',import.meta.url));
 const out=process.env.GROUP_CHECK_OUT;
 const expected=Number(process.env.GROUP_EXPECT_HOVERS ?? 1);
 const result={source:root,expected,checks:[],cases:[],errors:[]};
-const server=await createServer({root:path.join(root,'demo'),configFile:path.join(root,'vite.config.js'),logLevel:'error',optimizeDeps:{noDiscovery:true,include:[]},server:{host:'127.0.0.1',port:0}});
+const reservation=net.createServer();
+await new Promise((resolve,reject)=>{reservation.once('error',reject);reservation.listen(0,'127.0.0.1',resolve);});
+const port=reservation.address().port;
+await new Promise((resolve,reject)=>reservation.close(e=>e?reject(e):resolve()));
+const server=await createServer({root:path.join(root,'demo'),configFile:path.join(root,'vite.config.js'),logLevel:'error',optimizeDeps:{noDiscovery:true,include:[]},server:{host:'127.0.0.1',port,strictPort:true}});
 let browser;
 try {
- await server.listen(0);
+ await server.listen();
  browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
  if(out)await mkdir(out,{recursive:true});
  for(const kind of ['list','toolbar'])for(const mode of ['hdr','noenv'])for(const reduced of [false,true]) {
@@ -26,7 +31,7 @@ try {
     const {InputSystem}=await import(`/@fs/${root}/src/core/InputSystem.js`);
     const c=window.contour;c.renderer.setAnimationLoop(null);c.tick(180,1/90);
     if(mode==='noenv'){(await import(`/@fs/${root}/src/core/look.js`)).setBackdrop(null);c.scene.background=null;}
-    const group=()=>new THREE.Group();let p=c.panel;
+    const group=()=>new THREE.Group();let p=c.panel;const T=p.T;
     if(kind==='toolbar'){
      const {Toolbar}=await import(`/@fs/${root}/src/components/Toolbar.js`);
      const toolbar=new Toolbar(p.T,{tools:['A','B','C'].map(label=>({label,width:80}))});
@@ -36,7 +41,7 @@ try {
      const deadline=performance.now()+15000;
      while(labels.some(t=>!t.textRenderInfo)){if(performance.now()>deadline)throw new Error('toolbar font deadline');await new Promise(r=>setTimeout(r,20));}
     }
-    const input=new InputSystem({T:p.T,scene:c.scene,camera:c.camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
+    const input=new InputSystem({T,scene:c.scene,camera:c.camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
     input.xr.forEach(s=>{s.connected=false;s.grip.visible=false;});
     const s=input.xr[0];s.connected=true;s.handSource=true;s.hand.joints={};
     const tips=['index-finger-tip','middle-finger-tip'].map(name=>{const j=new THREE.Group();j.jointRadius=.008;s.hand.add(j);s.hand.joints[name]=j;return j;});
