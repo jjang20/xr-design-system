@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import * as THREE from 'three';
 import {createTokens,Dock,PackagingPanel,InputSystem} from '../src/index.js';
+import {prefersReducedMotion} from '../src/core/spring.js';
+const media={matches:false};globalThis.matchMedia=()=>media;
 const T=createTokens(JSON.parse(readFileSync(new URL('../tokens.json',import.meta.url)))),dt=1/60;
 const apps=['house','ruler','scan','image','settings','notes','clock'].map(icon=>({icon,label:icon}));
 function rig(kind='window', dockOptions={}){
@@ -31,7 +33,7 @@ function iconPoint(r,icon,degrees,gap){
 function rowPoint(r,row,x,gap){r.scene.updateMatrixWorld(true);const p=new THREE.Vector3(x,0,0),front=row.press.pressed?row.pokeFront:row.surfaceZ(p);p.z=front+(.008+gap)/Math.abs(row.getWorldScale(new THREE.Vector3()).z);return row.localToWorld(p);}
 
 for(const reduced of [false,true])test('R11 Dock: one proximity bubble/name with neighbour magnification, real contacts survive '+reduced,()=>{
- const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:reduced});
+ media.matches=reduced;assert.equal(prefersReducedMotion(),reduced);
  try{
   const r=rig('dock'),d=r.obj,a=d.icons[2],b=d.icons[4];
   const tick=(ga,gb)=>{r.hand(0,iconPoint(r,a,0,ga));r.hand(1,iconPoint(r,b,0,gb));r.frame();};
@@ -52,7 +54,7 @@ for(const reduced of [false,true])test('R11 Dock: one proximity bubble/name with
   assert.equal(d.icons.filter(i=>i.hovered).length<=1,true,'release restores one active proximity slot');
   r.lose(0);r.lose(1);for(let n=0;n<180;n++)r.frame();
   assert.equal(d.icons.some(i=>i.nameTag.visible||i.bubble.visible),false);
- }finally{globalThis.matchMedia=previous;}
+ }finally{media.matches=false;}
 });
 
 for(const kind of ['window','dock'])test('R7: distinct '+kind+' items execute independently through InputSystem',()=>{
