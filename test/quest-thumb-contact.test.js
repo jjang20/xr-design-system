@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import * as THREE from 'three';
 import {createTokens,PackagingPanel,Button,InputSystem} from '../src/index.js';
+import {prefersReducedMotion} from '../src/core/spring.js';
+const media={matches:false};globalThis.matchMedia=()=>media;
 
 // Synthetic regression only. The exact Q59 device pose stays in local evidence.
 const T=createTokens(JSON.parse(readFileSync(new URL('../tokens.json',import.meta.url)))),dt=1/90;
@@ -95,7 +97,7 @@ test('R10: non-list embossed buttons retain existing thumb proximity',()=>{
 });
 
 for(const reduced of [false,true])test('R10: stationary thumb cannot acquire from another finger growing its row (reduced='+reduced+')',()=>{
- const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:reduced});
+ media.matches=reduced;assert.equal(prefersReducedMotion(),reduced);
  try{
   const r=rig(),row=r.rows[0],fixed=r.at(0,.002,.025);
   r.put(thumb,fixed);r.step();r.put(index,r.at(0,.02,-.025));r.step(120);
@@ -110,5 +112,22 @@ for(const reduced of [false,true])test('R10: stationary thumb cannot acquire fro
   for(const gap of [.025,.01,.005,.001,-.001,-.003]){r.put(thumb,r.at(0,gap,.025));r.step();}
   assert.equal(row.press.pressed,true);assert.equal(row.pressOwner,'xr0:thumb-tip');
   r.put(thumb,r.at(0,.025,.025));r.step();assert.equal(r.events.filter(e=>e.type==='select').length,1);
- }finally{if(previous)globalThis.matchMedia=previous;else delete globalThis.matchMedia;}
+ }finally{media.matches=false;}
+});
+
+for(const reduced of [false,true])for(const arriving of ['index','other-thumb'])test('R10: suppressed stationary thumb cannot hide '+arriving+' approach (reduced='+reduced+')',()=>{
+ media.matches=reduced;assert.equal(prefersReducedMotion(),reduced);
+ try{
+  const r=rig(),row=r.rows[0];r.put(thumb,r.at(0,.002,.025));r.step(2);
+  let put=p=>r.put(index,p);
+  if(arriving==='other-thumb'){
+   const src=r.input.xr[1];src.connected=true;src.handSource=true;src.grip.visible=false;
+   const tip=new THREE.Group();tip.jointRadius=.008;src.hand.add(tip);src.hand.joints={[thumb]:tip};
+   put=p=>tip.position.copy(p);
+  }
+  for(const gap of [.06,.035,.015,.005,.001,-.001,-.003]){put(r.at(0,gap,-.025));r.step();}
+  assert.equal(row.press.pressed,true,'previously observed front approach must survive candidate change');
+  assert.equal(row.pressOwner,arriving==='index'?'xr0':'xr1:thumb-tip');
+  put(r.at(0,.025,-.025));r.step();assert.equal(r.events.filter(e=>e.type==='select').length,1);
+ }finally{media.matches=false;}
 });

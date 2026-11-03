@@ -352,17 +352,27 @@ export class Button extends Interactable {
       const visible = this.surfaceZ(p.point);
       const separated = p.point.z - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) > visible;
       const bulge = separated ? this.bulge : priorThumbProfiles?.get(p.id)?.bulge ?? this.bulge;
-      thumbProfiles.set(p.id, { bulge, front: Math.min(visible, this.surfaceZ(p.point, bulge)) });
+      const front = Math.min(visible, this.surfaceZ(p.point, bulge));
+      const separation = p.point.z - front - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
+      thumbProfiles.set(p.id, { bulge, front, separation,
+        eligible: p.canPress !== false && this.inside(p.point, true) });
     }
     this.thumbProfiles = thumbProfiles;
     const frontFor = p => thumbProfiles?.get(p.id)?.front ?? this.surfaceZ(p.point);
     // Respect explicit press gates on externally supplied probes too.
     const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
-    const candidates = eligible.length ? eligible : probes;
+    // A suppressed, separated thumb must not hide another finger's
+    // approach. Keep its own observed front approach for when it contacts.
+    const contacting = thumbProfiles && !this.press.pressed ? eligible.filter(p => !thumbProfiles.has(p.id) || thumbProfiles.get(p.id).separation <= 0) : eligible;
+    const candidates = contacting.length ? contacting : eligible.length ? eligible : probes;
     const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point, p.radius, frontFor(p));
     const owner = this.press.pressed ? this.pressOwner : null;
     const { probe: best } = pickProbe(candidates, distance, owner);
-    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
+    if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) {
+      const prior = priorThumbProfiles?.get(best.id);
+      this.press.lastSeparation = prior?.eligible ? prior.separation : null;
+      this.press.lastPenetration = prior?.eligible ? -prior.separation : null;
+    }
     this.probeId = best?.id;
     // Press eligibility cannot hide a closer hand's proximity feedback.
     const hoverProbes = probes.filter(p => p.allowHover !== false || p.id === owner || (
