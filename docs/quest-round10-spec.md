@@ -2,7 +2,7 @@
 
 ## Preserved contracts
 
-Keep Current window material, Q49 navigation, Q51 Dock plate shape/thickness/end grips, window thickness/alpha/gaps, icon input, real multipoint, release/cancel/loss and Push unchanged. No new hover cap or input threshold is approved by this slice.
+Keep Current window material, Q49 navigation, Q51 Dock plate shape/thickness/end grips, window thickness/alpha/gaps, icon input, real multipoint, release/cancel/loss and Push unchanged. No global or per-hand hover cap is introduced. The November Q59 correction below narrows only list-row thumb proximity.
 
 ## Actual Q57 observation
 
@@ -23,3 +23,13 @@ Regression exercises actual InputSystem press and pinch through +1 mm/0/-1 mm an
 ## Remaining work
 
 Q55 and Q56 remain unresolved pending the concrete observation branch. Existing diagnostic and ordinary previews stay pinned until a reviewed product candidate is explicitly handed over. #12's same-device baseline/refresh/budget measurement and #13's device acceptance remain open; reported frameRate 90 from an instrumented recording is not performance acceptance.
+
+## Q59 November observation and list-thumb correction
+
+The recovered diagnostic, still on `3af3986`, recorded a sustained pair of hovered rows: index on one row and a separately tracked straight thumb on another. The first root-row pair lasts 2.605 seconds. The same probe is never delivered to two list rows. Full tracked thumb chains pass the old straightness rule; curled middle/ring/pinky probes do not receive proximity hover. Exact-frame input/draw checks and a frozen recorded pose replay distinguish this from a spring recovery tail or a coordinate mismatch. Numeric device records remain local evidence and are not committed as test fixtures.
+
+Only PackagingPanel rows opt into thumb contact-only routing. They reuse the existing finite-depth physical-contact path: no distant hover or early press offset for the thumb, but actual skin overlap, pressure, rubbing, release, cancellation, loss, rearm and independent actions remain available. This adds no numerical margin. A thumb can touch an already inflated visible row; inflation does not grant the old 100/140 mm proximity band to a separated thumb. The existing physical radius, visible-skin profile and finite rear surface bound this overlap. Index and other fingers, standalone buttons, Dock/icons/controls and pinch/palm ownership retain their prior rules.
+
+This supersedes the R9 implementation description that every straight fingertip receives independent distant row proximity. It does not supersede the user's independent actual-contact/multipoint contract. Tests include a synthetic straight-thumb/index red, thumb-only contact at three scales, loss/side cancellation, independent contacts, Q48 last-valid navigation, separated-tip inflation/jitter, finite-back rejection and unchanged non-list proximity. The original recorded pose is replayed separately against the candidate.
+
+Q59 contains no sphere contact or held state. During its tracked-hand interval the sphere's recorded eye-space bounds are outside the viewing frustum; this is a coverage limit, not a conclusion about the user's intended target or the sphere's subjective shape. The independent `6d60355` centre-direction correction remains separate from Q56 device acceptance. Updated product/preview delivery requires fixed-source review and affected validation; neither this observation nor reported 90 Hz closes the device/performance gates.

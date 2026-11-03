@@ -320,7 +320,8 @@ export class InputSystem {
     // Special handles (the Dock shelf) retain their own arbitration.
     // Radius is in world metres; consumers convert it through their scale.
     for (const { item, point } of probes) if (!item.pokeDistance || item === target) {
-      const contactOnly = item.emboss && !proximity;
+      const contactOnly = item.emboss && (!proximity ||
+        (item.thumbContactOnly && src.id.endsWith(':thumb-tip')));
       item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius,
         pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly, pinch: src.selecting,
         surfaceCrossing: crossings.get(item) });
