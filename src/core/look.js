@@ -418,6 +418,22 @@ const GLASS_FRAG = /* glsl */`
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
   const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+  #ifdef LIST_STATE_ALPHA
+  uniform sampler2D uListStateAlpha;
+  uniform float uListStateMix;
+  uniform vec3 uListRowLayout; // first centre Y, positive pitch, row count
+  uniform vec4 uListRowShape; // centre X, half width/height, corner radius
+  float listStateAlpha(vec2 p, float original) {
+    float index=floor((uListRowLayout.x-p.y)/uListRowLayout.y+0.5);
+    if(index<0.0 || index>=uListRowLayout.z) return original;
+    vec2 centre=vec2(uListRowShape.x,uListRowLayout.x-index*uListRowLayout.y);
+    float d=sdRoundRect(p-centre,uListRowShape.yz,uListRowShape.w);
+    float aa=max(fwidth(d),0.000001);
+    float mask=1.0-smoothstep(-aa,aa,d);
+    float state=texture2D(uListStateAlpha,vec2((index+0.5)/uListRowLayout.z,0.5)).r;
+    return mix(original,state,mask*uListStateMix);
+  }
+  #endif
   void main() {
     vec3 V = normalize(vWorld - cameraPosition);
     vec3 N = normalize(vNormal);
@@ -612,6 +628,9 @@ const GLASS_FRAG = /* glsl */`
     // After environment alpha and front-pane opacity: only the list's
     // non-contact raised skin opts in. Text, icons and other glass do not.
     if(vFront>0.5 && anyBulge()) alpha *= bulgeOpacity(vLocal.xy);
+    #ifdef LIST_STATE_ALPHA
+    if(vFront>0.5) alpha=listStateAlpha(vLocal.xy,alpha);
+    #endif
     if (alpha * uOpacity * uFade < 0.001) discard;
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>

@@ -92,7 +92,7 @@ export class InputSystem {
   reset() {
     this.handPoints = [];
     for (const src of this.xr) {
-      src.state = {}; src.resetBlocked = src.selecting || src.handPinching;
+      src.state = {}; src.resetBlocked = src.selecting;
       src.nativePinchBlocked ||= src.handPinching || src.nativePinchActive;
       src.pokeHistory = null; src.fingers = new Map();
       src.near.update(Infinity); src.line.visible = false;
@@ -157,7 +157,7 @@ export class InputSystem {
   // from the wrist and knuckles; at least three extended fingers distinguish
   // a flat push from an index poke or pinch. Missing joints never dismiss.
   palmOf(src) {
-    if (src.selecting || src.handPinching || !src.hand.visible) return null;
+    if (src.selecting || !src.hand.visible) return null;
     const joints = src.hand.joints ?? {};
     const point = name => joints[name]?.visible ? joints[name].getWorldPosition(new THREE.Vector3()) : null;
     const wrist = point('wrist');
@@ -235,28 +235,20 @@ export class InputSystem {
         }
         if (src.handSource && !src.hand.visible) {
           src.state = {}; src.pokeHistory = null; src.fingers?.clear();
-          src.near.update(Infinity); src.resetBlocked ||= src.selecting || src.handPinching; continue;
+          src.near.update(Infinity); src.resetBlocked ||= src.selecting; continue;
         }
         if (src.resetBlocked) {
-          if (src.selecting || src.handPinching) { src.pokeHistory = null; src.fingers?.clear(); continue; }
+          if (src.selecting) { src.pokeHistory = null; src.fingers?.clear(); continue; }
           src.resetBlocked = false;
-        }
-        if(src.nativePinchBlocked && !src.selecting){
-          src.state={};src.pokeHistory=null;src.fingers?.clear();continue;
         }
         // An existing manipulation owns its source through the release
         // frame too; an opening hand must not switch it to another panel.
         const manipulating = items.some(item => item.grab?.id === src.id);
         if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         const tip = this.tipOf(src);
-        // The joint-derived event can survive a missing joint in Three's
-        // cached pose. Native-only manipulation needs both live fingertips;
-        // after loss require opening the pinch before it can acquire again.
-        if(src.handSource && src.handPinching && !src.selecting &&
-          (!src.hand.joints?.['index-finger-tip']?.visible || !src.hand.joints?.['thumb-tip']?.visible)){
-          src.resetBlocked=true;src.state={};src.pokeHistory=null;src.fingers?.clear();continue;
-        }
-        if (src.handSource && !tip && (src.selecting || src.handPinching)) {
+        // Native eligibility affects only the opt-in pane signal below.
+        // A lost thumb must not cancel a remaining index's real row press.
+        if (src.handSource && !tip && src.selecting) {
           src.resetBlocked = true; src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue;
         }
         const joints = src.hand.visible ? ['index-finger-tip','thumb-tip','middle-finger-tip','ring-finger-tip','pinky-finger-tip']
@@ -302,7 +294,7 @@ export class InputSystem {
           if (src.handSource && !tip) {
             // Losing the index cannot release its poke via an unrelated ray.
             // Other tracked tips still take the independent near path above.
-            src.state = {}; src.resetBlocked ||= src.selecting || src.handPinching; continue;
+            src.state = {}; src.resetBlocked ||= src.selecting; continue;
           }
           src.line.visible = true;
           const origin = new THREE.Vector3().setFromMatrixPosition(src.ray.matrixWorld);

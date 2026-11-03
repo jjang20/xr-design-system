@@ -28,12 +28,12 @@ record('R14 row input follows recovering pane base at the physical grabbed edge'
  assert.ok(Math.abs(base-r.h.currentDent.depth*-1)<.0001);
 });
 
-test('R14 list hover opacity applies only to noncontact skin, with text and other groups unchanged',()=>{
+test('R15 Q78 list state endpoints replace the historical R14 hover multiplier without changing text',()=>{
  const r=rig(),at=naturalEdge(r,.003),u=r.level.panel.skin.uniforms,row=r.rows[0];
- assert.ok(row.hovered&&!row.press.pressed);assert.equal(u.uBulgeOpacity.value[0],.58);
+ assert.ok(row.hovered&&!row.press.pressed);assert.deepEqual(r.level.listOpacity.targets,{idle:.7,hover:.8,pressed:.9});assert.ok(Math.abs(r.level.listOpacity.values[0]-.8)<1e-4);
  assert.ok(row.label); const label=row.label.fillOpacity,point=new THREE.Vector3(0,0,0);
  for(const gap of [.02,.01,0,-.003]){point.set(0,0,row.surfaceZ(new THREE.Vector3())+(.008+gap)/row.getWorldScale(new THREE.Vector3()).z);r.step(row.localToWorld(point.clone()),false,'row-contact');}
- assert.ok(row.press.pressed);assert.ok(u.uBulgeOpacity.value.every(v=>v===1),'actual press restores accepted contact surface opacity');
+ assert.ok(row.press.pressed);for(let i=0;i<90;i++)r.step(row.localToWorld(point.clone()),false,'settled-contact');assert.ok(Math.abs(r.level.listOpacity.values[0]-.9)<1e-6,'selected pressed target, not the old full-opacity branch');
  assert.equal(row.label.fillOpacity,label,'text opacity independent');
 });
 

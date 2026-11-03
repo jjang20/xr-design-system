@@ -31,6 +31,7 @@ import { WindowSurface } from './WindowSurface.js';
 import { BubbleHandle } from './BubbleHandle.js';
 import { WindowControls } from '../core/WindowControls.js';
 import { HoverGroup } from '../core/HoverGroup.js';
+import { ListSurfaceOpacity } from '../core/ListSurfaceOpacity.js';
 
 export { PACKAGING_MODES, packagingPose };
 
@@ -239,6 +240,12 @@ export class PackagingPanel extends THREE.Group {
     this.retarget();
   }
 
+  // Own only the added row-state textures. Scene owners may still dispose
+  // their geometry/materials separately; material listeners are idempotent.
+  dispose() {
+    for(const level of this.stack.all)level.listOpacity?.dispose();
+  }
+
   setMode(mode) {
     if (!PACKAGING_MODES.includes(mode)) throw new Error(`Unknown packaging mode ${mode}`);
     this.mode = mode;
@@ -401,6 +408,9 @@ export class PackagingPanel extends THREE.Group {
     });
 
     const level = { item, group, panel, title, corners, moves, surface, rows, hoverGroup: new HoverGroup(rows), separators, size: { W, H, titleBand } };
+    // Q78 selected endpoints apply to this list footprint only.
+    if(rows.length && DEFAULTS.listSurfaceOpacity)
+      level.listOpacity=new ListSurfaceOpacity(panel.skin,rows,DEFAULTS.listSurfaceOpacity);
     return level;
   }
 
@@ -536,6 +546,7 @@ export class PackagingPanel extends THREE.Group {
       // outgoing row skin in this frame: its spring otherwise swells over
       // the grabbed edge for another ~0.2 s. Other groups keep their motion.
       if (this.controls.held) l.rows.forEach(r => r.clearHoverFeedback());
+      l.listOpacity?.update(dt,{reduced,forceIdle:!!this.controls.held});
       const push = this.palmPush;
       const held = this.controls.held || push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
         : push?.parents.some(p => p.level === l) ? ['z'] : [];
@@ -566,6 +577,9 @@ export class PackagingPanel extends THREE.Group {
         : depth === 0 ? DEFAULTS.windowPreview.frontOpacity : 1;
       l.frontOpacity = (l.frontOpacity ?? frontTarget) + (frontTarget - (l.frontOpacity ?? frontTarget)) * (1 - Math.exp(-dt / .12));
       l.panel.skin.uniforms.uFrontOpacity.value = l.frontOpacity;
+      // vFront identifies a mesh face, not the foremost window. Keep rear
+      // surfaces on their existing alpha/depth path through stack motion.
+      if(l.listOpacity)l.panel.skin.uniforms.uListStateMix.value=1-clamp(c.back,0,1);
       const opacityTarget = depth > 1 ? M.olderOpacity : M.rearOpacity;
       l.rearOpacity = (l.rearOpacity ?? opacityTarget) + (opacityTarget - (l.rearOpacity ?? opacityTarget)) * (1 - Math.exp(-dt / .12));
       setGroupOpacity(l.group, clamp(c.opacity, 0, 1), clamp(c.dim, 0, 1), clamp(c.back, 0, 1),
@@ -577,7 +591,9 @@ export class PackagingPanel extends THREE.Group {
     }
     this.updateLight();
     // Remove levels that finished closing.
-    for (const l of this.stack.sweep(l => l.settled || l.cur.opacity < 0.01)) this.remove(l.group);
+    for (const l of this.stack.sweep(l => l.settled || l.cur.opacity < 0.01)) {
+      l.listOpacity?.dispose(); this.remove(l.group);
+    }
   }
 
   // Contact shadows: each window gets one from the level in front of it and

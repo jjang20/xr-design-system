@@ -82,3 +82,17 @@ test('R15 an explicitly connected replacement controller does not inherit the ha
  r.controller.dispatchEvent({type:'selectstart',data:source});r.scene.updateMatrixWorld(true);r.input.update();r.p.update(1/60);
  assert.equal(r.input.xr[0].handSource,false);assert.equal(r.input.xr[0].resetBlocked,false);assert.equal(r.p.controls.held?.handle,r.h);
 });
+test('R15 native pane latch cannot cancel a continuously tracked non-pane index contact',()=>{
+ const r=rig(),row=r.level.rows[0];let world;
+ for(const gap of [.04,.025,.015,.005,-.003]){
+  const q=new THREE.Vector3(0,0,(row.press.pressed?row.pokeFront:row.surfaceZ(new THREE.Vector3()))+(.008+gap)/r.scale);
+  world=row.localToWorld(q);r.step(r.h.worldToLocal(world.clone()),{gap:-.04,world});
+ }
+ assert.equal(row.press.pressed,true);assert.equal(row.pressOwner,'xr0');assert.equal(r.p.controls.held,null);
+ const local=r.h.worldToLocal(world.clone());r.step(local,{gap:-.01,world});
+ r.step(local,{gap:-.01,missing:'thumb-tip',world});
+ assert.equal(row.press.pressed,true);assert.equal(row.pressOwner,'xr0');
+ let selected=0;row.addEventListener('select',()=>selected++);
+ const retreat=world.clone().add(new THREE.Vector3(0,0,.03).applyQuaternion(r.p.quaternion));
+ r.step(local,{gap:-.01,missing:'thumb-tip',world:retreat});assert.equal(selected,1);
+});

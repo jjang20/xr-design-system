@@ -254,6 +254,7 @@ export class Button extends Interactable {
   // docs/catalog-spec.md, "Bubble").
   get bulge() { return this.bz ?? 0; }
   clearHoverFeedback() {
+    this.surfaceContact=false;
     this.hovered = false; this.hoverBand.update(Infinity);
     this.hoverT = this.hover = this.bz = this.bv = this.dz = this.dv = 0;
     this.contactFeedbackStates?.clear(); this.contactDents = [];
@@ -467,6 +468,10 @@ export class Button extends Interactable {
       distance(p) === 0 && this.inside(p.point, true) && p.point.z + (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t
     ));
     const { probe: hoverProbe, distance: hoverDistance } = pickProbe(hoverProbes, distance);
+    this.surfaceContact=this.enabled && hoverProbes.some(p=>p.kind==='ray'
+      ? p.pressed && p.captured
+      : p.canPress!==false && distance(p)===0 && this.inside(p.point,true) &&
+        p.point.z+(p.radius??0)/Math.abs(this.getInputScale(inputScale).z)>=-this.t);
 
     // Hover with hysteresis (pokes) or direct hit (rays).
     this.hovered = hoverProbe?.kind === 'ray' ? hoverDistance === 0 : this.hoverBand.update(hoverDistance);
