@@ -234,7 +234,7 @@ try {
     const c=window.contour,d=c.dock,r=window.replay,h=d.handle;
     r.src.connected=false;r.input.update();c.tick(1);r.src.connected=true;
     for(const gap of [.12,.08,.06,.04,.025,.017,.012])r.step(h.localToWorld(new r.THREE.Vector3(0,0,h.t+gap)));
-    const at=h.localToWorld(new r.THREE.Vector3(h.panel.w/2-.003/h.inputScale,0,h.panel.t+.012));r.src.selecting=true;r.step(at);
+    const at=h.localToWorld(new r.THREE.Vector3(0,0,h.t+.012));r.src.selecting=true;r.step(at);
     const start=d.position.clone(),side=d.side,captured=!!d.rail.held;
     r.step(at.clone().add(new r.THREE.Vector3(.08,-.04,-.04)));
     const moved=d.position.distanceTo(start),suppressed=d.icons.every(i=>!i.hovered&&!i.press.pressed);
