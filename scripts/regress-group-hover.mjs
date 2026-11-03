@@ -58,6 +58,18 @@ try {
    result.checks.push({name:name+' sustained proximity',pass:state.hovered.filter(Boolean).length===expected && state.shaderCount===expected});
    const capture=async label=>{if(out){const png=await page.evaluate(()=>window.contour.pass('beauty'));await writeFile(path.join(out,`${name}-${label}.png`),Buffer.from(png.split(',')[1],'base64'));}};
    await capture('hover');
+   if(kind==='dock'){
+    const handover=await page.evaluate(()=>{
+     const r=window.groupReplay,s=r.input.xr[0],tip=s.hand.joints['index-finger-tip'],other=s.hand.joints['middle-finger-tip'];other.visible=false;
+     r.put(0,.04);for(let n=0;n<90;n++)r.step();const from=tip.position.clone();r.put(1,.04);const to=other.position.clone();let overlap=0,maxVisible=0,contacts=0;
+     for(let n=1;n<=12;n++){tip.position.copy(from).lerp(to,n/12);r.step();const rows=r.rows;const visible=rows.filter(x=>x.bubble.visible&&x.skin.uOpacity.value>.01).length;maxVisible=Math.max(maxVisible,visible);if(visible>1)overlap++;
+      contacts+=rows.filter(x=>(x.frameProbes??[]).some(p=>p.kind==='poke'&&(p.point.distanceTo(x.centre)-x.rb)*x.inputScale-(p.radius??0)<=0)).length;
+     }
+     other.visible=true;return{overlap,maxVisible,contacts};
+    });
+    result.checks.push({name:name+' visible handover, no contact fixture',pass:handover.overlap===0&&handover.maxVisible<=1&&handover.contacts===0});
+    await capture('handover');
+   }
    const contact=await page.evaluate(()=>{const r=window.groupReplay;for(const gap of [.04,.025,.01,.005,.001,-.003]){r.put(0,gap);r.put(1,gap);r.step();}for(let i=0;i<30;i++){r.put(0,-.003);r.put(1,-.003);r.step();}return r.state();});
    result.checks.push({name:name+' two physical contacts',pass:contact.pressed[0] && contact.pressed[1] && contact.glow[0]>0 && contact.glow[1]>0 && contact.shaderCount>=2});
    await capture('contact');result.cases.push({name,state,contact});
