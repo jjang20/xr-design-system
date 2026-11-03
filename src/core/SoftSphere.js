@@ -8,6 +8,8 @@ export class SoftSphere {
     this.inverse = new THREE.Matrix3();
     this.offset = new THREE.Vector3();
     this.axis = new THREE.Vector3(0, 0, 1);
+    this.axes = [new THREE.Vector3(0,0,1), new THREE.Vector3(1,0,0), new THREE.Vector3(0,1,0)];
+    this.scales = [1,1,1];
     this.compression = 0;
   }
 
@@ -22,6 +24,7 @@ export class SoftSphere {
     const bias = .5 + .3 * (1 - d.y * d.y);
     const lateral = Math.pow(1 / axial, bias), vertical = Math.pow(1 / axial, 1 - bias);
     const axes = [d, side, up], scales = [axial, lateral, vertical];
+    this.axes = axes; this.scales = scales;
     const e = this.matrix.elements;
     for (let col = 0; col < 3; col++) for (let row = 0; row < 3; row++) {
       e[col * 3 + row] = axes.reduce((n, a, i) => n + a.getComponent(row) * a.getComponent(col) * scales[i], 0);
@@ -58,6 +61,33 @@ export class SoftSphere {
     const v = direction.clone().normalize().applyMatrix3(this.inverse);
     const w = this.offset.clone().applyMatrix3(this.inverse), b = v.dot(w), a = v.lengthSq();
     return (b + Math.sqrt(Math.max(0, b * b - a * (w.lengthSq() - 1)))) / a;
+  }
+
+  sample(point) {
+    const p = point.clone().sub(this.offset), v = this.axes.map(a=>p.dot(a));
+    const squared = this.scales.map(a=>a*a), minimum = Math.min(...squared);
+    const inside = v.reduce((n,x,i)=>n+x*x/squared[i],0)<1;
+    const value = lambda => v.reduce((n,x,i)=>n+squared[i]*x*x/(squared[i]+lambda)**2,0);
+    let low = inside ? -minimum + 1e-12 : 0;
+    let high = inside ? 0 : Math.max(...this.scales)*p.length()+Math.max(...squared);
+    let nearest;
+    // Inside on a symmetry plane, the nearest point can have a nonzero
+    // coordinate on the shortest axis even though the input coordinate is
+    // zero. This is the finite limit at lambda = -minimum.
+    if (inside && value(low)<=1) {
+      nearest = v.map((x,i)=>squared[i]-minimum>1e-10 ? squared[i]*x/(squared[i]-minimum) : 0);
+      const k = squared.indexOf(minimum), used=nearest.reduce((n,x,i)=>n+x*x/squared[i],0);
+      nearest[k]=this.scales[k]*Math.sqrt(Math.max(0,1-used));
+    } else {
+      for(let i=0;i<40;i++){
+        const middle=(low+high)/2;
+        if(value(middle)>1)low=middle;else high=middle;
+      }
+      const lambda=(low+high)/2;
+      nearest=v.map((x,i)=>squared[i]*x/(squared[i]+lambda));
+    }
+    const skin=this.offset.clone();this.axes.forEach((a,i)=>skin.addScaledVector(a,nearest[i]));
+    return { point:skin, distance:skin.distanceTo(point)*(inside?-1:1) };
   }
 }
 

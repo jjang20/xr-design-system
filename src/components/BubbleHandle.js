@@ -56,7 +56,7 @@ export class BubbleHandle extends Interactable {
   surfaceZ() { return this.t; }
   faceDistance(p, radius = 0) {
     const d = this.rectangular ? Math.hypot(Math.max(0,Math.abs(p.x)-this.w/2),Math.max(0,Math.abs(p.y)-this.h/2),p.z-this.t)
-      : Math.abs(p.length() - this.r * (this.softShape && p.lengthSq() > 1e-12 ? this.softShape.radiusAt(p) : 1));
+      : this.softShape ? Math.abs(this.softShape.sample(p.clone().divideScalar(this.r)).distance)*this.r : Math.abs(p.length()-this.r);
     return Math.max(0,d*this.inputScale-radius);
   }
   pokeDistance(p) { return this.inside(p, true) || !this.rectangular ? this.faceDistance(p) : Infinity; }
@@ -111,9 +111,10 @@ export class BubbleHandle extends Interactable {
     else springTo(this.dent, depth / scale, D.dent.response, prefersReducedMotion() ? 1 : D.dent.damping, dt);
     const contacts = contactFeedback(this, this.enabled && !held ? probes : [], this.grab?.id ?? (this.press.pressed ? this.pressOwner : null), dt, p => {
       if ((!this.softShape && !this.inside(p.point, true)) || p.point.z <= 0) return null;
-      const gap = (this.rectangular ? p.point.z - this.t : p.point.length() - this.r * (this.softShape ? this.softShape.radiusAt(p.point) : 1)) * scale - (p.radius ?? 0);
+      const sample = this.softShape?.sample(p.point.clone().divideScalar(this.r));
+      const gap = (this.rectangular ? p.point.z - this.t : sample ? sample.distance*this.r : p.point.length()-this.r) * scale - (p.radius ?? 0);
       if (gap > 0) return null;
-      const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : p.point.clone().normalize();
+      const at = this.rectangular ? p.point.clone().setZ(this.t).multiplyScalar(1/this.r) : (sample?.point ?? p.point).clone().normalize();
       return { x: at.x, y: at.y, z: at.z, depth: Math.min(maxDepth, .0003-gap*(F.gain ?? 1))/scale, maxDepth:maxDepth/scale, followInput:F.followInput };
     });
     writeBubbleContacts(this.skin, contacts, this.r);

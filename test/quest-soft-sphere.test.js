@@ -79,3 +79,16 @@ test('Q64: second hand can touch the spread skin and cannot take the existing pi
   r.move(new THREE.Vector3(0,0,r.h.r+.008),true);assert.equal(r.dock.rail.held?.id,'xr0');
   r.move(direction.clone().multiplyScalar(skin+.008),true,1);assert.equal(r.dock.rail.held?.id,'xr0');
 });
+
+for(const reduced of [false,true])test(`Q64: a tip normal to the oblique ellipsoid skin contacts before its radial gap closes, reduced=${reduced}`,()=>{
+  media.matches=reduced;
+  const r=rig();r.approach();for(let i=0;i<60;i++)r.frame();
+  const h=r.h,p=new THREE.Vector3(Math.SQRT1_2,0,Math.SQRT1_2);
+  const skin=p.clone().applyMatrix3(h.softShape.matrix).add(h.softShape.offset).multiplyScalar(h.r);
+  const normal=p.clone().applyMatrix3(h.softShape.inverse).normalize();
+  const centre=skin.clone().addScaledVector(normal,.0079);
+  near(h.softShape.sample(centre.clone().divideScalar(h.r)).distance*h.r,.0079,1e-8);
+  r.move(centre,false,1);
+  assert.equal(h.pressOwner,'xr0');assert.ok(h.skin.uExtraCount.value>0,'100um physical overlap must not disappear under a radial approximation');
+  media.matches=false;
+});
