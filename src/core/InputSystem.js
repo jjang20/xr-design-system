@@ -64,6 +64,7 @@ export class InputSystem {
         src.handSource = event.data ? !!event.data.hand : undefined;
         src.selecting = false; src.handPinching = false;
         src.nativePinchActive = src.nativePinchBlocked = false;
+        src.resetBlocked = false; src.near.update(Infinity);
         src.state = {}; src.pokeHistory = null; src.fingers?.clear();
       });
       ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; src.handPinching = false; });

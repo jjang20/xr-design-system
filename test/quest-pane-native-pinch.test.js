@@ -71,3 +71,14 @@ for(const missing of ['thumb-tip','index-finger-tip'])test(`R15 ${missing} loss 
  r.step(shifted,{gap:.01});assert.equal(r.p.controls.held,null,'new event from restored closed tips cannot rearm');
  r.step(shifted,{gap:.04});r.step(shifted,{gap:.01});assert.ok(r.p.controls.held);
 });
+test('R15 an explicitly connected replacement controller does not inherit the hand loss latch',()=>{
+ const r=rig(),p=edge(r);gesture(r,p,true);r.step(p,{gap:.01,missing:'index-finger-tip'});assert.equal(r.p.controls.held,null);
+ assert.equal(r.input.xr[0].resetBlocked,true,'semantic source loss exercises the previous source latch');
+ r.controller.disconnect(r.source);
+ const source={targetRaySpace:{},handedness:'right'};r.controller.connect(source);
+ const target=r.h.localToWorld(p.clone()),normal=new THREE.Vector3(0,0,1).applyQuaternion(r.p.quaternion);
+ const matrix=new THREE.Matrix4().compose(target.addScaledVector(normal,.6),r.p.quaternion,new THREE.Vector3(1,1,1));
+ r.controller.update(source,{session:{visibilityState:'visible'},getPose:s=>s===source.targetRaySpace?{transform:{matrix:matrix.toArray()}}:null},{});
+ r.controller.dispatchEvent({type:'selectstart',data:source});r.scene.updateMatrixWorld(true);r.input.update();r.p.update(1/60);
+ assert.equal(r.input.xr[0].handSource,false);assert.equal(r.input.xr[0].resetBlocked,false);assert.equal(r.p.controls.held?.handle,r.h);
+});
