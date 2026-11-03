@@ -28,7 +28,7 @@ export class BubbleHandle extends Interactable {
     this.softControl = !!feedback.controlShape;
     this.softShape = this.softControl ? new SoftControl({ width:this.w, height:this.h, thickness:this.t, rectangular })
       : feedback.wholeShape && !rectangular ? new SoftSphere() : null;
-    this.body = makeBubble({ geometry, planar: rectangular, softSphere: !!this.softShape && !rectangular, softControl: this.softControl, contactMark: feedback.contactMark !== false && !this.softControl });
+    this.body = makeBubble({ geometry, planar: rectangular, softSphere: !!this.softShape && !rectangular, softControl: this.softControl, contactGlow: feedback.contactGlow, contactMark: feedback.contactMark !== false && !this.softControl });
     if (this.softShape) { geometry.computeBoundingSphere(); geometry.boundingSphere.radius = Math.max(1.6, geometry.boundingSphere.radius * 1.4); }
     this.body.scale.setScalar(this.r); this.affordance.add(this.body);
     this.skin = this.body.uniforms;
@@ -130,7 +130,7 @@ export class BubbleHandle extends Interactable {
     u.uCoreWidth.value = F.core / (scale * this.r);
     u.uLipWidth.value = .001 / (scale * this.r);
     u.uDentSlope.value = this.dent.x / F.width;
-    u.uGlow.value = held || this.press.pressed ? .8 : this.hovered ? .12 : 0;
+    u.uGlow.value = held || this.press.pressed ? .8 : this.hovered && !F.contactGlow ? .12 : 0;
     u.uSquash.value = this.rectangular ? 0 : (F.squash ?? .03) * Math.min(1, this.dent.x / (maxDepth / scale));
     if (this.softShape) {
       // Optional joints may disappear while the same pinch remains captured.

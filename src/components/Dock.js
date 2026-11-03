@@ -152,7 +152,7 @@ export class Dock extends THREE.Group {
     // It stays in the level frame as the plate pitches; no pendulum motion.
     const H = DEFAULTS.dockRail;
     this.handle = new BubbleHandle(T, { width: H.sphereSize, distance: dist,
-      feedback: { depth: .006, hold: .005, width: .006, core: .012, gain: 1.5, squash: .06, followInput: true, wholeShape: true, contactMark: false } });
+      feedback: { depth: .006, hold: .005, width: .006, core: .012, gain: 1.5, squash: .06, followInput: true, wholeShape: true, contactMark: false, contactGlow: true } });
     this.handle.position.set(0, this.top - H.stemLength - this.handle.r, 0);
     this.level.add(this.handle);
     this.stem = new THREE.Mesh(new THREE.CylinderGeometry(H.stemRadius, H.stemRadius, H.stemLength, 12),

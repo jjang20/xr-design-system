@@ -253,7 +253,7 @@ const FRAG = /* glsl */`
  * set of uniforms. Scale the returned group by the bubble's radius.
  * @returns {THREE.Group & {uniforms: object}}
  */
-export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false, softSphere = false, softControl = false, contactMark = true } = {}) {
+export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), planar = false, softSphere = false, softControl = false, contactMark = true, contactGlow = contactMark } = {}) {
   const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
   // The objects' key light: one light for the objects and the skin round
   // them. It is in front, so a dent, being hollow, catches its own highlight
@@ -295,7 +295,8 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
     uRing: { value: E.glow.ring * B.glow },
     uGlowColor: { value: new THREE.Color(...E.glow.color) },
   };
-  if (!contactMark) for (const key of ['uDentLight','uDentGlint','uDentShadow','uGlowCore','uRing']) uniforms[key].value = 0;
+  if (!contactMark) for (const key of ['uDentLight','uDentGlint','uDentShadow']) uniforms[key].value = 0;
+  if (!contactGlow) for (const key of ['uGlowCore','uRing']) uniforms[key].value = 0;
   const group = new THREE.Group();
   for (const side of [THREE.BackSide, THREE.FrontSide]) {
     const m = trackGlass(new THREE.ShaderMaterial({
