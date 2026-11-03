@@ -31,10 +31,9 @@ for(const scale of [.75,1.5,2.25])test(`R13 unconnected pane pressure profile ma
  let moved=0;
  for(let i=0;i<a.count;i++){
    const j=3*i,z=h.restPositions[j+2];
-   if(h.restNormals[j+2]>.95&&z>b.t-1e-4){
-     const expect=z+paneDentHeight(a.getX(i),a.getY(i),h.profile,d);
-     assert.ok(Math.abs(a.getZ(i)-expect)<1e-7);if(a.getZ(i)<z-1e-5)moved++;
-   }else assert.equal(a.getZ(i),z,'back/bevel rest retained');
+   const expect=z+paneDentHeight(a.getX(i),a.getY(i),h.profile,d)*Math.max(z,0)/b.t;
+   assert.ok(Math.abs(a.getZ(i)-expect)<1e-7);if(a.getZ(i)<z-1e-5)moved++;
+   if(z<=0)assert.equal(a.getZ(i),z,'back remains fixed');
  }
  assert.ok(moved>0);h.grab=null;for(let i=0;i<180;i++)h.update(1/60);
  assert.ok(h.currentDent.depth<1e-7);

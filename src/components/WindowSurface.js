@@ -20,16 +20,24 @@ export class WindowSurface extends Interactable {
     this.restNormals=geometry.attributes.normal.array.slice();
     const hit=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({visible:false}));
     this.add(hit);this.hitMeshes=[hit];
+    this.sampleMesh=new THREE.Mesh(geometry,hit.material);
+    this.sampleRay=new THREE.Raycaster();
   }
   get inputScale(){return Math.abs(this.getWorldScale(new THREE.Vector3()).x);}
   inside(p){return this.contains(p,this.panel);}
   // A non-pinching pointer belongs to content, never this manipulation skin.
   pokeDistance(){return Infinity;}
   pinchDistance(p,radius=0){
-    if(!this.inside(p)||p.z < -this.panel.t)return Infinity;
+    if(!this.inside(p)||p.z < 0)return Infinity;
     return this.faceDistance(p,radius);
   }
-  surfaceZ(p){return this.panel.t+paneDentHeight(p.x,p.y,this.profile,this.currentDent);}
+  surfaceZ(p){
+    // Sample the actual tessellated front, including the bevel. This mesh
+    // shares the deformed hit geometry but stays in local coordinates.
+    this.sampleRay.set(new THREE.Vector3(p.x,p.y,this.panel.t*2),new THREE.Vector3(0,0,-1));
+    const hit=this.sampleRay.intersectObject(this.sampleMesh,false)[0];
+    return hit?.point.z ?? Infinity;
+  }
   faceDistance(p,radius=0){return Math.max(0,Math.abs(p.z-this.surfaceZ(p))*this.inputScale-radius);}
   acceptRayHit(p){return this.inside(p)&&p.z>=0;}
   update(dt){
@@ -43,13 +51,13 @@ export class WindowSurface extends Interactable {
     u.uPaneDent.value.set(d.x,d.y,d.radius,d.depth);
     u.uPaneExtent.value.set(this.profile.halfWidth,this.profile.halfHeight,this.profile.cornerRadius);
     u.uPaneEdgeFade.value=this.profile.edgeFade;
-    // Same front-only profile as GLASS_VERT. Back and silhouette remain rest.
+    // Same continuous thickness-weighted profile as GLASS_VERT.
     const key=[d.x,d.y,d.radius,d.depth].join(',');
     if(key!==this.geometryKey){
       const attr=this.hitMeshes[0].geometry.attributes.position;
       for(let i=0;i<attr.count;i++){
         const j=3*i,x=this.restPositions[j],y=this.restPositions[j+1],z=this.restPositions[j+2];
-        attr.setZ(i,z+(this.restNormals[j+2]>.95&&z>this.panel.t-1e-4?paneDentHeight(x,y,this.profile,d):0));
+        attr.setZ(i,z+paneDentHeight(x,y,this.profile,d)*Math.max(z,0)/this.panel.t);
       }
       attr.needsUpdate=true;this.geometryKey=key;
     }

@@ -283,14 +283,10 @@ const BULGE_GLSL = /* glsl */`
       height=max(height,bulgeH1(p,uBulgeRect[i],uBulgeParam[i]));
       float d=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(d)>abs(dent)) dent=d;
     }
-    return height+dent+paneDentH(p);
+    return height+dent;
   }
   bool anyBulge() {
-    #ifdef PANE_MANIPULATION
-      return uBulgeCount>0 || uPaneDent.w>0.0;
-    #else
-      return uBulgeCount>0;
-    #endif
+    return uBulgeCount>0;
   }
   // How much of the bubble's glossy skin covers p (0 to 1).
   float bulgeSkin(vec2 p) {
@@ -341,12 +337,21 @@ const BULGE_GLSL = /* glsl */`
 const GLASS_VERT = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
+  #ifdef PANE_MANIPULATION
+  varying float vPaneWeight;
+  #endif
   ${BULGE_GLSL}
   void main() {
     // Only the flat front face swells.
     vFront = (normal.z > 0.95 && position.z > uBulgeParam[0].w - 1e-4) ? 1.0 : 0.0;
     vec3 pos = position;
     pos.z += bulgeH(position.xy) * vFront;
+    #ifdef PANE_MANIPULATION
+    // Continuous through the rounded edge; back z=0 and silhouette stay
+    // fixed. Unlike a front-face mask this cannot split a bevel seam.
+    vPaneWeight = max(position.z,0.0)/uPaneThickness;
+    pos.z += paneDentH(position.xy)*vPaneWeight;
+    #endif
     vLocal = pos;
     // The slab's own axes in world space, for the surface frost and to tell
     // the flat face from the rounded rim.
@@ -372,6 +377,9 @@ const GLASS_VERT = /* glsl */`
 //   contact       soft shadows from what floats in front of it (a child
 //                 level, a lifted row lens), so layers sit in space
 const GLASS_FRAG = /* glsl */`
+  #ifdef PANE_MANIPULATION
+  varying float vPaneWeight;
+  #endif
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   ${BULGE_GLSL}
@@ -417,6 +425,17 @@ const GLASS_FRAG = /* glsl */`
       N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
       bub = bulgeSkin(vLocal.xy);
     }
+    #ifdef PANE_MANIPULATION
+    if(uPaneDent.w>0.0) {
+      float pe=0.00015*uBulgeScale;
+      vec2 pg=vec2(paneDentH(vLocal.xy+vec2(pe,0.0))-paneDentH(vLocal.xy-vec2(pe,0.0)),
+                   paneDentH(vLocal.xy+vec2(0.0,pe))-paneDentH(vLocal.xy-vec2(0.0,pe)))/(2.0*pe)*vPaneWeight;
+      // Inverse transpose of z'=z*(1+h(x,y)/thickness). The depth bound
+      // keeps its determinant positive, including the rounded side.
+      float nz=dot(N,vAxisZ)/(1.0+paneDentH(vLocal.xy)/uPaneThickness);
+      N=normalize(vAxisX*(dot(N,vAxisX)-pg.x*nz)+vAxisY*(dot(N,vAxisY)-pg.y*nz)+vAxisZ*nz);
+    }
+    #endif
     // Frost: the face is a field of tiny bumps (about 1 mm), so highlights
     // and the refracted room break up the way acid-etched glass does.
     vec2 fp = vLocal.xy / uFrostScale;
@@ -627,6 +646,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uPaneDent: { value: new THREE.Vector4(0,0,.01,0) },
       uPaneExtent: { value: new THREE.Vector3(w/2,h/2,r) },
       uPaneEdgeFade: { value: t ?? T.get('material.thickness.regular') },
+      uPaneThickness: { value: t ?? T.get('material.thickness.regular') },
       uBulgeCount: { value: 0 },
       uBulgeRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uBulgeParam: { value: Array.from({length:12},(_,i)=>new THREE.Vector4(0,0,0,i===0 ? (t ?? T.get('material.thickness.regular')) : 0)) },
