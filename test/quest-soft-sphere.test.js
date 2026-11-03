@@ -92,3 +92,26 @@ for(const reduced of [false,true])test(`Q64: a tip normal to the oblique ellipso
   assert.equal(h.pressOwner,'xr0');assert.ok(h.skin.uExtraCount.value>0,'100um physical overlap must not disappear under a radial approximation');
   media.matches=false;
 });
+
+for(const reduced of [false,true])test(`Q64: captured optional-axis loss and recovery preserve orientation until a new contact, reduced=${reduced}`,()=>{
+  media.matches=reduced;assert.equal(prefersReducedMotion(),reduced);
+  const r=rig(),h=r.h;r.approach();
+  const thumb=new THREE.Group();r.hands[0].src.hand.add(thumb);r.hands[0].src.hand.joints['thumb-tip']=thumb;
+  const point=new THREE.Vector3(0,0,h.r+.008+.005);
+  for(let i=0;i<60;i++){thumb.position.copy(h.localToWorld(point.clone().add(new THREE.Vector3(-.018,0,0))));r.move(point,true);}
+  const axis=h.shapeAxis.clone(),matrix=h.softShape.matrix.clone();
+  thumb.visible=false;r.frame();
+  assert.equal(r.dock.rail.held?.id,'xr0');
+  assert.ok(h.shapeAxis.distanceTo(axis)<1e-6,'optional joint loss cannot replace an acquired pinch axis');
+  assert.ok(Math.max(...matrix.elements.map((v,i)=>Math.abs(v-h.softShape.matrix.elements[i])))<1e-6);
+  thumb.visible=true;thumb.position.copy(r.hands[0].tip.position);r.frame();
+  assert.ok(h.shapeAxis.distanceTo(axis)<1e-6,'coincident joint cannot replace the axis either');
+  r.hands[0].src.connected=false;
+  for(let i=0;i<15;i++){r.frame();assert.ok(h.shapeAxis.distanceTo(axis)<1e-6,'recovery must shrink without unrelated rotation');}
+  for(let i=0;i<180;i++)r.frame();
+  assert.equal(r.dock.rail.held,null);assert.ok(h.softShape.compression<1e-5);
+  thumb.visible=false;r.approach(new THREE.Vector3(0,0,1),1);
+  for(let i=0;i<60;i++)r.frame();
+  assert.equal(h.pressOwner,'xr1');assert.ok(h.shapeAxis.z>.99,'new owner uses its own surface direction');
+  media.matches=false;
+});

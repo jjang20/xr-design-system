@@ -32,6 +32,7 @@ export class BubbleHandle extends Interactable {
     const hit = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ visible: false }));
     hit.scale.setScalar(this.r); this.add(hit); this.hitMeshes = [hit];
     this.shapeAxis = new THREE.Vector3(0, 0, 1);
+    this.shapeAxisTarget = this.shapeAxis.clone(); this.shapeOwner = null;
     if (resize) {
       // Local diagonal with two arrowheads; mirrored at the left corner.
       const pts = [[-.36,-.36],[.36,.36],[-.36,-.36],[-.36,-.06],[-.36,-.36],[-.06,-.36],
@@ -128,9 +129,16 @@ export class BubbleHandle extends Interactable {
     u.uGlow.value = held || this.press.pressed ? .8 : this.hovered ? .12 : 0;
     u.uSquash.value = this.rectangular ? 0 : (F.squash ?? .03) * Math.min(1, this.dent.x / (maxDepth / scale));
     if (this.softShape) {
-      // Real thumb-index direction is optional visual data, never a new
-      // capture condition. Missing joints keep the acquired radial axis.
-      const axis = held && probe?.pinchAxis ? probe.pinchAxis.clone() : this.spot.clone();
+      // Optional joints may disappear while the same pinch remains captured.
+      // Retain its last valid axis, including recovery after release/loss.
+      // A new actual contact starts from its own valid axis or radial fallback.
+      const shapeOwner = held ? `grab:${this.grab.id}` : this.press.pressed ? `press:${this.pressOwner}` : null;
+      if (shapeOwner) {
+        if (shapeOwner !== this.shapeOwner || !held || probe?.pinchAxis)
+          this.shapeAxisTarget.copy(held && probe?.pinchAxis ? probe.pinchAxis : this.spot);
+      }
+      this.shapeOwner = shapeOwner;
+      const axis = this.shapeAxisTarget.clone();
       if (axis.dot(this.shapeAxis) < 0) axis.negate();
       if (this.dent.x < 1e-6) this.shapeAxis.copy(axis);
       else this.shapeAxis.lerp(axis, prefersReducedMotion() ? 1 : 1 - Math.exp(-dt / .05)).normalize();
