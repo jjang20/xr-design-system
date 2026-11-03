@@ -8,6 +8,7 @@ export function paneDentHeight(x, y, _profile, dent) {
 export const PANE_DENT_GLSL=/* glsl */`
   #ifdef PANE_MANIPULATION
   uniform vec4 uPaneDent; // local centre xy, radius, positive depth
+  uniform vec2 uPaneGlow; // local radius, linear light amount; independent of Push
   uniform vec3 uPaneExtent; // half width/height and round corner radius
   uniform float uPaneEdgeFade, uPaneThickness;
   float paneDentH(vec2 p) {

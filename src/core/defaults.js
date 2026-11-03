@@ -92,8 +92,8 @@ export const DEFAULTS = {
   windowPreview: { scale: 1.5, layerSpacing: 0.7, recedeRatio: 0.7, thicknessScale: 0.5, frontOpacity: 0.85 },
 
   // Appearance. Proposed: a look.* token group once tested in MR.
-  // Q78 (2026-11-04): absolute front list-row alpha, in 10 percentage-point steps.
-  listSurfaceOpacity: { idle: .70, hover: .80, pressed: .90 },
+  // Q81: offsets from the same underlying pane, before group/depth/fade.
+  listSurfaceOpacity: { idle: 0, hover: .04, pressed: .07 },
   look: {
     bevelRatio: 0.28, // edge bevel as a fraction of thickness
     shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)

@@ -12,7 +12,7 @@ export class WindowSurface extends Interactable {
     if(typeof contains!=='function') throw new Error('WindowSurface requires an explicit start-region predicate');
     this.T=T; this.panel=panel; this.contains=contains;
     this.trackedPinch=true;
-    this.frontZ=panel.t; this.dent={x:0,v:0};this.spot=new THREE.Vector2();
+    this.frontZ=panel.t; this.dent={x:0,v:0};this.glow={x:0,v:0};this.spot=new THREE.Vector2();
     this.profile={halfWidth:panel.w/2,halfHeight:panel.h/2,cornerRadius:panel.r,edgeFade:panel.t};
     this.body=panel.body;this.skin=panel.skin;
     this.skin.defines.PANE_MANIPULATION='';this.skin.needsUpdate=true;
@@ -86,9 +86,13 @@ export class WindowSurface extends Interactable {
     const limit=Math.min(.0035, this.bendClearanceWorld ?? Infinity)/scale;
     const depth=this.grab ? Math.max(0,limit) : 0;
     springTo(this.dent,depth,.09,prefersReducedMotion()?1:.85,dt);
-    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.016/scale,depth:Math.min(Math.max(0,limit),Math.max(0,this.dent.x))};
+    springTo(this.glow,this.grab?1:0,.09,prefersReducedMotion()?1:.85,dt);
+    // R16 bounded trial: wider bend, same maximum depth and clearance.
+    // The optical contribution follows this anchor without adding a ring.
+    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.028/scale,depth:Math.min(Math.max(0,limit),Math.max(0,this.dent.x))};
     const d=this.currentDent,u=this.skin.uniforms;
     u.uPaneDent.value.set(d.x,d.y,d.radius,d.depth);
+    u.uPaneGlow.value.set(.028/scale,.28*Math.min(1,Math.max(0,this.glow.x)));
     u.uPaneExtent.value.set(this.profile.halfWidth,this.profile.halfHeight,this.profile.cornerRadius);
     u.uPaneEdgeFade.value=this.profile.edgeFade;
     // Same full-thickness shear as GLASS_VERT; front and back cannot cross.

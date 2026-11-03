@@ -358,7 +358,7 @@ const GLASS_VERT = /* glsl */`
     vec3 pos = position;
     pos.z += bulgeH(position.xy) * vFront;
     #ifdef PANE_MANIPULATION
-    // Front, bevel and back bend together; no silhouette seam or thinning.
+    // Front, bevel and back bend together; local-Z separation is preserved.
     vPaneWeight = 1.0;
     pos.z += paneDentH(position.xy)*vPaneWeight;
     #endif
@@ -423,7 +423,7 @@ const GLASS_FRAG = /* glsl */`
   uniform float uListStateMix;
   uniform vec3 uListRowLayout; // first centre Y, positive pitch, row count
   uniform vec4 uListRowShape; // centre X, half width/height, corner radius
-  float listStateAlpha(vec2 p, float original) {
+  float listStateAlpha(vec2 p, float original, float paneBaseline) {
     float index=floor((uListRowLayout.x-p.y)/uListRowLayout.y+0.5);
     if(index<0.0 || index>=uListRowLayout.z) return original;
     vec2 centre=vec2(uListRowShape.x,uListRowLayout.x-index*uListRowLayout.y);
@@ -431,7 +431,7 @@ const GLASS_FRAG = /* glsl */`
     float aa=max(fwidth(d),0.000001);
     float mask=1.0-smoothstep(-aa,aa,d);
     float state=texture2D(uListStateAlpha,vec2((index+0.5)/uListRowLayout.z,0.5)).r;
-    return mix(original,state,mask*uListStateMix);
+    return mix(original,clamp(paneBaseline+state,0.0,1.0),mask*uListStateMix);
   }
   #endif
   void main() {
@@ -478,6 +478,7 @@ const GLASS_FRAG = /* glsl */`
     float F = uF0 + (1.0 - uF0) * pow(1.0 - cosT, 5.0);
 
     vec3 col = uTint;
+    float paneAlpha = uSolidOpacity;
     float alpha = mix(uSolidOpacity, max(uSolidOpacity, uBubbleOpacity), bub);
     vec3 refl = vec3(0.0);
     float tm = 0.0;
@@ -560,6 +561,7 @@ const GLASS_FRAG = /* glsl */`
       refl = textureCubeUV(envMap, uEnvRot * reflect(V, N), uReflBlur * (1.0 - 0.7 * uGloss * bub * (1.0 - dm))).rgb * uEnvIntensity;
       refl = refl / (1.0 + dot(refl, LUMA) * 0.5);
       alpha = 1.0;
+      paneAlpha = 1.0;
     #endif
 
     // Frost: a fine grain plus a slow cloudiness, fixed to the surface.
@@ -622,14 +624,22 @@ const GLASS_FRAG = /* glsl */`
     float innerDepth = max(0.0, -sdRoundRect(vLocal.xy, uContactExtent.xy, uContactExtent.z));
     float innerBand = (1.0 - exp(-innerDepth / 0.002)) * exp(-innerDepth / uContactWidth);
     col += uGlowColor * uContactGlow * innerBand * uContactStrength * step(0.5, vFront);
+    #ifdef PANE_MANIPULATION
+    // Local light follows the owned pane grab, separately from Push's
+    // whole inner band and the list's contact wells/rings.
+    vec2 paneQ = vLocal.xy-uPaneDent.xy;
+    float paneLight = exp(-dot(paneQ,paneQ)/max(uPaneGlow.x*uPaneGlow.x,1e-10));
+    col += uGlowColor * paneLight * uPaneGlow.y * step(0.5,vFront);
+    #endif
     // Window front transparency is separate from text, side walls and the
     // raised interaction skin. Rear panes keep this multiplier at one.
     alpha *= mix(1.0, uFrontOpacity, step(0.5, vFront) * (1.0 - bub));
-    // After environment alpha and front-pane opacity: only the list's
-    // non-contact raised skin opts in. Text, icons and other glass do not.
+    // Keep the undeformed pane baseline independent of the raised row's
+    // opacity and geometry. Idle matches it exactly; Q81 adds only offsets.
+    paneAlpha *= mix(1.0,uFrontOpacity,step(0.5,vFront));
     if(vFront>0.5 && anyBulge()) alpha *= bulgeOpacity(vLocal.xy);
     #ifdef LIST_STATE_ALPHA
-    if(vFront>0.5) alpha=listStateAlpha(vLocal.xy,alpha);
+    if(vFront>0.5) alpha=listStateAlpha(vLocal.xy,alpha,paneAlpha);
     #endif
     if (alpha * uOpacity * uFade < 0.001) discard;
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
@@ -675,6 +685,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uPaneDent: { value: new THREE.Vector4(0,0,.01,0) },
+      uPaneGlow: { value: new THREE.Vector2(.028,0) },
       uPaneExtent: { value: new THREE.Vector3(w/2,h/2,r) },
       uPaneEdgeFade: { value: t ?? T.get('material.thickness.regular') },
       uPaneThickness: { value: t ?? T.get('material.thickness.regular') },

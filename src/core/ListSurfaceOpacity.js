@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
-// Equal-layout list rows share the pane mesh. Keep their opacity state
+// Equal-layout list rows share the pane mesh. Keep their opacity offsets
 // independent of the twelve geometric contact slots and recovering dents.
 export class ListSurfaceOpacity {
   constructor(material, rows, targets) {
     if (!rows.length) throw new Error('ListSurfaceOpacity needs rows');
     if (!['idle','hover','pressed'].every(k => Number.isFinite(targets[k]) && targets[k]>=0 && targets[k]<=1))
-      throw new Error('ListSurfaceOpacity needs explicit state opacity targets');
+      throw new Error('ListSurfaceOpacity needs explicit state opacity offsets');
     this.material=material; this.rows=rows; this.targets={...targets};
     this.values=rows.map(()=>targets.idle);
     const first=rows[0], pitch=rows.length>1 ? first.position.y-rows[1].position.y : first.h;
