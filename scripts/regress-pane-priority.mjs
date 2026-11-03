@@ -50,7 +50,7 @@ try{
    };
    at=h.localToWorld(new THREE.Vector3(h.panel.w/2-.003/h.inputScale,0,h.frontZ+.012/h.inputScale));
    capture('rest');
-   const original=at.clone(),row=l.rows[0];at=row.localToWorld(new THREE.Vector3(0,0,row.surfaceZ(new THREE.Vector3())+.025/h.inputScale));put(false);for(let i=0;i<60;i++)step();capture('hover');
+   const original=at.clone(),row=l.rows[0];at=row.localToWorld(new THREE.Vector3(0,0,row.surfaceZ(new THREE.Vector3())+.04/h.inputScale));put(false);for(let i=0;i<60;i++)step();capture('hover');
    s.connected=false;for(let i=0;i<180;i++)step();at=original;put(false);for(let i=0;i<30;i++)step();capture('approach');put(true);for(let i=0;i<60;i++)step();capture('held');
    at.add(new THREE.Vector3(.035,.015,-.01));put(true);for(let i=0;i<10;i++)step();capture('moved');put(false);step();capture('release');s.connected=false;for(let i=0;i<180;i++)step();capture('restored');
    renderer.dispose();return{traces,images};
