@@ -1,0 +1,342 @@
+{
+  "schemaVersion": 3,
+  "kind": "R8 browser-only settled complete Catalog layers; current reference preflight",
+  "sourceSha": "61c7ba019eb6c1a535a7dbd8ce05265fc0be818e",
+  "inputDigest": "d46675f450a1bb78adef9c82e0abf513230c2807973904f2cdb20a482ffe11d8",
+  "sourceRecordCount": 100,
+  "frozenPredecessor": {
+    "sourceSha": "b0efff2de1860e5d2f39dc65b17db250f3c6b627",
+    "contractSha256": "2372f3a6d156416f37f5971130eb2e12d319aec0db7a9bb8698efe06398d6cad",
+    "adapterSha": "4b778144c4503e655a003cd1e82bc77502768ae4",
+    "preserved": true
+  },
+  "capture": {
+    "widthPx": 1600,
+    "heightPx": 1000,
+    "fovYDegrees": 26,
+    "nearM": 0.02,
+    "farM": 50,
+    "dpr": 1,
+    "constructionDistanceM": 0.6,
+    "rootScale": 1.5,
+    "fixedAnchorWorldM": [
+      0,
+      1.6,
+      -0.8
+    ],
+    "targetUiM": [
+      0,
+      0,
+      0
+    ],
+    "views": {
+      "front": {
+        "cameraUiM": [
+          0,
+          0,
+          0.8
+        ]
+      },
+      "angle": {
+        "radiusM": 0.8,
+        "azimuthRad": 0.6,
+        "heightM": 0.06,
+        "cameraFormula": "[radius*sin(azimuth),height,radius*cos(azimuth)]"
+      },
+      "side": {
+        "cameraUiM": [
+          0.8,
+          0.06,
+          0.08
+        ]
+      },
+      "back": {
+        "cameraUiM": [
+          0.12,
+          0.06,
+          -0.8
+        ]
+      }
+    },
+    "webQuery": "bench.html?layout=quest&dist=0.6&fov=26&rot=1.6&hover=emboss&dpr=1&manual",
+    "colour": "Original product THREE.NeutralToneMapping exposure 1 and Lebombo HDR yaw 1.6 for beauty; separate original shader/no-env fixed neutral background for face contribution diagnostics",
+    "stableFrames": 3,
+    "stableTolerance": 1e-09,
+    "maximumSettleFrames": 600,
+    "settleTailFrames": 240,
+    "dtSeconds": 0.016666666666666666
+  },
+  "fixtures": {
+    "lighting": {
+      "rowIndices": [
+        3
+      ],
+      "path": [
+        "Catalog",
+        "Lighting"
+      ],
+      "rowCounts": [
+        4,
+        1
+      ],
+      "localHeightsM": [
+        0.1641,
+        0.06732
+      ]
+    },
+    "modular": {
+      "rowIndices": [
+        0,
+        1
+      ],
+      "path": [
+        "Catalog",
+        "Sofas",
+        "Modular"
+      ],
+      "rowCounts": [
+        4,
+        3,
+        2
+      ],
+      "localHeightsM": [
+        0.1641,
+        0.12492,
+        0.09612
+      ]
+    }
+  },
+  "navigation": "Synthetic software row select dispatch through the product handler/open/retarget APIs; not hand click or headset tracking evidence. Catalog content is not mutated. R8 Q48 overlapping-contact selection is not exercised by direct select dispatch; separate actual InputSystem tests own that behavior.",
+  "diagnostics": {
+    "geometry": "Actual position/normal/index arrays must exactly equal look.glassSlabGeometry(w,h,t,r,{tessellate:.002}) from the live product module; full bounds and front/back/side triangle categories must remain. Export hashes and counts. Compare actual bounds with reference geometry bounds, not nominal t: the product extrusion minimum can add 0.01mm beyond nominal thickness. Export nominal thickness, actual depth and difference separately.",
+    "shader": "Exact vertex/fragment equality with live product glassMaterial factory, backdrop uniform object identity, original shader side/depthWrite, and no legacy cut-mask code/uniforms.",
+    "pixelContribution": "Sample actual front, side or back triangle centroids below the title. Camera-facing triangles and body ray hits define isolated surface ROI; first-hit among all complete body meshes defines unoccluded scene ROI. Compare original shader to body absent under a separate no-env neutral background. Do not change geometry or shader to obtain a pass.",
+    "roiMarginLocalM": 0.003,
+    "maximumSamplePixels": 512,
+    "minimumRoiPixels": 24,
+    "backgroundLinearRgb": 0.5,
+    "minimumRgbDifference": 2,
+    "minimumIsolatedChangedFraction": 0.9,
+    "minimumSceneChangedPixels": 20,
+    "emptyRoiPolicy": "If canonical overlap leaves fewer than24 unoccluded sampled body pixels, full-scene contribution is N/A for that level/view. All original geometry/shader and isolated full-body contribution checks remain mandatory. Never mutate Catalog to manufacture exposure. N/A must not be reported as full-scene contribution proof.",
+    "restoration": "Exact original uOpacity/uniform snapshot, object visibility, HDR environment and complete original HDR beauty pixel readback after diagnostics.",
+    "matrixGate": {
+      "requiredAcrossViews": {
+        "lighting": [
+          0
+        ],
+        "modular": [
+          0,
+          1
+        ]
+      },
+      "rule": "Historical RGB threshold retained: each rear level needs a view with exposed ROI >=24, changed pixels >=20 and max RGB difference >=3 before any RGB matrix pass. Initial R8 scope is two reference conditions only; no six/eight-view pass is inherited, and alpha contribution cannot replace RGB visibility.",
+      "minimumRoiPixels": 24,
+      "minimumChangedPixels": 20
+    },
+    "legacyRGBFailurePolicy": "Record FAIL or N/A explicitly, without lowering thresholds or manufacturing exposure. The source product legacyRGB9/max2 failure is separate historical evidence, not the observation of this runner.",
+    "rgbaProposal": {
+      "status": "SCOPE_ACCEPTED_RUNTIME_UNVERIFIED",
+      "method": "Same original shader, canonical geometry/camera and actual opacity in separate transparent RGBA target; full-scene on versus opacity-zero and body-removed negative control at the same exposed ROI; original HDR beauty restored. Never default-framebuffer RGB visibility.",
+      "minimumAlphaDifference": 2,
+      "minimumChangedPixels": 20,
+      "negativeControlMaximumAlphaDifference": 0,
+      "threeZonePolicy": "Split the actual isolated body projected x span into3 equal zones; export each zone samples/change/max. Three-zone applicable only if each has>=24 exposed samples; each needs>=20 changed pixels for separate three-zone pass. Missing exposure is N/A, never fill through geometry/camera changes."
+    }
+  },
+  "supported": {
+    "renderer": "actual product WebGL browser only",
+    "states": [
+      "settled navigation",
+      "post-capture actual move/resize API and rear-title navigation diagnostics"
+    ],
+    "fixtures": [
+      "lighting",
+      "modular"
+    ],
+    "views": [
+      "front",
+      "angle"
+    ],
+    "runtimeEvidence": "Only separately written receipt/lifecycle evidence establishes each actually executed condition. allPassed never substitutes a cross-view visibility matrix or design acceptance."
+  },
+  "unsupported": [
+    "Material candidate overrides",
+    "Blender multi-layer geometry/material support",
+    "physical or optical equivalence",
+    "cross-renderer pixel equivalence",
+    "multi-layer held/hover/press",
+    "closing or palm transitions",
+    "Quest hand tracking or visual acceptance",
+    "adopted design values",
+    "unlisted source or camera"
+  ],
+  "historicalR4": {
+    "sourceSha": "ad9e9c2e211674e02fc593315f98f8b4c38bc0f6",
+    "parentContractSha256": "24796465859aa6ca85e739b39a70d95c0e676a5adc58fc283b2efd2ccfe5063d",
+    "layersContractSha256": "65e67d1376a6592296c3890c3725f5af9bf2820c854e8da116bca29e2c79ea84",
+    "preserved": true,
+    "retiredBehavior": "foremost eye-ray hard mask and rear title .92"
+  },
+  "currentOnly": true,
+  "plannedRuntimeMatrix": [
+    {
+      "fixture": "lighting",
+      "view": "front",
+      "profile": "current"
+    },
+    {
+      "fixture": "modular",
+      "view": "angle",
+      "profile": "current"
+    }
+  ],
+  "historicalR5": {
+    "sourceSha": "663c80c9d556eaa0e15c3ebdc1d1014a86dd526c",
+    "parentContractSha256": "ecd31c42b902136df2e6f3494911f111cc584c11c2b0126245393960cb8bddb3",
+    "layersContractSha256": "a98339ec893059bfe968159bb3e828cd41d99767f3b278eb65b56b04c9832889",
+    "preserved": true,
+    "resultsReusedAsR6Proof": false,
+    "resultsReusedAsR7Proof": false
+  },
+  "inheritedR5SamplingPolicy": {
+    "previousChildSha256": "7e1ebc7554bab4eff929a3ed2f6c14858c9d4b70cca60c7b7045adda61e1b8c6",
+    "cause": "Per-view scene contribution was required even when canonical front overlap fully occludes rear body samples. Angle had 19/16 changing samples under cap256, below unchanged minimum24.",
+    "preservedFailures": [
+      "layers-current-modular-front-01",
+      "layers-current-modular-angle-01"
+    ],
+    "changes": [
+      "Increase uniform triangle sample cap from256 to512 without geometry/camera/material or minimum-threshold changes",
+      "Per-view full-scene contribution may be N/A only below24 exposed samples; each rear level of each fixture requires scene contribution in at least one final matrix view"
+    ],
+    "parentContractUnchanged": true,
+    "appliesWithoutThresholdChanges": true
+  },
+  "historicalR6": {
+    "sourceSha": "a68f64766ffd4b38a202406e8b7d3bed756569fb",
+    "parentContractSha256": "0c5618c2e4942db7ebed3db41469e93bb0be3460d11688437e113284a394e8e7",
+    "layersContractSha256": "5bf7f19e24c22fde94de94813aeccc4ced236b94de58bd60fdc693936cd6a688",
+    "preserved": true,
+    "originalSixViewMatrix": "FAIL",
+    "approvedEightViewUnion": "PASS_ONLY_FOR_R6",
+    "oldestModularFrontAngle": "N/A natural occlusion; never claimed visible",
+    "resultsReusedAsR7Proof": false
+  },
+  "executionGate": {
+    "baselineFrozen": true,
+    "runtimeHelperVerified": true,
+    "status": "BOUNDED_CURRENT_REFERENCE_EXECUTION_APPROVED",
+    "sideBackSupplementApproved": false,
+    "scope": "lighting/front + modular/angle only; no candidate profiles or board"
+  },
+  "sourceProductThinSheetEvidence": {
+    "legacyRGB": {
+      "status": "FAIL_PRESERVED",
+      "changedPixels": 9,
+      "maxDelta": 2
+    },
+    "rgba": {
+      "changedPixels": 7245,
+      "maxAlphaDelta": 53,
+      "zones": 3,
+      "negativeControlChangedPixels": 0
+    },
+    "scope": "Read-only product evidence from its separately shortened child fixture; not a rerun, not this canonical Catalog fixture, and cause not isolated"
+  },
+  "plannedImageBudget": {
+    "lightingFront": {
+      "beauty": 1,
+      "restoredBeauty": 1,
+      "legacyRGBDiagnostics": 4,
+      "separateAlphaDiagnostics": 3,
+      "totalPng": 9
+    },
+    "modularAngle": {
+      "beauty": 1,
+      "restoredBeauty": 1,
+      "legacyRGBDiagnostics": 8,
+      "separateAlphaDiagnostics": 6,
+      "totalPng": 16
+    },
+    "totalPng": 25,
+    "browserContexts": 2,
+    "scope": "Technical current reference and diagnostics only; no material candidate/board; side/back not started/approved"
+  },
+  "receiptCoverage": {
+    "uniforms": "Actual non-optical numeric/vector/array state, including frontOpacity and twelve deformation slots; missing/malformed actual values throw Validate all numeric state keys/values against live source factory reconstructed from pinned defaults plus verified canonical settled target, with 1e-8 formula tolerance; future accepted-reference comparison remains exact.",
+    "opticalUniforms": "Every explicit glass optical/material numeric/vector uniform including uFrostScale; nine candidate leaves will be handled separately only in future accepted candidate guard",
+    "allUniformNames": "Sorted complete actual uniform key list plus backdrop environment metadata; texture pointers are not compared as UUIDs",
+    "type": "Actual shaped glyph IDs/positions, font blob pins, noFallback/bounds, icon RGBA hash/dimensions, per-level fixed text/icon records",
+    "geometry": "Exact live slab factory arrays/hashes/bounds; nominal4mm vs extrusion10\u00b5m separately; title hit plane/frontZ/PressModel maxDepth; rows4mm preserved",
+    "context": "Actual WebGL attrs/version, output colour space, HDR pins and backdrop identity; not native/Quest equivalence"
+  },
+  "runtimeLifecycle": {
+    "helper": "runtime.mjs withBrowserSession (parent-owned)",
+    "status": "FROZEN_SOURCE_INDEPENDENT_HELPER_ACCEPTED",
+    "wholeWorkTimeoutMs": 240000,
+    "evalFontPhaseTimeoutMs": 180000,
+    "reportTimeoutMs": 5000,
+    "eachCleanupTimeoutMs": 5000,
+    "summaryPolicy": "Report error cannot skip independent browser/server cleanup; actual owned PID/port readback required",
+    "lateCapturePolicy": "Page-side capture guard plus host phase and ctx.writeFile/assertActive; promise timeout alone is not process termination",
+    "pins": {
+      "runtime.mjs": "f6c0fbb22d5c8bfb37a10e91b1a01199eaf0e79b4ad531dad27dc1b2c8303657",
+      "guards/lifecycle.mjs": "105acac8718a0c072e8eed34488a1fd20c58fd6a91586e2ca063fa401200c871",
+      "guards/layer-reference.mjs": "7b6b4973a3cab68d7f309b66b161cf190eec099a3ca3142a0957529c195b58a4"
+    },
+    "reference": "docs/validation/xr08-lookdev-preparation-2026-10-25/handoff.json; source-independent helper17 case types; actual layer lifecycle receipts remain required"
+  },
+  "inactiveInheritedFiles": {
+    "layers-supplemental-contract.json": "Historical R6 copied bytes only; not an R8 side/back authorization or executed result",
+    "layers-supplemental-erratum.json": "Historical R6 copied bytes only; not an R8 contract amendment"
+  },
+  "disposition": {
+    "status": "READY_FOR_BOUNDED_R8_EXECUTION",
+    "actualLayerCapturesAtContractFreeze": 0,
+    "actualSideBackCaptures": 0,
+    "actualCandidateCaptures": 0,
+    "sourceProductAcceptanceIsNotNewLayerReceipt": true
+  },
+  "manifestSha256": "b064f5d65df1d2ee17cbc0360b2ab114d47fd5318125893f0cdbb2dac1a34fd9",
+  "parentR8ContractSha256": "2c2d61074534eacce56b42a7e3ef8b571ae558ab3831ce6f8b33a30f34090fdc",
+  "r8": {
+    "localWidthM": 0.144,
+    "localTitleBandM": 0.02892,
+    "rootDepthGapM": 0.035,
+    "frontSheetMultiplier": 1,
+    "rearSheetMultiplier": 0.3,
+    "olderSheetMultiplier": 0.12,
+    "titleOpacity": 1,
+    "fullRearContent": true,
+    "overlapY": "front.to.y + front.size.H*front.to.sy/2 + rear.size.titleBand*rear.to.sy - rear.size.H*rear.to.sy/2",
+    "mask": "No legacy uRearMask/uCoverRect/uCoverRadius in actual shader or uniforms; full original slab retained",
+    "trialValuesAdopted": false,
+    "recedeRatio": 0.7,
+    "secondDepthGapM": 0.0245,
+    "depthFormula": "worldZ = -frontGap*(1-ratio**depth)/(1-ratio)",
+    "apiDiagnostics": {
+      "moveDeltaWorldM": [
+        0.025,
+        -0.015,
+        0.01
+      ],
+      "resizeFactor": 1.05,
+      "scope": "Post-capture synthetic probes into actual WindowControls.update and title select handlers, with canonical geometry, navigation and root identity. Not InputSystem or hand tracking evidence."
+    },
+    "paneLocalThicknessM": 0.004,
+    "paneNominalPhysicalThicknessM": 0.006,
+    "rowLocalThicknessM": 0.004,
+    "frontFaceMultiplier": 0.85,
+    "rearFrontFaceMultiplier": 1,
+    "geometryNominalToleranceM": 1.5e-05,
+    "thicknessScale": 0.5
+  },
+  "historicalR7": {
+    "sourceSha": "8447168ad7392ca80437f5e864b03872f3185e30",
+    "layerCaptures": 0,
+    "layerContractSha256": "386613c558921fd802da745859b9c982f5b6b0d4b02f59533a216f837eb3d0eb",
+    "status": "PREPARED_NOT_EXECUTED_HELD_FOR_R8",
+    "preserved": true
+  }
+}

@@ -1,0 +1,540 @@
+{
+  "schemaVersion": 6,
+  "sourceSha": "61c7ba019eb6c1a535a7dbd8ce05265fc0be818e",
+  "tokenSha256": "d644cb4357e5124ee730de8b024d962e04cc84d6d17db58762337fbf111f11a6",
+  "inputDigest": "d46675f450a1bb78adef9c82e0abf513230c2807973904f2cdb20a482ffe11d8",
+  "inputDigestEncoding": "sha256 UTF8 compact JSON of trackedInputs+externalAssets records with ordered keys bytes,path,sha256",
+  "comparisonContractSha256": "2c2d61074534eacce56b42a7e3ef8b571ae558ab3831ce6f8b33a30f34090fdc",
+  "packages": {
+    "@fontsource/inter": {
+      "version": "5.3.0",
+      "lockIntegrity": "sha512-RofMylZmjlJEfELXeNHFWBRcSs75rGU/6bV2S2jfnvv/3rPXPGe0LgUJTklcHZ9lM4OZmAVFhcJPnACfb91A3g==",
+      "installedVersionMatches": true
+    },
+    "lucide-static": {
+      "version": "1.59.0",
+      "lockIntegrity": "sha512-MuHZYaXbHgzN2QO6D3OM19bj09A+8GJiFSdXIMlbnLLEGQQ9+NRH2KaCxuivevD3Y23vM74kV17XBifgtqhfEg==",
+      "installedVersionMatches": true
+    },
+    "three": {
+      "version": "0.186.1",
+      "lockIntegrity": "sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==",
+      "installedVersionMatches": true
+    },
+    "troika-three-text": {
+      "version": "0.52.4",
+      "lockIntegrity": "sha512-V50EwcYGruV5rUZ9F4aNsrytGdKcXKALjEtQXIOBfhVoZU9VAqZNIoGQ3TMiooVqFAbR1w15T+f+8gkzoFzawg==",
+      "installedVersionMatches": true
+    }
+  },
+  "trackedInputs": [
+    {
+      "path": "arena/experiments/catalog-parent-dim.json",
+      "bytes": 1189,
+      "sha256": "1c43af05b0025c9e3d7dd6bae056f0d3e29d26ef26d7269c3ca28166266ed762"
+    },
+    {
+      "path": "arena/scenes/catalog-stack.mjs",
+      "bytes": 6054,
+      "sha256": "c7c6007f4f7955278d3afabda72f0f1d84ad27ce055bd3b7d8f3a45402f16ddd"
+    },
+    {
+      "path": "demo/backdrop.js",
+      "bytes": 1335,
+      "sha256": "7307f55f26e17978a0f6071207dfb714cb9f48128f59fa2c87cec8b09a4da160"
+    },
+    {
+      "path": "demo/bench.html",
+      "bytes": 343,
+      "sha256": "f7c9d473338f3782586ac60da594c950ad79dc252c9d25877a458c7f0c399b63"
+    },
+    {
+      "path": "demo/bench.js",
+      "bytes": 18272,
+      "sha256": "393b65806f87e4e3f29ca8957479243c03aca3dbb96fdbee304a5df0e34a10e0"
+    },
+    {
+      "path": "demo/catalog-data.js",
+      "bytes": 1055,
+      "sha256": "d0d1ea89f4f4272d37808e16ed23f8bf1fe4afc09c8177e190ff427ccf56d92b"
+    },
+    {
+      "path": "demo/main.js",
+      "bytes": 8441,
+      "sha256": "c0aee8bb843414743f2a7c535caff401766ff3c4a9f3d03946377616d04a7203"
+    },
+    {
+      "path": "demo/public/env/CREDITS.txt",
+      "bytes": 111,
+      "sha256": "4cdc44f26b456a2148fea3fdccc075f62ef2428df9ac4632ccebdca8b61267de"
+    },
+    {
+      "path": "demo/public/env/lebombo_1k.hdr",
+      "bytes": 1476953,
+      "sha256": "a02c9615adeba91a753c3e4737c3ce7a719273df822eeaa85d24982bd43c9ecb"
+    },
+    {
+      "path": "docs/catalog-spec.md",
+      "bytes": 11989,
+      "sha256": "aa2bba7700d49685af41868cbd4531f6a07cd7a681a230f12319cd5e297e7d3f"
+    },
+    {
+      "path": "docs/decisions.md",
+      "bytes": 30918,
+      "sha256": "6229e9b203fab12d5f8a24e4b210fcc847979e05b176da03bffd7568f64ee215"
+    },
+    {
+      "path": "docs/quest-round5-spec.md",
+      "bytes": 7963,
+      "sha256": "ba6bee1a036878e4f6935231a94e0cbacaaabe51697e68e90a77a4d650c59183"
+    },
+    {
+      "path": "docs/quest-round6-spec.md",
+      "bytes": 7106,
+      "sha256": "676fff7a50672ab7fd8e96145e4df1ec5e01e4ea24b9a4f9db05b23be4fabf72"
+    },
+    {
+      "path": "docs/quest-round7-spec.md",
+      "bytes": 7316,
+      "sha256": "69fcb5cc184605921a793c6681cb7928d22e71ca51ea0a2c647eb06ce53334ce"
+    },
+    {
+      "path": "docs/quest-round8-spec.md",
+      "bytes": 4778,
+      "sha256": "518e2a751c81218ac5bdd5d38c3b7b33c3e69bb389d1dfeccd04464a48f9f76a"
+    },
+    {
+      "path": "lookdev/catalog.json",
+      "bytes": 1540,
+      "sha256": "ec92d222539c922feeebf705a03a532d1b7c09ae8523126780e17de35ef61376"
+    },
+    {
+      "path": "lookdev/catalog.py",
+      "bytes": 20737,
+      "sha256": "4b3efc36dddc4fe2c6cfa9f4b953b21d30a074a19977289392cf05dbdbaebc4c"
+    },
+    {
+      "path": "lookdev/fonts/inter-500.ttf",
+      "bytes": 66692,
+      "sha256": "e81cd232108864a9e4fd779de0a33f0e0699c4b52919b201e82c702df10117bb"
+    },
+    {
+      "path": "lookdev/fonts/inter-600.ttf",
+      "bytes": 66800,
+      "sha256": "a19676ae9cc125d1e1ca40181f2ce04fe9f724a888ad1ca80e2fc02fb88f5ef0"
+    },
+    {
+      "path": "lookdev/fonts/inter-700.ttf",
+      "bytes": 66784,
+      "sha256": "b8428d70f7528ae0bdc5ac08d9303748a685aedd6365321396bc733c14db9b3f"
+    },
+    {
+      "path": "package-lock.json",
+      "bytes": 39313,
+      "sha256": "c9ad7687650c5f73a07e2cc76d744144357d21f0f46f27d19319ee84aed7368f"
+    },
+    {
+      "path": "package.json",
+      "bytes": 1242,
+      "sha256": "f920f4d2a2ee20487e2bc62ba819d042805c22b1c5cf3f5a858faf2238320a3f"
+    },
+    {
+      "path": "scripts/regress-navigation.mjs",
+      "bytes": 5872,
+      "sha256": "041c301820cf340e31811205ad88cb113035455d56500444fa8b5a1f84067875"
+    },
+    {
+      "path": "scripts/regress-round8.mjs",
+      "bytes": 7703,
+      "sha256": "3448193e7bd587b4fdc11dfc546eec703951fb9561c8778221566ee27149a404"
+    },
+    {
+      "path": "scripts/tokens-lib.mjs",
+      "bytes": 2487,
+      "sha256": "3809e3cda5dbec05390b563f8e608e9d29110966e8d1bebdd5c435c28ccb5672"
+    },
+    {
+      "path": "src/components/BubbleHandle.js",
+      "bytes": 6849,
+      "sha256": "7f21930c95a007df7cd666a948d65e19e6968d07f496ee2f44f07661dfcf5fa7"
+    },
+    {
+      "path": "src/components/Button.js",
+      "bytes": 24187,
+      "sha256": "f247c24fed8a852f9fd614359be41c9bf6f31832573faa64c4cf0ecfb07b29b0"
+    },
+    {
+      "path": "src/components/Dock.js",
+      "bytes": 46830,
+      "sha256": "bb18de2ee755ef147f4643560de8691e32682be7648ae8e36e72e8b2d0382740"
+    },
+    {
+      "path": "src/components/DockIcon.js",
+      "bytes": 14706,
+      "sha256": "a57cd44da41b519a34ec1ea8f2fd5dec2525c70c4c480610946966cb392027f4"
+    },
+    {
+      "path": "src/components/PackagingPanel.js",
+      "bytes": 30886,
+      "sha256": "bc8b310b4ee2dbeea248ded627fac4b1f20433a7aab49a68a492dfde05de1f7d"
+    },
+    {
+      "path": "src/components/Toolbar.js",
+      "bytes": 2971,
+      "sha256": "d3f62b1945e1d28b7f2dee192eb7705031de2c97ca280537ffcd77bd8bb9c134"
+    },
+    {
+      "path": "src/components/ZSlider.js",
+      "bytes": 21008,
+      "sha256": "29e0892655b76b788ad53cf317cf50edb9d48ddcfb105123bb71673ac8cb2cc9"
+    },
+    {
+      "path": "src/core/DockRail.js",
+      "bytes": 2880,
+      "sha256": "47974584e528fb43273f711a8add919723fd9fc343fffe3fbb694b7b43ca3eb1"
+    },
+    {
+      "path": "src/core/Hysteresis.js",
+      "bytes": 590,
+      "sha256": "c9a95b00a20e2cda72e565748dc4155975b808758472faafd8a2a2f304c9c30f"
+    },
+    {
+      "path": "src/core/InputSystem.js",
+      "bytes": 18260,
+      "sha256": "d9667f434a91d8cfc4517a53c46aa2b85d1ec60ddfe654427cd758b6680bf9ad"
+    },
+    {
+      "path": "src/core/Interactable.js",
+      "bytes": 2538,
+      "sha256": "3f7deb438ba2e9615b401cf0c21e642bc21241687609ee8ca2cbcb3399abe0fe"
+    },
+    {
+      "path": "src/core/PressModel.js",
+      "bytes": 3581,
+      "sha256": "1588a264ab9eb6f1bac7624d2023d5457ce6e2233653c76deeb490b864a0d22b"
+    },
+    {
+      "path": "src/core/WindowControls.js",
+      "bytes": 2618,
+      "sha256": "edddcc81105258826904743881612707eda8dab7d4293a241e14cb91369c2297"
+    },
+    {
+      "path": "src/core/audio.js",
+      "bytes": 791,
+      "sha256": "936af560ba5512794e5f3b1bfb25f04319de620f187e1f9020a132f4d375b224"
+    },
+    {
+      "path": "src/core/bubble.js",
+      "bytes": 12864,
+      "sha256": "6d67f9e6dac29c9b8653b29336e0e7e0bd38df1eaef19af28c717227b3dabdbd"
+    },
+    {
+      "path": "src/core/bubbles.js",
+      "bytes": 1389,
+      "sha256": "0e7cef673325958936ceabe08fdc02337820e3639145c7a86d12d6f2258b3319"
+    },
+    {
+      "path": "src/core/contactFeedback.js",
+      "bytes": 1964,
+      "sha256": "fbcd0005b22fe4c66b5f4e5e55034846d9f057d2990fd10d756e3d158e589289"
+    },
+    {
+      "path": "src/core/defaults.js",
+      "bytes": 22805,
+      "sha256": "13f1191baff1b72ce2a21e3ae04792127f4a0fd97e4b2cc853f28a5e9444ad34"
+    },
+    {
+      "path": "src/core/detent.js",
+      "bytes": 414,
+      "sha256": "f289267cf9c746b84a5230a87939090b4b592436ab6ba08f1878a288b534ffa7"
+    },
+    {
+      "path": "src/core/easing.js",
+      "bytes": 630,
+      "sha256": "09a7f0df65a1e337f8204935f2eebf2933497af5887769d17159718d54a5501f"
+    },
+    {
+      "path": "src/core/follow.js",
+      "bytes": 1353,
+      "sha256": "b85f73fbf70de7bbed4a3a1e50e5b0cca60fb575be8891fcafb1bb01d8510e2c"
+    },
+    {
+      "path": "src/core/icons.js",
+      "bytes": 2849,
+      "sha256": "e11a29ddc36d275413d115a749f62e47d5ce188f01a142d98b1111009ed373bb"
+    },
+    {
+      "path": "src/core/look.js",
+      "bytes": 41846,
+      "sha256": "a3702ee8579b0befdcb12e7d38783524d478720e055436d4203abf21a5d0223f"
+    },
+    {
+      "path": "src/core/objects.js",
+      "bytes": 51120,
+      "sha256": "a0102c259587d927a383b5b5e8cb65a9696db11d2bf84fceb8cc3e9a52cbb0ab"
+    },
+    {
+      "path": "src/core/packaging.js",
+      "bytes": 4519,
+      "sha256": "c0c7acc27f7a6adf2590098abb394346e241bd38d3280c3f3401ff8edba70cf5"
+    },
+    {
+      "path": "src/core/refract.js",
+      "bytes": 28798,
+      "sha256": "35a54ac817b842186d642a2d18bf698ea0902061df25662bb38eff355412db3e"
+    },
+    {
+      "path": "src/core/spring.js",
+      "bytes": 1637,
+      "sha256": "9fcadd149e593c03d3786f1b777ad8755e9c8777b987c1c954e97fe7ca6a3859"
+    },
+    {
+      "path": "src/index.js",
+      "bytes": 894,
+      "sha256": "6e6f65853658b860513e5dce0211ee2c0ba5b5269b30b02b7d84f58e63596c98"
+    },
+    {
+      "path": "src/tokens.js",
+      "bytes": 2150,
+      "sha256": "1556812094b8146722df9ffcd83a3d88de38bbb36f3a3fdee1e1a3e9390dc5ea"
+    },
+    {
+      "path": "test/quest-hover-pose.test.js",
+      "bytes": 7284,
+      "sha256": "2de76be6e295e38a5a99813708b96ca9280374a4ca57b5aef7b400483092b9f6"
+    },
+    {
+      "path": "test/quest-navigation.test.js",
+      "bytes": 13747,
+      "sha256": "f173a1cdc0e476ca01c7697eda96cbafe99baacfc3564bad76219ef8b0350eee"
+    },
+    {
+      "path": "test/quest-round8.test.js",
+      "bytes": 7415,
+      "sha256": "bc1121b78164dd8eed1be98528173721bc27b21829a9c9775aa64851123cc170"
+    },
+    {
+      "path": "tokens.json",
+      "bytes": 28758,
+      "sha256": "d644cb4357e5124ee730de8b024d962e04cc84d6d17db58762337fbf111f11a6"
+    }
+  ],
+  "externalAssets": [
+    {
+      "path": "node_modules/@fontsource/inter/package.json",
+      "bytes": 1446,
+      "sha256": "05d03ec21754e37cf7da007c840e2f0a893c8161a53ee782d7c810e8a99c7cc5"
+    },
+    {
+      "path": "node_modules/lucide-static/package.json",
+      "bytes": 1699,
+      "sha256": "0a1af322fa567c8b3b65f36e5a3dcdd8ed5391f3c95fba6a1ff6be81dad50ff6"
+    },
+    {
+      "path": "node_modules/three/package.json",
+      "bytes": 3672,
+      "sha256": "f9c474a27c920b9435353a6235968f4453436bee0444fac7e5fd289c8fa463de"
+    },
+    {
+      "path": "node_modules/troika-three-text/package.json",
+      "bytes": 1157,
+      "sha256": "a31665fa30be50a7377223619121c2fd4cd48c0b9c5b84ae8b95c0981fadfcec"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/LICENSE",
+      "bytes": 4477,
+      "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345"
+    },
+    {
+      "path": "node_modules/lucide-static/LICENSE",
+      "bytes": 3208,
+      "sha256": "b495047bd93a9b06913511076f504daba17d5bbeb3e0650f3bb53a4220329c57"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-400-normal.woff",
+      "bytes": 30696,
+      "sha256": "e20fa0b4fd2dd26e4d14b3ac3cc922509c3a63fa5e910e90c614544aa042dd45"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-500-normal.woff",
+      "bytes": 31284,
+      "sha256": "9b42c108da48b5ed55a3072e815ffee2d271562e6c0dd6998910e8f9c09e0a3d"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-600-normal.woff",
+      "bytes": 31260,
+      "sha256": "6a9cb3a509b4eeaf12b7dda6c4aacac3e85d07f4201bf4dd716e332e692b87bd"
+    },
+    {
+      "path": "node_modules/@fontsource/inter/files/inter-latin-700-normal.woff",
+      "bytes": 31320,
+      "sha256": "7c5ed5655730de337704d3fc94628515cd7e3d8d32368871709bf56ac0397e7a"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/sofa.svg",
+      "bytes": 536,
+      "sha256": "8a364e4cf73fa614cb38dbed5ce79613a9d2572467d4b830d8633866fbed73ae"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/armchair.svg",
+      "bytes": 516,
+      "sha256": "18e66d5b4ee2803dee08338c9dd9d34e4af5df45d39c75a3e5a4c12b2534cfc3"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/bed-double.svg",
+      "bytes": 449,
+      "sha256": "ae97074bca84365e844d445a7ff3b59be7158b33b7aafaee86e1a9fcadac87e9"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/table-2.svg",
+      "bytes": 385,
+      "sha256": "0120b45546a12c28b501a8458e449dd5c052bb8b4ef4aeb1bffc0c7ab69fedfe"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/lamp-floor.svg",
+      "bytes": 444,
+      "sha256": "835dee65b4728279cb484b158ec8fbfb4a77770b20c54fdcc383fe9020219aae"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/tv.svg",
+      "bytes": 363,
+      "sha256": "5c5b266331db6ecc31a51cd83b14cd48892dfb4119ea07aa2460709e06f3a9e0"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/bath.svg",
+      "bytes": 470,
+      "sha256": "5715b4b99549ee46ffb01e319a18b1f46d61e21f09403f05f79174c830702222"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/refrigerator.svg",
+      "bytes": 424,
+      "sha256": "0ab76dd2b07fe44cf0e9d629320e6bd0a9ade30ceebea602809bed3698970748"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/flower-2.svg",
+      "bytes": 582,
+      "sha256": "f9e553236a57ece7bc22416143802eb41b2d444f5bc9f9b4d04bb8f4780b38bf"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/chevron-right.svg",
+      "bytes": 321,
+      "sha256": "b9e4521dff43288a385af1421b625da8fd40cf28c272a508c933217002090776"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/chevron-left.svg",
+      "bytes": 321,
+      "sha256": "55855ba9ca6bd3f350d1f6e092f669518679d1c86a52607a1bd2640cbf5af31e"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/rotate-3d.svg",
+      "bytes": 451,
+      "sha256": "9ea65259c69b517369b7916555219783df8356b5aa405af00d524bcd64eb6a25"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/move-3d.svg",
+      "bytes": 395,
+      "sha256": "8a72196ad56d5a8fc8fe369aa991c2667c775b441fa3d09a0611c2de4120cbbe"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/lock.svg",
+      "bytes": 384,
+      "sha256": "4d641d71ba1962047f666b91143c0e136abe8dc7d2add28b0548e926571203be"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/trash-2.svg",
+      "bytes": 467,
+      "sha256": "56b7d27b706ff3d828fe7a2e2d5150b8bbd97d12f6d0908cf495563024dea127"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/plus.svg",
+      "bytes": 331,
+      "sha256": "faf0bab01219d720cdd3047f6b5755c78c8e5a6743008a8fcd1c48fec4879519"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/sun.svg",
+      "bytes": 559,
+      "sha256": "e00cbd74f9cf7b463d45f4980388d745095cea2188a1729d734b80fc5055187d"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/ruler.svg",
+      "bytes": 537,
+      "sha256": "452bb91fd1649fe640caa4b1c72260152022b012736683b65327446df1f7e7b3"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/mail.svg",
+      "bytes": 391,
+      "sha256": "172363fa06a5e2215731ad54e78593a06edbbfca8269fc8a644719e08eb12b44"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/globe.svg",
+      "bytes": 407,
+      "sha256": "084b094795834a9976e39342a35e17e51fbee5171d59cae80ffee05c0b34d4b6"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/image.svg",
+      "bytes": 434,
+      "sha256": "bd33f9ce149098d4729669e62e2c3ceb042083a3f294f51deaa54f92ef01c7bc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/music.svg",
+      "bytes": 426,
+      "sha256": "85ed33c32383151880ad19bad38eb5a41699311cd171d5a3f24e64c983a0c776"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/notebook.svg",
+      "bytes": 455,
+      "sha256": "4ed9ffbb8e180416f33a41288218788f377970bd090e09bfa5a7162ba3f0a328"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/settings.svg",
+      "bytes": 665,
+      "sha256": "c23eb8c13e7ee68672cca78ff5176f6fa89238ae5c0eec960a2e1e161e8d25cc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/layers.svg",
+      "bytes": 587,
+      "sha256": "2db56bec69d08216e9118099b76cab533791e7ab9c93894b3d26f7b9b9664fcc"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/scan.svg",
+      "bytes": 441,
+      "sha256": "99fee916c69a0998a3bff0e515636126c0758d8275c41fdd3ce523f0f8d6ed80"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/square-dashed.svg",
+      "bytes": 616,
+      "sha256": "339d9092632d212e98b475faa2e9af470160286d99dbb3899d950244b3ba8dfb"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/house.svg",
+      "bytes": 459,
+      "sha256": "9491b2ae53be57db9f8a6a1c21766da4b9f54aeeb1f3ceb09768b78ee0e3199b"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/blocks.svg",
+      "bytes": 444,
+      "sha256": "632c8c6110ce158c227b525bb155c7cc21ac8af8e60252649d69251812a2075b"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/box.svg",
+      "bytes": 475,
+      "sha256": "0f35a77b1bbed74ad049132343a3286bf4c455772f3aa6b46d1fd1a2ecaca33f"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/circle.svg",
+      "bytes": 321,
+      "sha256": "2f23618b1570202425e48399878e86bebd43ea2e3760b149e7027083e752de6d"
+    },
+    {
+      "path": "node_modules/lucide-static/icons/square.svg",
+      "bytes": 338,
+      "sha256": "7ecd4bbe99b5f2e6d8e23549e9c6385e48501c9f30566d68500565acf2fcf6ce"
+    }
+  ],
+  "runId": "XR08-R8-STATES-20261025-1312",
+  "historicalR5": {
+    "manifestSha256": "166ec00470aad4af25ae7ace4914f9e350818f2a7a6106288ccfb6228e05b165",
+    "preserved": true
+  },
+  "sourceRecordCount": 100
+}
