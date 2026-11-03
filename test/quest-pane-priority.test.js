@@ -28,12 +28,12 @@ record('R14 row input follows recovering pane base at the physical grabbed edge'
  assert.ok(Math.abs(base-r.h.currentDent.depth*-1)<.0001);
 });
 
-test('R15 Q78 list state endpoints replace the historical R14 hover multiplier without changing text',()=>{
+test('R16 Q81 relative offsets replace historical Q78 endpoints without changing text',()=>{
  const r=rig(),at=naturalEdge(r,.003),u=r.level.panel.skin.uniforms,row=r.rows[0];
- assert.ok(row.hovered&&!row.press.pressed);assert.deepEqual(r.level.listOpacity.targets,{idle:.7,hover:.8,pressed:.9});assert.ok(Math.abs(r.level.listOpacity.values[0]-.8)<1e-4);
+ assert.ok(row.hovered&&!row.press.pressed);assert.deepEqual(r.level.listOpacity.targets,{idle:0,hover:.04,pressed:.07});assert.ok(Math.abs(r.level.listOpacity.values[0]-.04)<1e-4);
  assert.ok(row.label); const label=row.label.fillOpacity,point=new THREE.Vector3(0,0,0);
  for(const gap of [.02,.01,0,-.003]){point.set(0,0,row.surfaceZ(new THREE.Vector3())+(.008+gap)/row.getWorldScale(new THREE.Vector3()).z);r.step(row.localToWorld(point.clone()),false,'row-contact');}
- assert.ok(row.press.pressed);for(let i=0;i<90;i++)r.step(row.localToWorld(point.clone()),false,'settled-contact');assert.ok(Math.abs(r.level.listOpacity.values[0]-.9)<1e-6,'selected pressed target, not the old full-opacity branch');
+ assert.ok(row.press.pressed);for(let i=0;i<90;i++)r.step(row.localToWorld(point.clone()),false,'settled-contact');assert.ok(Math.abs(r.level.listOpacity.values[0]-.07)<1e-6,'selected pressed offset, not the old absolute endpoint');
  assert.equal(row.label.fillOpacity,label,'text opacity independent');
 });
 
