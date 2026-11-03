@@ -21,3 +21,11 @@ All numbers above are adjustable engineering trials under Q14, not newly approve
 The first optical fixture used undefined `pokeFront` before acquisition and observed no hover; those runs are invalid evidence and preserved. The corrected fixture uses `surfaceZ` and requires actual hover with no press before checking alpha. A subsequent optical probe at17mm overlapped the inflated skin and correctly retained contact opacity; the25mm probe entered the existing10mm early-press offset after inflation; the final40mm probe additionally requires no press and zero secondary contacts/dent. The first stationary-thumb assertion counted the cancelled approach press before manipulation; its correction limits the event window to release/recovery.
 
 Preview remains `9a840567` until a coherent fixed-SHA review and service readback. Technical PASS is not headset acceptance or same-device performance evidence. #12 and #13 remain open.
+
+### Fixed review follow-up
+
+Independent input review found a shallow stationary tip could be engulfed by the recovering pane base and later select a row (four normal/reduced × release/loss RED cases). Uncaptured row history now compares its previous tip against the current recovering base; base growth alone is not a new front crossing. Actual moving contact, frozen captured press planes and separate panels remain supported. The regression covers stationary thumb, known-curled middle and index tips and real moving contact.
+
+Independent geometry review found a bent outer front can lie behind local z=0 during recovery, causing 90/120 Hz ray regrasp failures. Ray acceptance now compares the actual tessellated front, and the hand back boundary follows the bent back instead of the rest plane. Front regrasp at 60/90/120 Hz and back rejection are covered. A determinant of one describes volume and local-Z separation preservation, not normal-direction thickness.
+
+HDR scene backgrounds are opaque. The optical fixture therefore measures foreground alpha with only the background temporarily hidden while retaining environment lighting; ordinary HDR screenshots keep the background. Earlier invalid/contact-contaminated and opaque-background alpha measurements remain historical fixture failures, not product passes.

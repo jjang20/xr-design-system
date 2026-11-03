@@ -28,7 +28,7 @@ export class WindowSurface extends Interactable {
   // A non-pinching pointer belongs to content, never this manipulation skin.
   pokeDistance(){return Infinity;}
   pinchDistance(p,radius=0){
-    if(!this.inside(p)||p.z < 0)return Infinity;
+    if(!this.inside(p)||p.z < paneDentHeight(p.x,p.y,this.profile,this.currentDent))return Infinity;
     return this.faceDistance(p,radius);
   }
   surfaceZ(p){
@@ -39,7 +39,7 @@ export class WindowSurface extends Interactable {
     return hit?.point.z ?? Infinity;
   }
   faceDistance(p,radius=0){return Math.max(0,Math.abs(p.z-this.surfaceZ(p))*this.inputScale-radius);}
-  acceptRayHit(p){return this.inside(p)&&p.z>=0;}
+  acceptRayHit(p){return this.inside(p)&&Math.abs(p.z-this.surfaceZ(p))<=1e-6/this.inputScale;}
   update(dt){
     const probes=this.consumeProbes(),probe=this.grab&&probes.find(q=>q.id===this.grab.id);
     const scale=this.inputScale;
