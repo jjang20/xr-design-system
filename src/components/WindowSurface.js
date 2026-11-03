@@ -11,6 +11,7 @@ export class WindowSurface extends Interactable {
     super();
     if(typeof contains!=='function') throw new Error('WindowSurface requires an explicit start-region predicate');
     this.T=T; this.panel=panel; this.contains=contains;
+    this.trackedPinch=true;
     this.frontZ=panel.t; this.dent={x:0,v:0};this.spot=new THREE.Vector2();
     this.profile={halfWidth:panel.w/2,halfHeight:panel.h/2,cornerRadius:panel.r,edgeFade:panel.t};
     this.body=panel.body;this.skin=panel.skin;
@@ -27,9 +28,46 @@ export class WindowSurface extends Interactable {
   inside(p){return this.contains(p,this.panel);}
   // A non-pinching pointer belongs to content, never this manipulation skin.
   pokeDistance(){return Infinity;}
+  // A fingertip has volume: at the outer rim (or while straddling it), its
+  // centre can be outside the front silhouette while its skin touches the
+  // actual pane. Query nearby mesh triangles, never an expanded box target.
+  contactPoint(p,radius){
+    if(!(radius>0) || !Number.isFinite(radius) || ![p.x,p.y,p.z].every(Number.isFinite))return null;
+    const reach=radius/this.inputScale,g=this.hitMeshes[0].geometry,a=g.attributes.position,idx=g.index;
+    const cell=.008;
+    if(!this.contactGrid){
+      this.contactGrid=new Map();
+      const count=idx?idx.count:a.count;
+      for(let i=0;i<count;i+=3){
+        const ids=[0,1,2].map(k=>idx?idx.getX(i+k):i+k);
+        const xs=ids.map(j=>a.getX(j)),ys=ids.map(j=>a.getY(j));
+        for(let x=Math.floor(Math.min(...xs)/cell);x<=Math.floor(Math.max(...xs)/cell);x++)
+          for(let y=Math.floor(Math.min(...ys)/cell);y<=Math.floor(Math.max(...ys)/cell);y++){
+            const key=x+','+y,list=this.contactGrid.get(key)??[];list.push(ids);this.contactGrid.set(key,list);
+          }
+      }
+    }
+    const candidates=new Set(),triangle=new THREE.Triangle(),q=new THREE.Vector3();
+    for(let x=Math.floor((p.x-reach)/cell);x<=Math.floor((p.x+reach)/cell);x++)
+      for(let y=Math.floor((p.y-reach)/cell);y<=Math.floor((p.y+reach)/cell);y++)
+        for(const ids of this.contactGrid.get(x+','+y)??[])candidates.add(ids);
+    let best=reach+1e-8,point=null;
+    for(const ids of candidates){
+      triangle.a.fromBufferAttribute(a,ids[0]);triangle.b.fromBufferAttribute(a,ids[1]);triangle.c.fromBufferAttribute(a,ids[2]);
+      triangle.closestPointToPoint(p,q);const distance=q.distanceTo(p);
+      if(distance<=best && this.inside(q)){best=distance;point=q.clone();}
+    }
+    return point;
+  }
+  pinchPoint(p,radius=0){
+    if(this.inside(p) && p.z>=paneDentHeight(p.x,p.y,this.profile,this.currentDent)){
+      const z=this.surfaceZ(p);if(Number.isFinite(z))return new THREE.Vector3(p.x,p.y,z);
+    }
+    return this.contactPoint(p,radius);
+  }
   pinchDistance(p,radius=0){
-    if(!this.inside(p)||p.z < paneDentHeight(p.x,p.y,this.profile,this.currentDent))return Infinity;
-    return this.faceDistance(p,radius);
+    const at=this.pinchPoint(p,radius);
+    return at?Math.max(0,p.distanceTo(at)*this.inputScale-radius):Infinity;
   }
   surfaceZ(p){
     // Sample the actual tessellated front, including the bevel. This mesh

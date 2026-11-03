@@ -25,8 +25,9 @@ export class WindowControls {
     let probe = h?.probes.find(q => q.id === this.held.id);
     if (!this.held) {
       for (const candidate of handles.filter(h => h.enabled)) {
-        probe = candidate.probes.find(q => holding(q) && candidate.inside(q.point, q.kind === 'poke')
-          && (q.kind === 'ray' || candidate.faceDistance(q.point, q.radius) <= DEFAULTS.dockRail.handleReach));
+        probe = candidate.probes.find(q => holding(q) && (q.kind === 'poke' && candidate.pinchDistance
+          ? candidate.pinchDistance(q.point,q.radius) <= DEFAULTS.dockRail.handleReach
+          : candidate.inside(q.point,q.kind === 'poke') && (q.kind === 'ray' || candidate.faceDistance(q.point,q.radius) <= DEFAULTS.dockRail.handleReach)));
         if (probe) { h = candidate; break; }
       }
     }
@@ -43,7 +44,8 @@ export class WindowControls {
       const centre = h.getWorldPosition(new THREE.Vector3());
       const localCentre = p.parent ? p.parent.worldToLocal(centre) : centre;
       const axis = localCentre.sub(p.position);
-      this.held = { id: probe.id, handle: h, point, localPoint: probe.point.clone(), position: p.position.clone(), scale: p.scale.x,
+      const localPoint = probe.kind === 'poke' ? h.pinchPoint?.(probe.point,probe.radius) : null;
+      this.held = { id: probe.id, handle: h, point, localPoint: localPoint ?? probe.point.clone(), position: p.position.clone(), scale: p.scale.x,
         axis: axis.clone().normalize(), extent: axis.length(), resize: !!h.userData.resize, moved: false };
     }
     const g = this.held, delta = point.clone().sub(g.point);

@@ -75,7 +75,7 @@ for(const scale of [.9,2.2])for(const side of [-1,1])record(`Q71 physical edge a
 });
 for(const mode of ['poke','ray'])record('Q71 centre, title and outside edge do not start movement '+mode,r=>{
  const h=r.level.surface,p=r.level.panel,scale=h.inputScale;
- for(const local of [new THREE.Vector3(0,0,p.t+.012/scale),new THREE.Vector3(0,p.h/2-r.level.size.titleBand/2,p.t+.012/scale),new THREE.Vector3(p.w/2+.003/scale,0,p.t+.012/scale)]){
+ for(const local of [new THREE.Vector3(0,0,p.t+.012/scale),new THREE.Vector3(0,p.h/2-r.level.size.titleBand/2,p.t+.012/scale),new THREE.Vector3(p.w/2+.012/scale,0,p.t+.012/scale)]){
   const at=h.localToWorld(local);r.step(0,at,false,mode);r.step(0,at,true,mode);
   assert.equal(r.p.controls.held,null);r.step(0,at,false,mode);
  }

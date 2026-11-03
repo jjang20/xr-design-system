@@ -56,17 +56,23 @@ export class InputSystem {
       const grip = renderer.xr.getControllerGrip(i);
       const hand = renderer.xr.getHand(i);
       scene.add(ray, grip, hand);
-      const src = { id: `xr${i}`, ray, grip, hand, selecting: false, connected: false, near: new Hysteresis(enter, exit), state: {} };
+      const src = { id: `xr${i}`, ray, grip, hand, selecting: false, handPinching: false, connected: false, near: new Hysteresis(enter, exit), state: {} };
       ray.addEventListener('connected', event => {
         src.connected = true;
         // A source change is explicit. Tracking loss must never reinterpret
         // an existing hand's stale joints/grip as a controller.
         src.handSource = event.data ? !!event.data.hand : undefined;
+        src.selecting = false; src.handPinching = false;
         src.state = {}; src.pokeHistory = null; src.fingers?.clear();
       });
-      ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; });
+      ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; src.handPinching = false; });
       ray.addEventListener('selectstart', () => { src.selecting = true; });
       ray.addEventListener('selectend', () => { src.selecting = false; });
+      // Three's joint-derived pinch is separate from WebXR's semantic
+      // select action. Only opted-in near manipulation uses this fallback;
+      // it must not turn a hand pose into a far click or a row selection.
+      hand.addEventListener('pinchstart', () => { src.handPinching = true; });
+      hand.addEventListener('pinchend', () => { src.handPinching = false; });
       // A visible ray for far mode.
       const line = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, -1)]),
@@ -84,7 +90,7 @@ export class InputSystem {
   reset() {
     this.handPoints = [];
     for (const src of this.xr) {
-      src.state = {}; src.resetBlocked = src.selecting;
+      src.state = {}; src.resetBlocked = src.selecting || src.handPinching;
       src.pokeHistory = null; src.fingers = new Map();
       src.near.update(Infinity); src.line.visible = false;
     }
@@ -148,7 +154,7 @@ export class InputSystem {
   // from the wrist and knuckles; at least three extended fingers distinguish
   // a flat push from an index poke or pinch. Missing joints never dismiss.
   palmOf(src) {
-    if (src.selecting || !src.hand.visible) return null;
+    if (src.selecting || src.handPinching || !src.hand.visible) return null;
     const joints = src.hand.joints ?? {};
     const point = name => joints[name]?.visible ? joints[name].getWorldPosition(new THREE.Vector3()) : null;
     const wrist = point('wrist');
@@ -204,6 +210,7 @@ export class InputSystem {
 
     if (presenting) {
       for (const src of this.xr) {
+        src.panePinchRouted = false;
         src.line.visible = false;
         if (!src.connected) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         // Actual WebXR supplies hand identity on connected. The fallback also
@@ -211,10 +218,10 @@ export class InputSystem {
         if (src.handSource === undefined && src.hand.visible && Object.keys(src.hand.joints ?? {}).length) src.handSource = true;
         if (src.handSource && !src.hand.visible) {
           src.state = {}; src.pokeHistory = null; src.fingers?.clear();
-          src.near.update(Infinity); src.resetBlocked ||= src.selecting; continue;
+          src.near.update(Infinity); src.resetBlocked ||= src.selecting || src.handPinching; continue;
         }
         if (src.resetBlocked) {
-          if (src.selecting) { src.pokeHistory = null; src.fingers?.clear(); continue; }
+          if (src.selecting || src.handPinching) { src.pokeHistory = null; src.fingers?.clear(); continue; }
           src.resetBlocked = false;
         }
         // An existing manipulation owns its source through the release
@@ -222,7 +229,14 @@ export class InputSystem {
         const manipulating = items.some(item => item.grab?.id === src.id);
         if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         const tip = this.tipOf(src);
-        if (src.handSource && !tip && src.selecting) {
+        // The joint-derived event can survive a missing joint in Three's
+        // cached pose. Native-only manipulation needs both live fingertips;
+        // after loss require opening the pinch before it can acquire again.
+        if(src.handSource && src.handPinching && !src.selecting &&
+          (!src.hand.joints?.['index-finger-tip']?.visible || !src.hand.joints?.['thumb-tip']?.visible)){
+          src.resetBlocked=true;src.state={};src.pokeHistory=null;src.fingers?.clear();continue;
+        }
+        if (src.handSource && !tip && (src.selecting || src.handPinching)) {
           src.resetBlocked = true; src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue;
         }
         const joints = src.hand.visible ? ['index-finger-tip','thumb-tip','middle-finger-tip','ring-finger-tip','pinky-finger-tip']
@@ -250,7 +264,7 @@ export class InputSystem {
           // History belongs to each fingertip, while pinch/palm capture
           // belongs to the hand. The index keeps the legacy source id.
           src.fingers ??= new Map();
-          if (hand && !src.selecting && !manipulating) {
+          if (hand && !src.selecting && !manipulating && !src.panePinchRouted) {
             for (const name of ['thumb-tip', 'middle-finger-tip', 'ring-finger-tip', 'pinky-finger-tip']) {
               const joint = src.hand.joints[name];
               if (!joint?.visible) { src.fingers.delete(name); continue; }
@@ -268,7 +282,7 @@ export class InputSystem {
           if (src.handSource && !tip) {
             // Losing the index cannot release its poke via an unrelated ray.
             // Other tracked tips still take the independent near path above.
-            src.state = {}; src.resetBlocked ||= src.selecting; continue;
+            src.state = {}; src.resetBlocked ||= src.selecting || src.handPinching; continue;
           }
           src.line.visible = true;
           const origin = new THREE.Vector3().setFromMatrixPosition(src.ray.matrixWorld);
@@ -313,13 +327,17 @@ export class InputSystem {
     let target = probes.find(({ item }) => item.grab?.id === src.id)?.item;
     // An explicit edge pinch may take ownership from content; proximity
     // alone cannot. Existing manipulations (including resize/Dock) win.
-    if (!target && src.selecting) {
+    const trackedPinch = src.handSource && src.handPinching && src.hand.visible &&
+      src.hand.joints?.['index-finger-tip']?.visible && src.hand.joints?.['thumb-tip']?.visible;
+    if (!target && (src.selecting || trackedPinch)) {
       let nearest = DEFAULTS.dockRail.handleReach;
       for (const { item, point } of probes) {
+        if (!src.selecting && !item.trackedPinch) continue;
         const distance = item.pinchDistance?.(point, radius) ?? Infinity;
         if (distance < nearest) { nearest = distance; target = item; }
       }
     }
+    src.panePinchRouted = !!(trackedPinch && target?.trackedPinch);
     target ??= probes.find(({ item, point }) => item.pokeDistance &&
       ((item.press?.pressed && item.pressKind === 'poke' && item.pressOwner === src.id
         && (item.retainsPokeCapture?.(point, radius, crossings.get(item)) ?? true))
@@ -337,7 +355,8 @@ export class InputSystem {
       const contactOnly = item.emboss && (!proximity ||
         (item.thumbContactOnly && src.id.endsWith(':thumb-tip')));
       item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius,
-        pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly, pinch: src.selecting,
+        pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly,
+        pinch: src.selecting || !!(trackedPinch && item.trackedPinch),
         pinchAxis: item.softShape && pinchAxis ? pinchAxis.clone().transformDirection(item.matrixWorld.clone().invert()) : null,
         surfaceCrossing: crossings.get(item) });
     }

@@ -308,7 +308,7 @@ export class PackagingPanel extends THREE.Group {
       const x = Math.abs(point.x), y = Math.abs(point.y), r = panel.r;
       const qx = x - (W / 2 - r), qy = y - (H / 2 - r);
       const sdf = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
-      return sdf <= 0 && x >= W / 2 - band;
+      return sdf <= 1e-8 && x >= W / 2 - band;
     });
     group.add(surface);
     const front = panel.t + 0.0004;
