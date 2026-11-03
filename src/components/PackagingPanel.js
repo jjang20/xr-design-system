@@ -354,7 +354,8 @@ export class PackagingPanel extends THREE.Group {
       // list feedback starts at actual skin contact, not distant proximity.
       // Keep every fingertip's physical contact and independent action.
       row.thumbContactOnly = true;
-      row.baseSurfaceOffset = point => paneDentHeight(point.x + row.position.x, point.y + row.position.y, surface.profile, surface.currentDent);
+      row.baseSurfaceOffset = (point, dent = surface.currentDent) => paneDentHeight(point.x + row.position.x, point.y + row.position.y, surface.profile, dent);
+      row.baseSurfaceSnapshot = () => ({ ...surface.currentDent });
       row.hoverSurfaceOpacity = .58; // R14 trial, proximity skin only
       // The rendered pillow and direct contact use the same concentric corner.
       row.embossRadius = Math.min(row.h / 2, row.r * (D.radius.window - D.rowInset) / D.radius.row);

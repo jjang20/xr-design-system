@@ -370,9 +370,21 @@ export class Button extends Interactable {
     this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getInputScale(inputScale).z);
     const probes = this.consumeProbes();
     const priorBaseProfiles = this.baseInputProfiles;
-    const baseProfiles = this.baseSurfaceOffset ? new Map() : null;
+    const baseProfiles = this.baseSurfaceSnapshot ? new Map() : null;
+    const snapshot = this.baseSurfaceSnapshot?.();
     if (baseProfiles) for (const p of probes) if (p.kind === 'poke') {
-      baseProfiles.set(p.id, { point: p.point.clone(), offset: this.baseSurfaceOffset(p.point) });
+      const visible = this.surfaceZ(p.point);
+      const separated = p.point.z - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) > visible;
+      // Keep the last physically separated pane profile if recovery grows
+      // into this tip. Re-evaluate that profile at the current XY, so real
+      // motion can cross it without an immobile tip inventing a press.
+      const prior = priorBaseProfiles?.get(p.id);
+      const frame = separated ? snapshot : prior?.frame ?? snapshot;
+      const bulge = separated ? this.bulge : prior?.bulge ?? this.bulge;
+      const constrained = (snapshot.depth ?? 0) > 1e-9 || (!separated && prior?.constrained);
+      const frozen = this.surfaceZ(p.point, bulge) - this.baseSurfaceOffset(p.point) + this.baseSurfaceOffset(p.point, frame);
+      const front = constrained ? Math.min(visible, frozen) : visible;
+      baseProfiles.set(p.id, { frame, bulge, constrained, front });
     }
     this.baseInputProfiles = baseProfiles;
     // A list thumb must approach the skin itself. Remember the last
@@ -386,13 +398,13 @@ export class Button extends Interactable {
       const visible = this.surfaceZ(p.point);
       const separated = p.point.z - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) > visible;
       const bulge = separated ? this.bulge : priorThumbProfiles?.get(p.id)?.bulge ?? this.bulge;
-      const front = Math.min(visible, this.surfaceZ(p.point, bulge));
+      const front = Math.min(visible, this.surfaceZ(p.point, bulge), baseProfiles?.get(p.id)?.front ?? Infinity);
       const separation = p.point.z - front - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
       thumbProfiles.set(p.id, { bulge, front, separation,
         eligible: p.canPress !== false && this.inside(p.point, true) });
     }
     this.thumbProfiles = thumbProfiles;
-    const frontFor = p => thumbProfiles?.get(p.id)?.front ?? this.surfaceZ(p.point);
+    const frontFor = p => thumbProfiles?.get(p.id)?.front ?? baseProfiles?.get(p.id)?.front ?? this.surfaceZ(p.point);
     // Respect explicit press gates on externally supplied probes too.
     const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
     // A suppressed, separated thumb must not hide another finger's
@@ -406,17 +418,6 @@ export class Button extends Interactable {
       const prior = priorThumbProfiles?.get(best.id);
       this.press.lastSeparation = prior?.eligible ? prior.separation : null;
       this.press.lastPenetration = prior?.eligible ? -prior.separation : null;
-    }
-    // Compare the previous tip against today's recovering base. A rising
-    // pane must not turn a stationary fingertip into a new front crossing.
-    // Only compensate base growth; real finger motion and the established
-    // per-thumb bulge history still determine acquisition. Captured presses
-    // keep their frozen contact plane and are never adjusted here.
-    const priorBase = best?.kind === 'poke' && priorBaseProfiles?.get(best.id);
-    if (!this.press.pressed && priorBase) {
-      const growth = Math.max(0, this.baseSurfaceOffset(priorBase.point) - priorBase.offset);
-      if (this.press.lastPenetration !== null) this.press.lastPenetration += growth;
-      if (this.press.lastSeparation !== null) this.press.lastSeparation -= growth;
     }
     this.probeId = best?.id;
     // Press: pokes press by depth; a ray press pushes all the way in.
