@@ -19,6 +19,8 @@ export class WindowSurface extends Interactable {
     const geometry=panel.body.geometry.clone();
     this.restPositions=geometry.attributes.position.array.slice();
     this.restNormals=geometry.attributes.normal.array.slice();
+    geometry.computeBoundingBox();geometry.computeBoundingSphere();
+    this.restBox=geometry.boundingBox.clone();this.restSphere=geometry.boundingSphere.clone();
     const hit=new THREE.Mesh(geometry,new THREE.MeshBasicMaterial({visible:false}));
     this.add(hit);this.hitMeshes=[hit];
     this.sampleMesh=new THREE.Mesh(geometry,hit.material);
@@ -104,6 +106,15 @@ export class WindowSurface extends Interactable {
         attr.setZ(i,z+paneDentHeight(x,y,this.profile,d));
       }
       attr.needsUpdate=true;this.geometryKey=key;
+      // The Gaussian bend moves every vertex only along -Z, by at most
+      // depth. Enclose that displacement for both CPU rays and GPU culling
+      // without changing the actual triangles or broadening the input region.
+      for(const geometry of [this.hitMeshes[0].geometry,this.body.geometry]){
+        geometry.boundingBox??=this.restBox.clone();
+        geometry.boundingSphere??=this.restSphere.clone();
+        geometry.boundingBox.copy(this.restBox);geometry.boundingBox.min.z-=d.depth;
+        geometry.boundingSphere.copy(this.restSphere);geometry.boundingSphere.radius+=d.depth;
+      }
     }
   }
 }

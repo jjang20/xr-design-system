@@ -14,6 +14,8 @@ At the existing owned surface anchor, Gaussian bend radius changes from16 to28 p
 
 A separate pane-only Gaussian light uses28mm radius and linear amount.28 with the same response/recovery. It has no ring, lip or shadow stamp, no shared row slot, and no Push acknowledgement ownership. Local light does not modify pane alpha. The existing normal inverse transpose and full-thickness Z bend are retained: volume and local-Z front/back separation are preserved, not exact normal-direction thickness. XY edge/input/contactGrid remain unchanged. Source for native/semantic acquisition, WindowControls and Q48 is untouched.
 
+Independent review reproduced a stale-bounds ray miss at minimum scale on the bent outer bevel. The CPU hit/sample and GPU body now use the rest box extended along negative Z by current depth and the rest sphere with radius increased by that depth. Every Gaussian vertex displacement is bounded by this value. These conservative envelopes restore with the bend; triangles, edge eligibility and rendered positions are unchanged. This closes the reproduced geometry path, not a claim about the earlier Quest acquisition failure.
+
 ## Bounded evidence and limits
 
 Fixed ea8 baseline reproduced idle-vs-pane RGBA mismatch (52507 pixels, max22/255) and zero pane-specific Glow in noenv. The installed native controller path still acquired/moved/released. Two native edge tests failed the new20mm-from-anchor width criterion on ea8. Original results remain outside the repo in the R16 evidence revision.
