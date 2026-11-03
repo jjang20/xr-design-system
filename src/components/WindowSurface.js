@@ -44,20 +44,22 @@ export class WindowSurface extends Interactable {
     const probes=this.consumeProbes(),probe=this.grab&&probes.find(q=>q.id===this.grab.id);
     const scale=this.inputScale;
     if(probe){const at=this.grab.localPoint??probe.point;this.spot.set(at.x,at.y);}
-    const depth=this.grab?Math.min(.0015/scale,this.panel.t*.4):0;
+    // R14 trial: a 3.5 mm local bend, independent of sheet thickness.
+    const limit=Math.min(.0035, this.bendClearanceWorld ?? Infinity)/scale;
+    const depth=this.grab ? Math.max(0,limit) : 0;
     springTo(this.dent,depth,.09,prefersReducedMotion()?1:.85,dt);
-    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.018/scale,depth:Math.min(this.panel.t*.4,Math.max(0,this.dent.x))};
+    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.016/scale,depth:Math.min(Math.max(0,limit),Math.max(0,this.dent.x))};
     const d=this.currentDent,u=this.skin.uniforms;
     u.uPaneDent.value.set(d.x,d.y,d.radius,d.depth);
     u.uPaneExtent.value.set(this.profile.halfWidth,this.profile.halfHeight,this.profile.cornerRadius);
     u.uPaneEdgeFade.value=this.profile.edgeFade;
-    // Same continuous thickness-weighted profile as GLASS_VERT.
+    // Same full-thickness shear as GLASS_VERT; front and back cannot cross.
     const key=[d.x,d.y,d.radius,d.depth].join(',');
     if(key!==this.geometryKey){
       const attr=this.hitMeshes[0].geometry.attributes.position;
       for(let i=0;i<attr.count;i++){
         const j=3*i,x=this.restPositions[j],y=this.restPositions[j+1],z=this.restPositions[j+2];
-        attr.setZ(i,z+paneDentHeight(x,y,this.profile,d)*Math.max(z,0)/this.panel.t);
+        attr.setZ(i,z+paneDentHeight(x,y,this.profile,d));
       }
       attr.needsUpdate=true;this.geometryKey=key;
     }

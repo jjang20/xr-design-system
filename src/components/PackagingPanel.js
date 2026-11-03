@@ -26,6 +26,7 @@ import { makeText, flatMaterial, setGroupOpacity, setContactShadow, setBehind, s
 import { driveBubbles, raised } from '../core/bubbles.js';
 import { PACKAGING_MODES, PACKAGING_KEYS, PackagingStack, packagingPose, stepPackagingLevel } from '../core/packaging.js';
 import { Button } from './Button.js';
+import { paneDentHeight } from '../core/paneDent.js';
 import { WindowSurface } from './WindowSurface.js';
 import { BubbleHandle } from './BubbleHandle.js';
 import { WindowControls } from '../core/WindowControls.js';
@@ -301,7 +302,9 @@ export class PackagingPanel extends THREE.Group {
     // target separate, and leave non-pinching content input untouched.
     const moves = [];
     const surface = new WindowSurface(T, panel, point => {
-      const band = Math.min(.012 / surface.inputScale, dmm(D.rowInset));
+      // Physical edge lane: the decorative row inset must not shrink a
+      // deliberate pinch target as the window scales (R14 trial: 12 mm).
+      const band = .012 / surface.inputScale;
       const x = Math.abs(point.x), y = Math.abs(point.y), r = panel.r;
       const qx = x - (W / 2 - r), qy = y - (H / 2 - r);
       const sdf = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
@@ -351,6 +354,8 @@ export class PackagingPanel extends THREE.Group {
       // list feedback starts at actual skin contact, not distant proximity.
       // Keep every fingertip's physical contact and independent action.
       row.thumbContactOnly = true;
+      row.baseSurfaceOffset = point => paneDentHeight(point.x + row.position.x, point.y + row.position.y, surface.profile, surface.currentDent);
+      row.hoverSurfaceOpacity = .58; // R14 trial, proximity skin only
       // The rendered pillow and direct contact use the same concentric corner.
       row.embossRadius = Math.min(row.h / 2, row.r * (D.radius.window - D.rowInset) / D.radius.row);
       row.position.set(0, listTop - rowH / 2 - i * rowH, panel.t);
@@ -509,6 +514,13 @@ export class PackagingPanel extends THREE.Group {
     this.collectingSelections=true;
     for (const l of this.stack.all) {
       l.panel.update(dt);
+      // A child may be grabbed while it is still emerging from its parent.
+      // Preserve capture; bound only the backward bend by actual clearance.
+      const worldZ=Math.abs(this.getWorldScale(new THREE.Vector3()).z);
+      l.surface.bendClearanceWorld=Math.max(0,Math.min(Infinity,...this.levels.filter(rear=>rear.depth<l.depth).map(rear=>{
+        const raisedRow=Math.max(0,...rear.rows.map(row=>row.bulge));
+        return (l.cur.z-rear.cur.z-(rear.panel.t+raisedRow)*Math.min(rear.cur.sx,rear.cur.sy))*worldZ-.00025;
+      })));
       [l.surface, ...l.corners].forEach(h => h.update(dt));
       const contact = this.palmPush?.level === l ? 0.4 + 0.6 * Math.min(1, this.palmPush.depth / DEFAULTS.handInput.palmCloseTravel) : 0;
       if (contact) { l.palmGlow = contact; l.palmGlowHold = 0; }
@@ -519,6 +531,10 @@ export class PackagingPanel extends THREE.Group {
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
       l.hoverGroup.update();
       l.rows.forEach(r => r.update(dt));
+      // Manipulation already cancelled actions above. Also remove the
+      // outgoing row skin in this frame: its spring otherwise swells over
+      // the grabbed edge for another ~0.2 s. Other groups keep their motion.
+      if (this.controls.held) l.rows.forEach(r => r.clearHoverFeedback());
       const push = this.palmPush;
       const held = this.controls.held || push?.level === l ? ['x', 'y', 'z', 'sx', 'sy']
         : push?.parents.some(p => p.level === l) ? ['z'] : [];

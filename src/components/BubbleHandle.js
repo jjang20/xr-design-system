@@ -128,6 +128,8 @@ export class BubbleHandle extends Interactable {
     u.uDent.value.set(this.spot.x, this.spot.y, this.spot.z, this.dent.x / this.r);
     u.uDentWidth.value = F.width / (scale * this.r);
     u.uCoreWidth.value = F.core / (scale * this.r);
+    u.uGlowGain.value = F.glowGain ?? 1;
+    u.uGlowSpread.value = (F.glowSpread ?? 0) / (scale * this.r);
     u.uLipWidth.value = .001 / (scale * this.r);
     u.uDentSlope.value = this.dent.x / F.width;
     u.uGlow.value = held || this.press.pressed ? .8 : this.hovered && !F.contactGlow ? .12 : 0;

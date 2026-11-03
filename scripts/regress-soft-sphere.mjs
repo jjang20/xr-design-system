@@ -16,7 +16,7 @@ const result={root,port,checks:[],cases:[],errors:[]};let browser;
 const deadline=setTimeout(()=>{result.failure='180s bounded browser deadline';browser?.close();},180000);
 try{
  await server.listen();browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist']});
- for(const reduced of [false,true])for(const mode of ['noenv','hdr']){
+ for(const reduced of process.env.SPHERE_REDUCED ? [process.env.SPHERE_REDUCED==='1'] : [false,true])for(const mode of process.env.SPHERE_ENV ? [process.env.SPHERE_ENV] : ['noenv','hdr']){
   const page=await browser.newPage({viewport:{width:1280,height:800},reducedMotion:reduced?'reduce':'no-preference'});
   page.on('pageerror',e=>result.errors.push(e.message));page.on('console',m=>{if(m.type()==='error')result.errors.push(m.text());});
   await page.goto(`http://127.0.0.1:${port}/sphere-case.html`);

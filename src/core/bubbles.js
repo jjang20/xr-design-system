@@ -25,6 +25,7 @@ export function driveBubbles(m, buttons) {
       height: b.bulge, scale: b.k,
       dent: slot.dent && { ...slot.dent, x: b.position.x + slot.dent.x, y: b.position.y + slot.dent.y },
       glow: slot.glow,
+      opacity: b.press.pressed || b.dent || b.contactDents?.length ? 1 : b.hoverSurfaceOpacity ?? 1,
     });
   }
   return ranked;

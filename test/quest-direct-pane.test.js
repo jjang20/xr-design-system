@@ -64,7 +64,7 @@ for(const scale of [.9,2.2])for(const side of [-1,1])record(`Q71 physical edge a
  r.p.scale.setScalar(scale);r.p.updateMatrixWorld(true);const h=r.level.surface,rest=h.restPositions.slice();
  const start=r.edge(side);r.step(0,start,true);assert.equal(r.p.controls.held?.handle,h);
  const at=h.spot.clone(),position=r.p.position.clone();for(let i=0;i<90;i++)r.frame();
- assert.ok(r.p.position.distanceTo(position)<1e-9);assert.ok(h.currentDent.depth>0);assert.ok(h.currentDent.depth<=h.panel.t*.4);
+ assert.ok(r.p.position.distanceTo(position)<1e-9);assert.ok(h.currentDent.depth>0);assert.ok(h.currentDent.depth*h.inputScale<=.0035+1e-9);
  const local=new THREE.Vector3(at.x,at.y,0);assert.ok(h.surfaceZ(local)<h.panel.t);
  const translated=start.clone().add(new THREE.Vector3(.04,.01,-.02));r.step(0,translated,true);
  assert.ok(h.spot.distanceTo(at)<1e-9,'dent stays on the grabbed pane point');

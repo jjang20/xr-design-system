@@ -147,6 +147,7 @@ const VERT = /* glsl */`
 const FRAG = /* glsl */`
   uniform float uOpacity, uF0, uReflBlur, uEnvIntensity, uHasEnv, uKey, uKeySharp, uFar, uRimLight, uRimPower, uReflect, uReflColour;
   uniform float uBodyOpacity;
+  uniform float uGlowGain, uGlowSpread;
   uniform float uGlow, uGlowCore, uCoreWidth, uRing, uDentShadow, uDentLight, uDentSlope, uDentWidth, uLipAt, uLipWidth, uDentGlint;
   uniform vec4 uDent, uExtraDent[9];
   uniform float uExtraGlow[9];
@@ -238,6 +239,9 @@ const FRAG = /* glsl */`
     float core = exp(-dot(q, q) / (uCoreWidth * uCoreWidth));
     float near = exp(-length(q) * 1.2);
     vec3 glow = uGlowColor * contactGlow * (core * uGlowCore + rim * uRing * (0.15 + 0.85 * near));
+    // Optional lower-handle light envelope, independent of deformation.
+    // Narrow the rim as well as the core; no global rim floor leaks out.
+    glow *= uGlowGain * (uGlowSpread > 0.0 ? exp(-dot(q,q)/(uGlowSpread*uGlowSpread)) : 1.0);
     col += glow;
     alpha = max(alpha, clamp(dot(glow, vec3(0.333)), 0.0, 1.0));
     // The far wall reflects less (seen through the near one, at a slant).
@@ -290,6 +294,8 @@ export function makeBubble({ geometry = new THREE.SphereGeometry(1, 128, 96), pl
     uDentGlint: { value: B.dentGlint },
     uDentShadow: { value: E.dent.shadow * B.dentShadow },
     uGlow: { value: 0 },
+    uGlowGain: { value: 1 },
+    uGlowSpread: { value: 0 },
     uGlowCore: { value: E.glow.core * B.glowCore },
     uCoreWidth: { value: 0.1 },
     uRing: { value: E.glow.ring * B.glow },

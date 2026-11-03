@@ -253,6 +253,14 @@ export class Button extends Interactable {
   // slightly underdamped spring in update(), like a fluid-filled skin (see
   // docs/catalog-spec.md, "Bubble").
   get bulge() { return this.bz ?? 0; }
+  clearHoverFeedback() {
+    this.hovered = false; this.hoverBand.update(Infinity);
+    this.hoverT = this.hover = this.bz = this.bv = this.dz = this.dv = 0;
+    this.contactFeedbackStates?.clear(); this.contactDents = [];
+    this.skin.uniforms.uHover.value = 0;
+    if (this.variant === 'plain') this.skin.uniforms.uFade.value = 0;
+    this.face.scale.setScalar(1); this.layoutFront();
+  }
   // The press dent (metres deep, at dentAt in local coordinates), or null.
   get dent() {
     const D = DEFAULTS.look.emboss.dent;
@@ -314,7 +322,7 @@ export class Button extends Interactable {
       const t = clamp((0.15 * ramp - d) / ramp, 0, 1);
       const mask = t ** 3 * (t * (t * 6 - 15) + 10);
       const u = clamp(-d / Math.min(this.w / 2, this.h / 2), 0, 1);
-      return Math.max(0, bulge) * mask * Math.sqrt(1 - (1 - u) ** 2);
+      return Math.max(0, bulge) * mask * Math.sqrt(1 - (1 - u) ** 2) + (this.baseSurfaceOffset?.(p) ?? 0);
     }
     const height = this.beadH ?? this.t;
     return height + (this.lift ? this.lift * (this.hover ?? 0) : 0);

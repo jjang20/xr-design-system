@@ -243,6 +243,7 @@ export function glassBeadGeometry(diameter, height) {
 // share one raised skin, with independent contact wells and local light.
 const BULGE_GLSL = /* glsl */`
   uniform int uBulgeCount;
+  uniform float uBulgeOpacity[12]; // optional proximity-skin multiplier
   uniform vec4 uBulgeRect[12];   // centre xy, half size zw (local)
   uniform vec4 uBulgeParam[12];  // corner radius, height (signed), ramp width, front z (slot 0)
   uniform vec4 uBulgeDent[12];   // press dent: centre xy (local), radius, depth
@@ -299,6 +300,16 @@ const BULGE_GLSL = /* glsl */`
     }
     return s;
   }
+  float bulgeOpacity(vec2 p) {
+    float opacity = 1.0;
+    for(int i=0;i<12;i++) {
+      if(i>=uBulgeCount) break;
+      vec4 R=uBulgeRect[i], P=uBulgeParam[i];
+      float mask=smoothstep(0.0,0.25,bulgeT(p,R,P))*clamp(abs(P.y)/(0.0015*uBulgeScale),0.0,1.0);
+      opacity=min(opacity,mix(1.0,uBulgeOpacity[i],mask));
+    }
+    return opacity;
+  }
   float dentHAll(vec2 p) {
     float d=0.0; for(int i=0;i<12;i++) { if(i>=uBulgeCount) break; float v=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(v)>abs(d)) d=v; } return d;
   }
@@ -347,9 +358,8 @@ const GLASS_VERT = /* glsl */`
     vec3 pos = position;
     pos.z += bulgeH(position.xy) * vFront;
     #ifdef PANE_MANIPULATION
-    // Continuous through the rounded edge; back z=0 and silhouette stay
-    // fixed. Unlike a front-face mask this cannot split a bevel seam.
-    vPaneWeight = max(position.z,0.0)/uPaneThickness;
+    // Front, bevel and back bend together; no silhouette seam or thinning.
+    vPaneWeight = 1.0;
     pos.z += paneDentH(position.xy)*vPaneWeight;
     #endif
     vLocal = pos;
@@ -430,9 +440,8 @@ const GLASS_FRAG = /* glsl */`
       float pe=0.00015*uBulgeScale;
       vec2 pg=vec2(paneDentH(vLocal.xy+vec2(pe,0.0))-paneDentH(vLocal.xy-vec2(pe,0.0)),
                    paneDentH(vLocal.xy+vec2(0.0,pe))-paneDentH(vLocal.xy-vec2(0.0,pe)))/(2.0*pe)*vPaneWeight;
-      // Inverse transpose of z'=z*(1+h(x,y)/thickness). The depth bound
-      // keeps its determinant positive, including the rounded side.
-      float nz=dot(N,vAxisZ)/(1.0+paneDentH(vLocal.xy)/uPaneThickness);
+      // Inverse transpose of z'=z+h(x,y), determinant one.
+      float nz=dot(N,vAxisZ);
       N=normalize(vAxisX*(dot(N,vAxisX)-pg.x*nz)+vAxisY*(dot(N,vAxisY)-pg.y*nz)+vAxisZ*nz);
     }
     #endif
@@ -600,6 +609,9 @@ const GLASS_FRAG = /* glsl */`
     // Window front transparency is separate from text, side walls and the
     // raised interaction skin. Rear panes keep this multiplier at one.
     alpha *= mix(1.0, uFrontOpacity, step(0.5, vFront) * (1.0 - bub));
+    // After environment alpha and front-pane opacity: only the list's
+    // non-contact raised skin opts in. Text, icons and other glass do not.
+    if(vFront>0.5 && anyBulge()) alpha *= bulgeOpacity(vLocal.xy);
     if (alpha * uOpacity * uFade < 0.001) discard;
     gl_FragColor = vec4(col, alpha * uOpacity * uFade);
     #include <tonemapping_fragment>
@@ -648,6 +660,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uPaneEdgeFade: { value: t ?? T.get('material.thickness.regular') },
       uPaneThickness: { value: t ?? T.get('material.thickness.regular') },
       uBulgeCount: { value: 0 },
+      uBulgeOpacity: { value: Array(12).fill(1) },
       uBulgeRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uBulgeParam: { value: Array.from({length:12},(_,i)=>new THREE.Vector4(0,0,0,i===0 ? (t ?? T.get('material.thickness.regular')) : 0)) },
       uBulgeDent: { value: Array.from({length:12},()=>new THREE.Vector4()) },
@@ -726,9 +739,10 @@ export function setBehind(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, gap = 0, 
 // rises `height` metres over a rounded rect in local coordinates. `dent`
 // ({x, y, radius, depth}, metres) presses a dimple into it; `glow` (0 to 1)
 // lights it from the dent. `scale` grows the mm sizes with distance.
-export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, scale = 1, ramp = L.emboss.ramp * scale / 1000, dent, glow = 0 } = {}) {
+export function setBulge(m, i, { x = 0, y = 0, hw = 0, hh = 0, r = 0, height = 0, scale = 1, ramp = L.emboss.ramp * scale / 1000, dent, glow = 0, opacity = 1 } = {}) {
   if (height) m.uniforms.uBulgeScale.value = scale;   // clearing a slot keeps the other slot's scale
   m.uniforms.uBulgeRect.value[i].set(x, y, hw, hh);
+  m.uniforms.uBulgeOpacity.value[i] = opacity;
   const p = m.uniforms.uBulgeParam.value[i];
   p.set(r, height, ramp, p.w);
   m.uniforms.uBulgeCount.value = m.uniforms.uBulgeParam.value.findLastIndex(p=>p.y!==0)+1;
