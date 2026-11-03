@@ -303,7 +303,7 @@ export class Button extends Interactable {
   // Match the glass pillow's visible profile (core/look.js bulgeH1), not
   // the undeformed hit mesh hidden underneath it. Freeze the contact plane
   // during a press so its own dent/recovery cannot move the trigger.
-  surfaceZ(p) {
+  surfaceZ(p, bulge = this.bulge) {
     if (this.emboss) {
       const r = this.embossRadius;
       const qx = Math.abs(p.x) - this.w / 2 + r, qy = Math.abs(p.y) - this.h / 2 + r;
@@ -312,18 +312,18 @@ export class Button extends Interactable {
       const t = clamp((0.15 * ramp - d) / ramp, 0, 1);
       const mask = t ** 3 * (t * (t * 6 - 15) + 10);
       const u = clamp(-d / Math.min(this.w / 2, this.h / 2), 0, 1);
-      return Math.max(0, this.bulge) * mask * Math.sqrt(1 - (1 - u) ** 2);
+      return Math.max(0, bulge) * mask * Math.sqrt(1 - (1 - u) ** 2);
     }
     const height = this.beadH ?? this.t;
     return height + (this.lift ? this.lift * (this.hover ?? 0) : 0);
   }
 
-  faceDistance(p, radius = 0) {
+  faceDistance(p, radius = 0, front = this.surfaceZ(p)) {
     const dx = Math.max(0, Math.abs(p.x) - this.touchW / 2);
     const dy = Math.max(0, Math.abs(p.y) - this.touchH / 2);
     this.getInputScale(inputScale);
     return Math.max(0, Math.hypot(dx * inputScale.x, dy * inputScale.y,
-      Math.max(0, p.z - this.surfaceZ(p)) * inputScale.z) - radius);
+      Math.max(0, p.z - front) * inputScale.z) - radius);
   }
 
   inside(p, touch = false) {
@@ -341,10 +341,25 @@ export class Button extends Interactable {
   update(dt) {
     this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getInputScale(inputScale).z);
     const probes = this.consumeProbes();
+    // A list thumb must approach the skin itself. Remember the last
+    // separated profile per probe: another finger's growing pillow cannot
+    // engulf a stationary thumb and create hover, a dent or a click.
+    // A thumb approaching an already inflated row sees that visible profile.
+    const priorThumbProfiles = this.thumbProfiles;
+    const thumbProfiles = this.thumbContactOnly ? new Map() : null;
+    if (thumbProfiles) for (const p of probes) {
+      if (p.kind !== 'poke' || !p.id.endsWith(':thumb-tip')) continue;
+      const visible = this.surfaceZ(p.point);
+      const separated = p.point.z - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) > visible;
+      const bulge = separated ? this.bulge : priorThumbProfiles?.get(p.id)?.bulge ?? this.bulge;
+      thumbProfiles.set(p.id, { bulge, front: Math.min(visible, this.surfaceZ(p.point, bulge)) });
+    }
+    this.thumbProfiles = thumbProfiles;
+    const frontFor = p => thumbProfiles?.get(p.id)?.front ?? this.surfaceZ(p.point);
     // Respect explicit press gates on externally supplied probes too.
     const eligible = this.press.pressed ? probes : probes.filter(p => p.canPress !== false);
     const candidates = eligible.length ? eligible : probes;
-    const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point, p.radius);
+    const distance = p => p.kind === 'ray' ? (this.inside(p.point) ? 0 : Infinity) : this.faceDistance(p.point, p.radius, frontFor(p));
     const owner = this.press.pressed ? this.pressOwner : null;
     const { probe: best } = pickProbe(candidates, distance, owner);
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
@@ -367,7 +382,7 @@ export class Button extends Interactable {
     if (best && this.enabled) {
       inside = best.canPress !== false && this.inside(best.point, best.kind === 'poke');
       if (best.kind === 'poke') {
-        const front = this.press.pressed ? this.pokeFront : this.surfaceZ(best.point);
+        const front = this.press.pressed ? this.pokeFront : frontFor(best);
         if (this.emboss) separation = best.point.z - front - (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
         const offset = this.press.pressed ? (this.pokePressOffset ?? best.pressOffset ?? 0) : (best.pressOffset ?? 0);
         penetration = front - best.point.z + ((best.radius ?? 0) + offset) / Math.abs(this.getInputScale(inputScale).z);
@@ -381,7 +396,7 @@ export class Button extends Interactable {
     const ev = this.press.update(dt, penetration, inside, separation);
     if (ev === 'press') {
       this.pressOwner = best.id;
-      this.pokeFront = this.surfaceZ(best.point);
+      this.pokeFront = frontFor(best);
       this.pokePressOffset = best.pressOffset ?? 0;
       this.dispatchEvent({ type: 'press' });
     }
@@ -410,7 +425,7 @@ export class Button extends Interactable {
       const maxDepth = DEFAULTS.look.emboss.dent.depth * this.k / 1000;
       contactFeedback(this, this.enabled && !this.disabled ? probes : [], this.press.pressed ? this.pressOwner : null, dt, p => {
         if (!this.inside(p.point, true)) return null;
-        const gap = p.point.z - this.surfaceZ(p.point) - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
+        const gap = p.point.z - frontFor(p) - (p.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z);
         if (gap > 0 || p.point.z < -this.t) return null;
         return { x:p.point.x, y:p.point.y, z:0, radius: DEFAULTS.look.emboss.dent.width*this.k/2000/Math.sqrt(Math.LN2),
           depth: Math.min(maxDepth, .0003 + Math.max(0,-gap)), maxDepth };

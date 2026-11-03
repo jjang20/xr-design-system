@@ -93,3 +93,22 @@ test('R10: non-list embossed buttons retain existing thumb proximity',()=>{
  r.put(thumb,new THREE.Vector3(0,0,.04));for(let n=0;n<120;n++){r.scene.updateMatrixWorld(true);r.input.update();b.update(dt);}
  assert.equal(b.hovered,true);
 });
+
+for(const reduced of [false,true])test('R10: stationary thumb cannot acquire from another finger growing its row (reduced='+reduced+')',()=>{
+ const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:reduced});
+ try{
+  const r=rig(),row=r.rows[0],fixed=r.at(0,.002,.025);
+  r.put(thumb,fixed);r.step();r.put(index,r.at(0,.02,-.025));r.step(120);
+  assert.equal(row.press.pressed,false,'row inflation alone must not press a stationary thumb');
+  assert.equal(r.events.length,0);
+  r.src.hand.joints[index].visible=false;r.step(180);
+  assert.equal(row.hovered,false,'inflation must not give the stationary thumb a self-sustained hover');
+  assert.ok(Math.abs(row.bulge)<1e-6);
+  r.put(thumb,r.at(0,.025,.025));r.step();assert.equal(r.events.length,0);
+  // Reapproach the visible face while an independent index holds its inflation.
+  r.put(index,r.at(0,.02,-.025));r.put(thumb,r.at(0,.04,.025));r.step(120);
+  for(const gap of [.025,.01,.005,.001,-.001,-.003]){r.put(thumb,r.at(0,gap,.025));r.step();}
+  assert.equal(row.press.pressed,true);assert.equal(row.pressOwner,'xr0:thumb-tip');
+  r.put(thumb,r.at(0,.025,.025));r.step();assert.equal(r.events.filter(e=>e.type==='select').length,1);
+ }finally{if(previous)globalThis.matchMedia=previous;else delete globalThis.matchMedia;}
+});
