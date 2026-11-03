@@ -1,3 +1,4 @@
+import { PANE_DENT_GLSL } from './paneDent.js';
 // The Contour look: how surfaces, text, icons and light are drawn.
 // Behaviour comes from tokens; this file only decides appearance. Values that
 // are candidates for future tokens live in DEFAULTS.look.
@@ -253,6 +254,7 @@ const BULGE_GLSL = /* glsl */`
     vec2 q = abs(p) - b + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - r;
   }
+  ${PANE_DENT_GLSL}
   float bulgeD(vec2 p, vec4 R, vec4 P) { return sdRoundRect(p - R.xy, R.zw, P.x); }
   // 0 on the flat window, 1 on the crown.
   float bulgeT(vec2 p, vec4 R, vec4 P) {
@@ -281,9 +283,15 @@ const BULGE_GLSL = /* glsl */`
       height=max(height,bulgeH1(p,uBulgeRect[i],uBulgeParam[i]));
       float d=dentH(p,uBulgeRect[i],uBulgeParam[i],uBulgeDent[i]); if(abs(d)>abs(dent)) dent=d;
     }
-    return height+dent;
+    return height+dent+paneDentH(p);
   }
-  bool anyBulge() { return uBulgeCount>0; }
+  bool anyBulge() {
+    #ifdef PANE_MANIPULATION
+      return uBulgeCount>0 || uPaneDent.w>0.0;
+    #else
+      return uBulgeCount>0;
+    #endif
+  }
   // How much of the bubble's glossy skin covers p (0 to 1).
   float bulgeSkin(vec2 p) {
     float s = 0.0;
@@ -616,6 +624,9 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uContactStrength: { value: L.palmGlow.strength },
       uSpot: { value: new THREE.Vector2() },
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
+      uPaneDent: { value: new THREE.Vector4(0,0,.01,0) },
+      uPaneExtent: { value: new THREE.Vector3(w/2,h/2,r) },
+      uPaneEdgeFade: { value: t ?? T.get('material.thickness.regular') },
       uBulgeCount: { value: 0 },
       uBulgeRect: { value: Array.from({length:12},()=>new THREE.Vector4()) },
       uBulgeParam: { value: Array.from({length:12},(_,i)=>new THREE.Vector4(0,0,0,i===0 ? (t ?? T.get('material.thickness.regular')) : 0)) },

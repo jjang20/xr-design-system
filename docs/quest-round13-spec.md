@@ -7,3 +7,7 @@ Q69 requests press/held Glow while retaining accepted lower-sphere shape/pinch/r
 Q70 replaces separate side move bubbles with direct pane pinch and local pane depression while moving the whole stack. Corner sphere/arrow resize, input ownership, Q48/list/Push and rest pane appearance are retained. Q71 start-region answer is pending: prepare actual pane/input/shape paths without selecting edge-only or anywhere policy.
 
 Fixed regression and screen evidence, independent existing Spec/Standards/motion review precede the same Draft PR5/exact5187 update. Until then 7d preview remains. No merge, public deploy or automatic device collection. #12 same-device performance and #13 device acceptance stay open.
+
+## Preparation before Q71
+
+An unconnected WindowSurface target requires an explicit caller-supplied region predicate; no production start area is selected or wired yet. Its opt-in pane-local depression uses a separate shader uniform/profile, so row hover slots cannot erase it. CPU ray mesh and shader use the same front-only Gaussian with an edge fade. Prototype hold depth is 1.5 world mm capped to 40% of real local pane half-thickness, radius 18 world mm. These are bounded trial values, not user-selected constants. The current pane/side controls are unchanged until the Q71 decision and input integration.
