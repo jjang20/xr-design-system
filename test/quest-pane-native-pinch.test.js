@@ -62,3 +62,12 @@ test('R15 a stationary world-space hand does not accumulate window drift after t
  assert.ok(r.p.position.distanceTo(at)<1e-7);
  r.step(p,{gap:.04,world});assert.equal(r.p.controls.held,null);
 });
+for(const missing of ['thumb-tip','index-finger-tip'])test(`R15 ${missing} loss with a cached-joint pinchend still requires real reopening`,()=>{
+ const r=rig(),p=edge(r);gesture(r,p);assert.ok(r.p.controls.held);
+ const shifted=p.clone();shifted.y+=.035/r.scale;
+ r.step(shifted,{gap:.01,missing});assert.equal(r.p.controls.held,null);
+ assert.ok(r.events.some(e=>e.type==='pinchend'),'fixture exercises Three cached-pose event');
+ r.step(shifted,{gap:.02});assert.equal(r.p.controls.held,null,'dead-band separation is not a full reopening');
+ r.step(shifted,{gap:.01});assert.equal(r.p.controls.held,null,'new event from restored closed tips cannot rearm');
+ r.step(shifted,{gap:.04});r.step(shifted,{gap:.01});assert.ok(r.p.controls.held);
+});

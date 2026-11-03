@@ -63,6 +63,7 @@ export class InputSystem {
         // an existing hand's stale joints/grip as a controller.
         src.handSource = event.data ? !!event.data.hand : undefined;
         src.selecting = false; src.handPinching = false;
+        src.nativePinchActive = src.nativePinchBlocked = false;
         src.state = {}; src.pokeHistory = null; src.fingers?.clear();
       });
       ray.addEventListener('disconnected', () => { src.connected = false; src.selecting = false; src.handPinching = false; });
@@ -91,6 +92,7 @@ export class InputSystem {
     this.handPoints = [];
     for (const src of this.xr) {
       src.state = {}; src.resetBlocked = src.selecting || src.handPinching;
+      src.nativePinchBlocked ||= src.handPinching || src.nativePinchActive;
       src.pokeHistory = null; src.fingers = new Map();
       src.near.update(Infinity); src.line.visible = false;
     }
@@ -216,6 +218,20 @@ export class InputSystem {
         // Actual WebXR supplies hand identity on connected. The fallback also
         // supports synthetic sources whose first tracked joints identify them.
         if (src.handSource === undefined && src.hand.visible && Object.keys(src.hand.joints ?? {}).length) src.handSource = true;
+        if(src.handSource){
+          const index=src.hand.joints?.['index-finger-tip'],thumb=src.hand.joints?.['thumb-tip'];
+          const live=src.hand.visible && index?.visible && thumb?.visible &&
+            [index.position,thumb.position].every(p=>[p.x,p.y,p.z].every(Number.isFinite));
+          // Three can emit pinchend using a missing joint's cached position.
+          // That event is not evidence of opening. Preserve the loss latch
+          // from the preceding live gesture, even if this frame ends it.
+          if(!live && (src.nativePinchActive || src.handPinching))src.nativePinchBlocked=true;
+          // Match the installed controller's 20mm + 5mm release hysteresis,
+          // with two currently tracked joints in its reference-space units.
+          if(live && !src.handPinching && index.position.distanceTo(thumb.position)>.025)
+            src.nativePinchBlocked=false;
+          src.nativePinchActive=!!(live && src.handPinching);
+        }
         if (src.handSource && !src.hand.visible) {
           src.state = {}; src.pokeHistory = null; src.fingers?.clear();
           src.near.update(Infinity); src.resetBlocked ||= src.selecting || src.handPinching; continue;
@@ -223,6 +239,9 @@ export class InputSystem {
         if (src.resetBlocked) {
           if (src.selecting || src.handPinching) { src.pokeHistory = null; src.fingers?.clear(); continue; }
           src.resetBlocked = false;
+        }
+        if(src.nativePinchBlocked && !src.selecting){
+          src.state={};src.pokeHistory=null;src.fingers?.clear();continue;
         }
         // An existing manipulation owns its source through the release
         // frame too; an opening hand must not switch it to another panel.
@@ -327,7 +346,7 @@ export class InputSystem {
     let target = probes.find(({ item }) => item.grab?.id === src.id)?.item;
     // An explicit edge pinch may take ownership from content; proximity
     // alone cannot. Existing manipulations (including resize/Dock) win.
-    const trackedPinch = src.handSource && src.handPinching && src.hand.visible &&
+    const trackedPinch = src.handSource && src.handPinching && !src.nativePinchBlocked && src.hand.visible &&
       src.hand.joints?.['index-finger-tip']?.visible && src.hand.joints?.['thumb-tip']?.visible;
     if (!target && (src.selecting || trackedPinch)) {
       let nearest = DEFAULTS.dockRail.handleReach;
