@@ -7,14 +7,14 @@ import {ListSurfaceOpacity} from '../src/core/ListSurfaceOpacity.js';
 const T=createTokens(JSON.parse(readFileSync(new URL('../tokens.json',import.meta.url)))),dt=1/60;
 // Deliberately neither proposed Q78 sequence: structural fixture, not product defaults.
 const targets={idle:.21,hover:.31,pressed:.41};
-function rig(reduced=false,count=2){
+function rig(reduced=false,count=2,frameDt=dt){
  const scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera();scene.add(camera);
  const p=new PackagingPanel(T,{title:'Opacity fixture',items:Array.from({length:count},(_,i)=>({label:'Leaf '+i})),reducedMotion:reduced});p.scale.setScalar(1.5);scene.add(p);
- for(let i=0;i<120;i++){scene.updateMatrixWorld(true);p.update(dt);}scene.updateMatrixWorld(true);
+ for(let i=0;i<120;i++){scene.updateMatrixWorld(true);p.update(frameDt);}scene.updateMatrixWorld(true);
  const level=p.levels[0],rows=level.rows;level.listOpacity?.dispose();const opacity=level.listOpacity=new ListSurfaceOpacity(level.panel.skin,rows,targets);
  const group=()=>new THREE.Group(),input=new InputSystem({T,scene,camera,renderer:{domElement:{addEventListener(){}},xr:{isPresenting:true,getController:group,getControllerGrip:group,getHand:group}}});
  input.xr.forEach(s=>{s.connected=false;s.handSource=true;s.grip.visible=false;const tip=new THREE.Group();tip.jointRadius=.008;s.hand.add(tip);s.hand.joints={'index-finger-tip':tip};});
- const frame=()=>{scene.updateMatrixWorld(true);input.update();p.update(dt);scene.updateMatrixWorld(true);};
+ const frame=()=>{scene.updateMatrixWorld(true);input.update();p.update(frameDt);scene.updateMatrixWorld(true);};
  const hand=(n,row,gap,x=0)=>{const s=input.xr[n],tip=s.hand.joints['index-finger-tip'];s.connected=true;s.hand.visible=tip.visible=true;const point=new THREE.Vector3(x,0,0);point.z=(row.press.pressed?row.pokeFront:row.surfaceZ(point))+(.008+gap)/Math.abs(row.getWorldScale(new THREE.Vector3()).z);tip.position.copy(row.localToWorld(point));};
  const tick=(gap0,gap1)=>{if(gap0!==null)hand(0,rows[0],gap0);if(gap1!==null)hand(1,rows[1],gap1);frame();};
  const value=i=>opacity.texture.image.data[i];
@@ -53,4 +53,30 @@ test('R15 rear alpha gate restores legacy sheet and retained closing texture sur
  r.p.back(0);assert.equal(child.listOpacity.disposed,undefined);
  for(let i=0;i<180;i++)r.frame();assert.equal(child.listOpacity.disposed,true);assert.ok(r.level.panel.skin.uniforms.uListStateMix.value>.999999);
  r.p.dispose();assert.equal(r.opacity.disposed,true);
+});
+
+for(const reduced of [false,true])test('R15 early pressed alpha follows the eligible group member '+reduced,()=>{
+ const r=rig(reduced),a=r.rows[0];
+ for(let i=0;i<60;i++)r.tick(.04,null);
+ for(const g of [.04,.025,.015,.005])r.tick(g,null);
+ for(let i=0;i<90;i++)r.tick(.005,null);
+ assert.ok(a.press.pressed && !a.surfaceContact && a.groupHoverAllowed);
+ assert.ok(Math.abs(r.value(0)-targets.pressed)<1e-6);
+ // A different row wins non-contact proximity; the suppressed early press
+ // must not grant every row a pressed-alpha exception.
+ for(let i=0;i<90;i++)r.tick(.005,.0001);
+ assert.ok(!a.groupHoverAllowed && !a.groupContacted);
+ assert.ok(Math.abs(r.value(0)-targets.idle)<1e-6);
+});
+for(const reduced of [false,true])for(const hz of [30,60,90])test('R15 contact release directly recovers to hover '+reduced+' '+hz,()=>{
+ const r=rig(reduced,2,1/hz),a=r.rows[0];
+ for(const g of [.04,.025,.015,.005,-.003])r.tick(g,null);
+ for(let i=0;i<120;i++)r.tick(-.003,null);
+ const events=[];for(const type of ['release','cancel','select'])a.addEventListener(type,()=>events.push(type));
+ r.hand(0,a,.04);let previous=r.value(0);
+ for(let i=0;i<120;i++){
+  r.frame();assert.ok(a.hovered && a.groupHoverAllowed);
+  assert.ok(r.value(0)>=targets.hover-1e-6 && r.value(0)<=previous+1e-6);previous=r.value(0);
+ }
+ assert.deepEqual(events,['release','select']);assert.ok(Math.abs(previous-targets.hover)<1e-6);
 });

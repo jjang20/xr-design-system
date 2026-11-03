@@ -355,7 +355,7 @@ export class Button extends Interactable {
     if (!this.enabled || this.disabled || (this.press.pressed && this.groupContacted)) return Infinity;
     let nearest = Infinity;
     const reach = this.hoverBand.on ? this.hoverBand.exit : this.hoverBand.enter;
-    for (const p of this.probes) {
+    for (const p of this.pendingFeedback?.probes ?? this.probes) {
       if (p.allowHover === false) continue;
       if (p.kind === 'ray') {
         if (this.inside(p.point) && !p.pressed) nearest = 0;
@@ -368,6 +368,13 @@ export class Button extends Interactable {
   }
 
   update(dt) {
+    this.updatePress(dt);
+    this.updateFeedback(dt);
+  }
+
+  // A list settles all press/release events before choosing one hover peer.
+  // Standalone buttons retain the same press -> feedback order via update().
+  updatePress(dt) {
     this.press.release = this.T.get('input.poke.distance.release') / Math.abs(this.getInputScale(inputScale).z);
     const probes = this.consumeProbes();
     const priorBaseProfiles = this.baseInputProfiles;
@@ -457,6 +464,12 @@ export class Button extends Interactable {
     else this.groupContacted ||= best?.kind === 'ray' || (best && distance(best) === 0 &&
       this.inside(best.point, true) && best.point.z + (best.radius ?? 0) / Math.abs(this.getInputScale(inputScale).z) >= -this.t);
 
+    this.pendingFeedback={probes,best,distance,frontFor};
+  }
+
+  updateFeedback(dt) {
+    const {probes,best,distance,frontFor}=this.pendingFeedback;
+    this.pendingFeedback=null;
     // Resolve release/cancel before granting a contact feedback exception.
     // Press eligibility cannot hide a closer hand's proximity feedback.
     const hoverProbes = probes.filter(p => (p.allowHover !== false && this.groupHoverAllowed !== false) ||

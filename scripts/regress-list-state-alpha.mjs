@@ -54,15 +54,18 @@ try{
   }
   sample('idle',targets.idle);
   for(let i=0;i<120;i++){position=rowAt(.04);frame();}sample('hover',targets.hover);
-  for(const g of [.025,.015,.005,-.003]){position=rowAt(g);frame();}
+  for(const g of [.025,.015,.005]){position=rowAt(g);frame();}
+  for(let i=0;i<120;i++){position=rowAt(.005);frame();}sample('early-pressed',targets.pressed);
+  position=rowAt(-.003);frame();
   for(let i=0;i<120;i++){position=rowAt(-.003);frame();}sample('pressed',targets.pressed);
+  position=rowAt(.04);const releaseAlpha=[];for(let i=0;i<120;i++){frame();releaseAlpha.push(l.listOpacity.values[0]);}sample('release-hover',targets.hover);
   position=null;for(let i=0;i<180;i++)frame();sample('restored',targets.idle);
   position=h.localToWorld(new THREE.Vector3(h.panel.w/2+.003/h.inputScale,0,h.panel.t+.004/h.inputScale));gap=-.04;frame();gap=-.01;for(let i=0;i<30;i++)frame();sample('native-edge-held',targets.idle);
   const before=p.position.clone();position.add(new THREE.Vector3(.03,0,0));frame();const moved=p.position.distanceTo(before);
   gap=-.04;frame();const released=!p.controls.held;position=null;for(let i=0;i<180;i++)frame();sample('native-restored',targets.idle);
   const u=l.panel.skin.uniforms,saved=[u.uOpacity.value,u.uFade.value];u.uOpacity.value=.5;u.uFade.value=.4;sample('isolated-group-fade',targets.idle*.2);u.uOpacity.value=saved[0];u.uFade.value=saved[1];
   const native={events,moved,released},texture=l.listOpacity.texture;let disposed=0;texture.addEventListener('dispose',()=>disposed++);p.dispose();renderer.dispose();
-  return{targets,traces,images,native,disposed};
+  return{targets,traces,images,native,disposed,releaseAlpha};
  },{root,mode,fixture});
  for(const[name,png]of Object.entries(data.images))await writeFile(`${out}/${mode}-${reduced?'reduced':'normal'}-${name}.png`,Buffer.from(png.split(',')[1],'base64'));delete data.images;
  result.data=data;const label=data.traces[0].labels,outside=data.traces[0].outside[3];
@@ -74,6 +77,8 @@ try{
  }
  result.checks.push({name:'hover fixture has no actual contact/press',pass:data.traces.find(t=>t.state==='hover').hover&&!data.traces.find(t=>t.state==='hover').pressed&&!data.traces.find(t=>t.state==='hover').contact});
  result.checks.push({name:'actual joint-derived finite edge acquisition/move/release',pass:data.traces.find(t=>t.state==='native-edge-held').held&&Math.abs(data.native.moved-.03)<1e-7&&data.native.released&&data.native.events.includes('pinchstart')&&!data.native.events.includes('selectstart')});
+ result.checks.push({name:'release-hover no idle dip',pass:data.releaseAlpha.every((v,i)=>v>=data.targets.hover-1e-6&&v<=data.targets.pressed+1e-6&&(!i||v<=data.releaseAlpha[i-1]+1e-6))});
+ result.checks.push({name:'early pressed selected alpha',pass:data.traces.find(t=>t.state==='early-pressed').pressed&&!data.traces.find(t=>t.state==='early-pressed').contact});
  result.checks.push({name:'texture disposed',pass:data.disposed===1});
  result.checks.push({name:'browser errors',pass:result.errors.length===0});
  if(result.checks.some(x=>!x.pass))process.exitCode=1;

@@ -37,7 +37,7 @@ export class ListSurfaceOpacity {
   update(dt,{reduced=false,forceIdle=false}={}){
     let changed=false;
     this.rows.forEach((row,i)=>{
-      const pressed=row.enabled && !row.disabled && (row.surfaceContact || row.press.pressed && row.groupContacted);
+      const pressed=row.enabled && !row.disabled && (row.surfaceContact || row.press.pressed && (row.groupHoverAllowed !== false || row.groupContacted));
       const hovered=row.enabled && !row.disabled && row.hovered;
       const state=forceIdle?'idle':pressed?'pressed':hovered?'hover':'idle';
       const target=this.targets[state], current=this.values[i];

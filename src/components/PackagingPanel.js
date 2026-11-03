@@ -540,8 +540,9 @@ export class PackagingPanel extends THREE.Group {
         l.palmGlowHold = Math.max(0, l.palmGlowHold - dt);
       } else l.palmGlow = (l.palmGlow ?? 0) * Math.exp(-dt / DEFAULTS.look.palmGlow.recovery);
       l.panel.skin.uniforms.uContactGlow.value = l.palmGlow;
+      l.rows.forEach(r => r.updatePress(dt));
       l.hoverGroup.update();
-      l.rows.forEach(r => r.update(dt));
+      l.rows.forEach(r => r.updateFeedback(dt));
       // Manipulation already cancelled actions above. Also remove the
       // outgoing row skin in this frame: its spring otherwise swells over
       // the grabbed edge for another ~0.2 s. Other groups keep their motion.
