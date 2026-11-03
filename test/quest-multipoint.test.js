@@ -30,6 +30,31 @@ function iconPoint(r,icon,degrees,gap){
 
 function rowPoint(r,row,x,gap){r.scene.updateMatrixWorld(true);const p=new THREE.Vector3(x,0,0),front=row.press.pressed?row.pokeFront:row.surfaceZ(p);p.z=front+(.008+gap)/Math.abs(row.getWorldScale(new THREE.Vector3()).z);return row.localToWorld(p);}
 
+for(const reduced of [false,true])test('R11 Dock: one proximity bubble/name with neighbour magnification, real contacts survive '+reduced,()=>{
+ const previous=globalThis.matchMedia;globalThis.matchMedia=()=>({matches:reduced});
+ try{
+  const r=rig('dock'),d=r.obj,a=d.icons[2],b=d.icons[4];
+  const tick=(ga,gb)=>{r.hand(0,iconPoint(r,a,0,ga));r.hand(1,iconPoint(r,b,0,gb));r.frame();};
+  for(let i=0;i<180;i++)tick(.04,.055);
+  assert.equal(d.icons.filter(i=>i.hovered).length,1);
+  assert.equal(d.icons.filter(i=>i.nameTag.visible).length,1);
+  assert.ok(a.hovered);assert.equal(b.bubble.visible,false);
+  assert.ok(d.scales.every(Number.isFinite));
+  for(let n=0;n<90;n++){tick(.03,.03+(n%2?.0003:-.0003));assert.ok(a.hovered,'near tie retains current');}
+  for(let n=0;n<180;n++)tick(.05,.015);
+  assert.equal(a.hovered,false);assert.equal(b.hovered,true);
+  for(const gap of [.04,.025,.015,.005,-.003])tick(gap,gap);
+  for(let n=0;n<60;n++)tick(-.003,-.003);
+  assert.ok(a.press.pressed&&b.press.pressed);assert.ok(a.hovered&&b.hovered);
+  assert.ok(a.skin.uDent.value.w>0&&b.skin.uDent.value.w>0);
+  tick(.025,-.003);assert.equal(r.events.length,1);
+  tick(.025,.025);assert.equal(r.events.length,2);
+  assert.equal(d.icons.filter(i=>i.hovered).length<=1,true,'release restores one active proximity slot');
+  r.lose(0);r.lose(1);for(let n=0;n<180;n++)r.frame();
+  assert.equal(d.icons.some(i=>i.nameTag.visible||i.bubble.visible),false);
+ }finally{globalThis.matchMedia=previous;}
+});
+
 for(const kind of ['window','dock'])test('R7: distinct '+kind+' items execute independently through InputSystem',()=>{
  const r=rig(kind),controls=kind==='dock'?r.obj.icons:r.obj.levels.at(-1).rows, a=kind==='dock'?2:0,b=kind==='dock'?4:1;
  const point=(n,gap)=>kind==='dock'?iconPoint(r,controls[n?a:b],0,gap):rowPoint(r,controls[n?a:b],0,gap);
@@ -173,4 +198,16 @@ for(const owner of [0,1])test('R7: plate primary dent stays at owner '+owner+' u
  assert.equal(d.shelf.pressOwner,'xr'+owner);assert.ok(d.plateDentAt.x*sign>0,'hover at opposite pad cannot move primary dent');
  assert.ok(d.shelf.contactDents.some(c=>c.id==='xr'+other&&c.x*sign<0));
  r.sources[other].src.selecting=true;r.frame();assert.equal(d.grip.held?.id,'xr'+other);assert.ok(d.plateDentAt.x*sign<0,'explicit pinch transfers feedback to held owner');
+});
+
+// The default .4m fixture's existing 100mm bubble-formation clamp exceeds
+// its 40mm magnification radius. Expand only this test radius to exercise
+// the independent spatial path without changing product tokens or defaults.
+test('R11 Dock: group hover leaves neighbour magnification independent',()=>{
+ const r=rig('dock'),d=r.obj;d.radius=.30;
+ for(let n=0;n<180;n++){
+  r.hand(0,iconPoint(r,d.icons[2],0,.04));r.hand(1,iconPoint(r,d.icons[4],0,.055));r.frame();
+ }
+ assert.equal(d.icons.filter(i=>i.hovered).length,1);
+ assert.ok(d.icons.some((i,n)=>!i.hovered&&d.scales[n]>1.01));
 });

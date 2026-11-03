@@ -48,6 +48,7 @@ import { DockIcon } from './DockIcon.js';
 import { BubbleHandle } from './BubbleHandle.js';
 import { DockRail } from '../core/DockRail.js';
 import { Hysteresis } from '../core/Hysteresis.js';
+import { HoverGroup } from '../core/HoverGroup.js';
 import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
 
 export { magnifyScale, LazyFollow };
@@ -93,6 +94,7 @@ export class Dock extends THREE.Group {
       this.level.add(icon);
       return icon;
     });
+    this.hoverGroup = new HoverGroup(this.icons);
     this.side = this.icons[0].side;
     const P = DEFAULTS.look.dockPlate;
     // Past the last app the plate is the handle: its end runs on this far,
@@ -620,8 +622,10 @@ export class Dock extends THREE.Group {
     });
     this.icons.forEach(icon => {
       icon.probes=icon.probes.filter(p=>routes.get(p.id)?.icon===icon);
-      icon.sense(); icon.exclusive = !this.gripping && !placing; icon.update(dt);
+      icon.sense(); icon.exclusive = !this.gripping && !placing;
     });
+    this.hoverGroup.update();
+    this.icons.forEach(icon => icon.update(dt));
     this.layout();
     this.lightPress();
     // The mirror images fade with depth below the shelf's top (world plane).

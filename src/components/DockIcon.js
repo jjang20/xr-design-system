@@ -146,6 +146,21 @@ export class DockIcon extends Interactable {
     return distance;
   }
 
+  // Q63 limits proximity bubble/name/glyph feedback, not the Dock's
+  // independent spatial magnification or real contact ownership.
+  proximityDistance() {
+    if (!this.enabled || !this.exclusive || (this.press.pressed && this.press.contacted)) return Infinity;
+    let nearest=Infinity;
+    const reach=this.hoverBand.on ? this.hoverBand.exit : this.hoverBand.enter;
+    for(const p of this.frameProbes ?? []) {
+      if(p.allowHover===false)continue;
+      if(p.kind==='ray'){if(!p.pressed)nearest=0;continue;}
+      const gap=(p.point.distanceTo(this.centre)-this.rb)*this.inputScale-(p.radius??0);
+      if(gap>0 && gap<reach)nearest=Math.min(nearest,gap);
+    }
+    return nearest;
+  }
+
   update(dt) {
     const B = DEFAULTS.look.dockBubble, E = DEFAULTS.look.emboss;
     const scale = this.inputScale;
@@ -153,7 +168,6 @@ export class DockIcon extends Interactable {
     const best = this.exclusive ? this.best : null;
     if (!this.press.pressed && best?.kind === 'poke' && this.probeId !== best.id) this.press.lastPenetration = this.press.lastSeparation = null;
     this.probeId = best?.id;
-    this.hovered = this.exclusive && this.hoverBest?.kind === 'ray' ? true : this.hoverBand.update(this.exclusive ? this.hoverDistance : Infinity);
     // Press: a finger pushes the skin in by how far it is inside it; a
     // ray press pushes it all the way.
     let penetration = null, inside = false, separation = null;
@@ -192,6 +206,19 @@ export class DockIcon extends Interactable {
     if (ev === 'press') { this.pressDirection = this.spot.clone(); this.pressOwner = best.id; this.dispatchEvent({ type: 'press' }); }
     if (ev === 'release') { this.dispatchEvent({ type: 'release' }); this.dispatchEvent({ type: 'select' }); }
     if (ev === 'cancel') this.dispatchEvent({ type: 'cancel' });
+
+    // Resolve release before deciding whether an acquired real contact
+    // may coexist with the group's single non-contact hover.
+    const hoverProbes=this.exclusive ? this.frameProbes.filter(p=>
+      (p.allowHover!==false && this.groupHoverAllowed!==false) ||
+      (this.press.pressed && this.press.contacted && p.id===this.pressOwner) ||
+      (p.kind==='ray' && p.pressed && p.captured) ||
+      (p.kind==='poke' && p.point.z>this.centre.z &&
+        (p.point.distanceTo(this.centre)-this.rb)*scale <= (p.radius??0))) : [];
+    const hover=pickProbe(hoverProbes,p=>p.kind==='ray'?0:
+      Math.max(0,(p.point.distanceTo(this.centre)-this.rb)*scale-(p.radius??0)));
+    this.hovered=hover.probe?.kind==='ray' ? true : this.hoverBand.update(hover.distance);
+    if(!hover.probe)this.hoverBand.update(Infinity);
 
     // The bubble forms with a small settle (emboss response and damping)
     // and goes without one. Reduced motion: no settle.
@@ -235,7 +262,7 @@ export class DockIcon extends Interactable {
     u.uLipWidth.value = B.lipWidth * this.k / 1000 / this.rb;   // mm, like the dent
     u.uCoreWidth.value = E.glow.coreRadius * this.k / 1000 / this.rb;
     u.uGlow.value = Math.max(this.dent.x > 0 ? Math.min(1, this.dent.x / this.dentMax) : 0,
-      this.press.pressed ? E.glow.contact : 0);
+      this.press.pressed && on ? E.glow.contact : 0);
     u.uSquash.value = B.squash * this.dent.x / this.dentMax;
     // The object rises to the bubble's middle, and when pressed gives way
     // with the skin: it moves back from the finger and shrinks a touch.
