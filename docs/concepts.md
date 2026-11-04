@@ -22,29 +22,30 @@ Seven components that break in XR were analysed. They break for three reasons, a
 
 ## The concepts behind the tokens
 
-### Thickness `material.t`
-Every real object has thickness, so every element has a `t` value (4, 8 or 16 mm). Rendering cost is negligible.
+### Thickness `material.thickness`
+Every real object has thickness, so every element has a thickness (thin 4, regular 8 or thick 16 mm). Rendering cost is negligible.
 
-The hidden payoff: once things have thickness, **pressing means compressing the object**. Press depth stops being an arbitrary animation value and becomes a fraction of `t`. Change the thickness and the press scales with it.
+The hidden payoff: once things have thickness, **pressing means compressing the object**. Press depth stops being an arbitrary animation value and becomes a fraction of the thickness. Change the thickness and the press scales with it.
 
-### Density and the press ratio `material.density`
-Density turns the material into an interaction profile. A dense object presses less and springs back fast; a soft one presses deep and recovers slowly.
+### Firmness and the press ratio `material.firmness`
+Firmness turns the material into an interaction profile. (It was called density until v0.2; "density" means compact layout in Material 3 and Meta, so it was renamed.) A dense object presses less and springs back fast; a soft one presses deep and recovers slowly.
 
-| Density | Press (fraction of t) | Recover | Use |
+| Firmness | Press depth (fraction of thickness) | Recovery (`motion.recovery.*`) | Use |
 |---|---|---|---|
 | soft | 0.6 t | 220 ms | deep press, slow return |
 | firm | 0.4 t | 140 ms | default |
 | rigid | 0.15 t | 80 ms | disabled and structural elements |
 
-So a firm button that is 8 mm thick presses 0.4 × 8 = 3.2 mm. Recovery timing belongs to the material; there is no separate `motion.recover` value.
+So a firm button that is 8 mm thick presses 0.4 × 8 = 3.2 mm. Each firmness has its own recovery time in `motion.recovery.<firmness>.duration`.
 
-### Hysteresis (proximity)
-XR has no click, so a touch only exists once a distance is defined. With a single threshold, a hand hovering near it makes the state flicker. Hysteresis draws a different line for entering (100 dmm) and leaving (140 dmm); inside the band the state keeps whatever it was. The same pattern repeats for poke release (3 mm retreat) and the near/far switch (±50 mm).
+### Hysteresis (`input`)
+XR has no click, so a touch only exists once a distance is defined. With a single threshold, a hand hovering near it makes the state flicker. Hysteresis draws a different line for entering (100 mm) and leaving (140 mm); inside the band the state keeps whatever it was. The same pattern repeats for poke release (3 mm retreat) and the direct-touch switch (enter 350 mm, exit 400 mm). Every pair is named by its edges: `distance.enter` and `distance.exit`.
 
-### Units: dmm, deg, mm
-- **dmm** (distance-independent millimetre) is mm at 1 m away, scaled with the real distance. It is the `rem` of XR: rem is relative to font size, dmm is relative to how far away the UI is, so a 60 dmm button looks the same size (about 3.4°) at any distance.
+### Units: vpt, m, deg
+Before writing a number, ask "eye or hand?"
+- **vpt** (view point) is for everything the eye judges: sizes, spacing, type, outline and glow widths. 1 vpt is 0.75 mm of real size per metre of viewing distance (0.75 dmm, about 0.043°), so an 80 vpt button looks the same size at any distance, and mobile-style numbers (16 body, 40 button, 64 target, an 8 grid) work. Real size (m) = vpt × 0.00075 × f(d). `d` is measured once, when the panel is placed; `f(d)` grows half as fast past 1.75 m. In Figma, 1 px = 1 vpt.
+- **m** is for everything the hand or body reaches: hover and poke distances, thickness, the 22 mm fingertip floor, zone distances. Stored in metres; docs and Figma show cm, or mm below 1 cm.
 - **deg** is an angle from the viewer's eye, for things like how far down a menu may extend.
-- **mm** is a real physical size, for things the hand touches, like thickness.
 
 ### Packaging
 Packaging is the project owner's own term and the spine of the system. The question is not the list itself but what happens after you press a row. Sliding a new screen in from the side feels wrong when there is no frame. Instead, the next view comes out of the current object, like a box inside a box, a letter in an envelope, or a matryoshka doll.
@@ -67,7 +68,7 @@ Every XR OS ships a home screen, and home screens force horizontal scrolling. Co
 
 - **Anchor**: body-lock. Head-lock is a sticker on your glasses (always visible, annoying, causes sickness). World-lock is a picture on the wall (natural, but lost when you turn). Body-lock is a bag strapped to your waist: it stays put when you turn your head, and follows when your body turns.
 - **Lazy follow**: the dock starts following 350 ms after the body turns, with critical damping (no wobble). The real cost of the dock is tuning this follow, not the magnify maths: wrong values are the top cause of motion sickness, and they can only be tuned on a headset.
-- **Hand magnify**: icons grow as the hand approaches (250 dmm radius, up to 1.6×, cosine falloff). In 2D, macOS dock magnify is decoration. In XR it becomes a Fitts's-law aid: targets grow before you reach them.
+- **Hand magnify**: icons grow as the hand approaches (133⅓ vpt radius (the recovered 100 dmm), up to 1.2×, cosine falloff; the lookdev’s single-icon focus). In 2D, macOS dock magnify is decoration. In XR it becomes a Fitts's-law aid: targets grow before you reach them.
 
 The dock is the only component that proves axis (b).
 
@@ -77,7 +78,7 @@ A slider that moves along Z (push and pull) instead of X, like the air vents in 
 Two honest risks: people judge their own hand's depth poorly, and the hand covers the control because it moves along the line of sight. The design answer is depth cues (a contact shadow that grows with push depth), **detents** (a tick every 1/10 of the range, as audio at -18 dB because hands have no haptics), and showing the value beside the hand instead of under it.
 
 ### MR-first and adaptive contrast
-Mixed reality was chosen over full VR. Because the background cannot be controlled, colour becomes the core of the system. Contour surfaces are not glass: they are opaque by default (0.92), a scrim appears behind them when contrast drops below 3:1, and a 1 dmm high-contrast outline keeps edges visible on bright walls and busy shelves.
+Mixed reality was chosen over full VR. Because the background cannot be controlled, colour becomes the core of the system. Contour surfaces are not glass: they are opaque by default (0.92), a scrim appears behind them when contrast drops below 3:1, and a 1 vpt high-contrast outline keeps edges visible on bright walls and busy shelves.
 
 ## Lineup and scope
 
@@ -96,7 +97,7 @@ Text input, scrolling, the hierarchy of attention in space (what replaces toast 
 |---|---|---|
 | Packaging | A new view comes out of the current object, like a box inside a box | Transition where content enters or exits an object instead of sliding in from outside |
 | State matrix explosion | One button's wardrobe multiplies until the closet bursts | States multiply as modality × distance × state × feedback channel |
-| dmm | A ruler that draws far things bigger so they look the same size | mm at 1 m, scaled with placement distance |
+| vpt | A ruler that draws far things bigger so they look the same size | 0.75 mm at 1 m (0.75 dmm), scaled with placement distance |
 | Hysteresis | Different lines for coming in and going out, so the light doesn't flicker at the door | Separate enter and exit thresholds to stop boundary flicker |
 | Detent | The click-click you feel turning a dial | Discrete step points; Z-Slider's stand-in for haptics |
 | Lazy follow | A dog that follows you, a little late | Body-lock follow with delay and damping |

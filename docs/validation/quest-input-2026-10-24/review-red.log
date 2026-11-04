@@ -1,0 +1,138 @@
+TAP version 13
+# Subtest: Quest: one fingertip hovers only the nearest adjacent control
+ok 1 - Quest: one fingertip hovers only the nearest adjacent control
+  ---
+  duration_ms: 39.368042
+  type: 'test'
+  ...
+# Subtest: Quest: fingertip contact presses before the tracked joint passes through the face
+ok 2 - Quest: fingertip contact presses before the tracked joint passes through the face
+  ---
+  duration_ms: 4.104083
+  type: 'test'
+  ...
+# Subtest: Quest: an inflated row presses at its visible crown
+ok 3 - Quest: an inflated row presses at its visible crown
+  ---
+  duration_ms: 33.594125
+  type: 'test'
+  ...
+# Subtest: Quest: extending the Z-Slider away from its base increases the percentage
+ok 4 - Quest: extending the Z-Slider away from its base increases the percentage
+  ---
+  duration_ms: 90.542125
+  type: 'test'
+  ...
+# Subtest: Quest: two hands can hover separate controls without one finger lighting both
+ok 5 - Quest: two hands can hover separate controls without one finger lighting both
+  ---
+  duration_ms: 10.271625
+  type: 'test'
+  ...
+# Subtest: Quest: physical fingertip radius and release distance survive component scale
+ok 6 - Quest: physical fingertip radius and release distance survive component scale
+  ---
+  duration_ms: 10.05175
+  type: 'test'
+  ...
+# Subtest: Quest: replacing a hovering hand with one behind the face does not fabricate contact
+ok 7 - Quest: replacing a hovering hand with one behind the face does not fabricate contact
+  ---
+  duration_ms: 4.812458
+  type: 'test'
+  ...
+# Subtest: Quest: slider capture survives a second hand and tracking loss leaves the value still
+ok 8 - Quest: slider capture survives a second hand and tracking loss leaves the value still
+  ---
+  duration_ms: 50.727084
+  type: 'test'
+  ...
+# Subtest: Quest: hover chooses between a slider and an adjacent button
+ok 9 - Quest: hover chooses between a slider and an adjacent button
+  ---
+  duration_ms: 48.38575
+  type: 'test'
+  ...
+# Subtest: Quest: Catalog corner does not press ahead of its rendered crown
+not ok 10 - Quest: Catalog corner does not press ahead of its rendered crown
+  ---
+  duration_ms: 254.957417
+  type: 'test'
+  location: '/Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:115:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    1 mm is still ahead of the visible corner
+    
+    true !== false
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: false
+  actual: true
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:126:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Quest: scaled sliders preserve physical hover distances
+not ok 11 - Quest: scaled sliders preserve physical hover distances
+  ---
+  duration_ms: 50.452458
+  type: 'test'
+  location: '/Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:131:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    false !== true
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:140:24)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: Quest: scaled small sliders retain the 22 mm fingertip floor
+not ok 12 - Quest: scaled small sliders retain the 22 mm fingertip floor
+  ---
+  duration_ms: 44.826958
+  type: 'test'
+  location: '/Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:145:1'
+  failureType: 'testCodeFailure'
+  error: 'a finger 10 mm off centre can push the small knob'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///Users/jony/Documents/ai-workspace/xr-design-system-integration/test/quest-input.test.js:150:12)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1047:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:744:18)
+    Test.postRun (node:internal/test_runner/test:1173:19)
+    Test.run (node:internal/test_runner/test:1101:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 9
+# fail 3
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 823.613375

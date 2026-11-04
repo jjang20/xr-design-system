@@ -1,0 +1,9 @@
+# R17 local pane thickness and relative list states
+
+Q82 accepts the current grab, visible dent and local Glow and requests that only the pinched part become thinner. Q83 replaces R16 offsets with idle0, hover+.06 and pressed+.10 from the original same-position pane baseline. The example85→91→95 is not a fixed baseline. The existing RGB/mask, depth/group/fade and content contracts remain.
+
+The bounded thickness trial retains the28mm physical footprint,3.5mm maximum bend, clearance cap,90ms response and existing Glow. It uses a compact C2 kernel s=.35*held*(max(0,1-distance²/radius²))³, and z'=z+h+(front-z)*s. Here front is the actual rest mesh maximumZ (the extruded bevel includes a10µm minimum middle section), not nominal material thickness. The actual front and its Gaussian bend are unchanged; the back and bevel approach it locally. Outside the footprint s is exactly0, and release/loss restores it. The35% maximum reduction is an engineering trial, not a user-selected amount. The map has positive Jacobian1-s≥.65, reducing local-Z separation without promising constant normal-direction thickness or volume.
+
+CPU hit triangles and GPU vertices use the same rest-coordinate map. Bounds include either negative bend or positive back motion when clearance is zero. The shader uses the inverse-transpose map, preserving the full independent row-bulge slope during recovery. Native pinch/semantic events, surface eligibility, ownership, edge-only capture, corner resize, navigation and Push are unchanged.
+
+Q77 sphere Glow/shape/recovery/no-stamp, current Dock behavior and non-row Current remain frozen. Browser/native verification and independent reviews are recorded against exact commits in the external R17 handoff. They are not new Quest acceptance or same-device CPU/GPU performance evidence. Existing historical failures remain preserved.

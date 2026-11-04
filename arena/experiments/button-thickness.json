@@ -14,9 +14,9 @@
     "note": "Values the scene needs that are not tokens yet (distance, headset pixel density, background). Change them here, never in tokens.json."
   },
   "variants": {
-    "t-6mm": { "material.t.regular": 6 },
+    "t-6mm": { "material.thickness.regular": 0.006 },
     "t-8mm": {},
-    "t-12mm": { "material.t.regular": 12 }
+    "t-12mm": { "material.thickness.regular": 0.012 }
   },
   "baseline": "t-8mm"
 }

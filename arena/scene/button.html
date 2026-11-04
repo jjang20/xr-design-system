@@ -99,7 +99,7 @@ function buildScene(p, fixtures, state) {
     const hover = active ? state.hover : 0;
     const x = (i - 1) * (b.face + b.gap * 2);
 
-    // Press compresses the material: depth = density press ratio x thickness.
+    // Press compresses the material: depth = firmness pressDepth ratio x thickness.
     const depth = b.t * (1 - b.pressRatio * push);
     const btn = new THREE.Mesh(
       new RoundedBoxGeometry(b.face, b.face, b.t, 4, Math.min(BEVEL, b.t / 2)),
@@ -119,7 +119,7 @@ function buildScene(p, fixtures, state) {
     shadow.position.set(x, -b.face * 0.06, 0.0002);
     ui.add(shadow);
 
-    // Hover: an edge glow of width feedback.glow.edge around the face, drawn
+    // Hover: an edge glow of width material.glow.width around the face, drawn
     // as a flat ring just behind the button's front face.
     if (hover > 0) {
       const glow = new THREE.Mesh(
