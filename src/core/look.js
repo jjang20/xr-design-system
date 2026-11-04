@@ -349,7 +349,7 @@ const GLASS_VERT = /* glsl */`
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
   #ifdef PANE_MANIPULATION
-  varying float vPaneWeight;
+  varying float vPaneRestZ;
   #endif
   ${BULGE_GLSL}
   void main() {
@@ -358,9 +358,8 @@ const GLASS_VERT = /* glsl */`
     vec3 pos = position;
     pos.z += bulgeH(position.xy) * vFront;
     #ifdef PANE_MANIPULATION
-    // Front, bevel and back bend together; local-Z separation is preserved.
-    vPaneWeight = 1.0;
-    pos.z += paneDentH(position.xy)*vPaneWeight;
+    vPaneRestZ = position.z;
+    pos.z += paneShift(position.xy,position.z);
     #endif
     vLocal = pos;
     // The slab's own axes in world space, for the surface frost and to tell
@@ -388,7 +387,7 @@ const GLASS_VERT = /* glsl */`
 //                 level, a lifted row lens), so layers sit in space
 const GLASS_FRAG = /* glsl */`
   #ifdef PANE_MANIPULATION
-  varying float vPaneWeight;
+  varying float vPaneRestZ;
   #endif
   varying vec3 vWorld, vNormal, vLocal, vAxisX, vAxisY, vAxisZ;
   varying float vFront;
@@ -444,21 +443,26 @@ const GLASS_FRAG = /* glsl */`
     // Its skin is stretched smooth and glossy; the room and the key light
     // shade it (no painted shading), so it reads as real material.
     float bub = 0.0;
+    vec2 bulgeSlope=vec2(0.0);
     if (vFront > 0.5 && anyBulge()) {
       float e = 0.0003 * uBulgeScale;
       vec2 g = vec2(bulgeH(vLocal.xy + vec2(e, 0.0)) - bulgeH(vLocal.xy - vec2(e, 0.0)),
                     bulgeH(vLocal.xy + vec2(0.0, e)) - bulgeH(vLocal.xy - vec2(0.0, e))) / (2.0 * e);
       N = normalize(vAxisZ - vAxisX * g.x - vAxisY * g.y);
+      bulgeSlope=g;
       bub = bulgeSkin(vLocal.xy);
     }
     #ifdef PANE_MANIPULATION
-    if(uPaneDent.w>0.0) {
+    if(uPaneDent.w>0.0 || uPaneThin.x>0.0) {
       float pe=0.00015*uBulgeScale;
-      vec2 pg=vec2(paneDentH(vLocal.xy+vec2(pe,0.0))-paneDentH(vLocal.xy-vec2(pe,0.0)),
-                   paneDentH(vLocal.xy+vec2(0.0,pe))-paneDentH(vLocal.xy-vec2(0.0,pe)))/(2.0*pe)*vPaneWeight;
-      // Inverse transpose of z'=z+h(x,y), determinant one.
+      vec2 pg=vec2(paneShift(vLocal.xy+vec2(pe,0.0),vPaneRestZ)-paneShift(vLocal.xy-vec2(pe,0.0),vPaneRestZ),
+                   paneShift(vLocal.xy+vec2(0.0,pe),vPaneRestZ)-paneShift(vLocal.xy-vec2(0.0,pe),vPaneRestZ))/(2.0*pe);
+      float thin=paneThinAt(vLocal.xy),a=1.0-thin;
+      // Inverse transpose of z'=z+h+(front-z)*thin. Row bulges are
+      // added afterwards; preserve their full slope during pane recovery.
+      pg+=thin*bulgeSlope;
       float nz=dot(N,vAxisZ);
-      N=normalize(vAxisX*(dot(N,vAxisX)-pg.x*nz)+vAxisY*(dot(N,vAxisY)-pg.y*nz)+vAxisZ*nz);
+      N=normalize(vAxisX*(a*dot(N,vAxisX)-pg.x*nz)+vAxisY*(a*dot(N,vAxisY)-pg.y*nz)+vAxisZ*nz);
     }
     #endif
     // Frost: the face is a field of tiny bumps (about 1 mm), so highlights
@@ -686,6 +690,7 @@ export function glassMaterial(T, { w, h, t, r = 0, kind = 'window' }) {
       uSpotRadius: { value: Math.max(w, h) * 0.5 },
       uPaneDent: { value: new THREE.Vector4(0,0,.01,0) },
       uPaneGlow: { value: new THREE.Vector2(.028,0) },
+      uPaneThin: { value: new THREE.Vector2(0,t ?? T.get('material.thickness.regular')) },
       uPaneExtent: { value: new THREE.Vector3(w/2,h/2,r) },
       uPaneEdgeFade: { value: t ?? T.get('material.thickness.regular') },
       uPaneThickness: { value: t ?? T.get('material.thickness.regular') },

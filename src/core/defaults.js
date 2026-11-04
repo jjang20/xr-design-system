@@ -93,7 +93,7 @@ export const DEFAULTS = {
 
   // Appearance. Proposed: a look.* token group once tested in MR.
   // Q81: offsets from the same underlying pane, before group/depth/fade.
-  listSurfaceOpacity: { idle: 0, hover: .04, pressed: .07 },
+  listSurfaceOpacity: { idle: 0, hover: .06, pressed: .10 },
   look: {
     bevelRatio: 0.28, // edge bevel as a fraction of thickness
     shadeBottom: 0.86, // vertex shade at the bottom edge (top = 1)

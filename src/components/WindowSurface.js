@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Interactable } from '../core/Interactable.js';
-import { paneDentHeight } from '../core/paneDent.js';
+import { paneDentHeight, paneDeformedZ } from '../core/paneDent.js';
 import { springTo, prefersReducedMotion } from '../core/spring.js';
 
 // An input surface over the real pane, not another visible affordance.
@@ -91,29 +91,32 @@ export class WindowSurface extends Interactable {
     springTo(this.glow,this.grab?1:0,.09,prefersReducedMotion()?1:.85,dt);
     // R16 bounded trial: wider bend, same maximum depth and clearance.
     // The optical contribution follows this anchor without adding a ring.
-    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.028/scale,depth:Math.min(Math.max(0,limit),Math.max(0,this.dent.x))};
+    this.currentDent={x:this.spot.x,y:this.spot.y,radius:.028/scale,depth:Math.min(Math.max(0,limit),Math.max(0,this.dent.x)),
+      thin:.35*Math.min(1,Math.max(0,this.glow.x)),frontZ:this.restBox.max.z};
     const d=this.currentDent,u=this.skin.uniforms;
     u.uPaneDent.value.set(d.x,d.y,d.radius,d.depth);
     u.uPaneGlow.value.set(.028/scale,.28*Math.min(1,Math.max(0,this.glow.x)));
+    u.uPaneThin.value.set(d.thin,d.frontZ);
     u.uPaneExtent.value.set(this.profile.halfWidth,this.profile.halfHeight,this.profile.cornerRadius);
     u.uPaneEdgeFade.value=this.profile.edgeFade;
-    // Same full-thickness shear as GLASS_VERT; front and back cannot cross.
-    const key=[d.x,d.y,d.radius,d.depth].join(',');
+    // Same map as GLASS_VERT. Compression is <=35%, so dZ'/dZ>=.65;
+    // the front stays on its accepted bend and no skins cross.
+    const key=[d.x,d.y,d.radius,d.depth,d.thin].join(',');
     if(key!==this.geometryKey){
       const attr=this.hitMeshes[0].geometry.attributes.position;
       for(let i=0;i<attr.count;i++){
         const j=3*i,x=this.restPositions[j],y=this.restPositions[j+1],z=this.restPositions[j+2];
-        attr.setZ(i,z+paneDentHeight(x,y,this.profile,d));
+        attr.setZ(i,paneDeformedZ(x,y,z,this.profile,d));
       }
       attr.needsUpdate=true;this.geometryKey=key;
-      // The Gaussian bend moves every vertex only along -Z, by at most
-      // depth. Enclose that displacement for both CPU rays and GPU culling
-      // without changing the actual triangles or broadening the input region.
+      // Bend moves -Z and compression moves the back towards the unchanged
+      // front. Include positive motion even with zero bend clearance.
+      const displacement=Math.max(d.depth,d.thin*(this.restBox.max.z-this.restBox.min.z));
       for(const geometry of [this.hitMeshes[0].geometry,this.body.geometry]){
         geometry.boundingBox??=this.restBox.clone();
         geometry.boundingSphere??=this.restSphere.clone();
         geometry.boundingBox.copy(this.restBox);geometry.boundingBox.min.z-=d.depth;
-        geometry.boundingSphere.copy(this.restSphere);geometry.boundingSphere.radius+=d.depth;
+        geometry.boundingSphere.copy(this.restSphere);geometry.boundingSphere.radius+=displacement;
       }
     }
   }

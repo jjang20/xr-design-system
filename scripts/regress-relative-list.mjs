@@ -1,4 +1,4 @@
-// R16 actual pane-relative alpha/RGB parity and local manipulation light. Desktop, not Quest evidence.
+// Actual pane-relative alpha/RGB parity and local manipulation light. Desktop, not Quest evidence.
 import {createServer} from 'vite';
 import {chromium} from 'playwright-core';
 import {mkdir,writeFile} from 'node:fs/promises';
@@ -19,7 +19,7 @@ try{
   const {createTokens,PackagingPanel,InputSystem}=await import('/@fs/'+root+'/src/index.js');
   const {DEFAULTS}=await import('/@fs/'+root+'/src/core/defaults.js');
   const {setBackdrop}=await import('/@fs/'+root+'/src/core/look.js');
-  const targets={idle:0,hover:.04,pressed:.07};
+  const targets={idle:0,hover:.06,pressed:.10};
   
   const T=createTokens(await(await fetch('/@fs/'+root+'/tokens.json')).json());
   const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});renderer.setSize(1280,800);renderer.setPixelRatio(1);renderer.toneMapping=THREE.NeutralToneMapping;document.body.append(renderer.domElement);
@@ -72,8 +72,10 @@ try{
    const u=h.skin.uniforms,on=raw();images['pane-held-'+angle]=renderer.domElement.toDataURL();
    const amount=u.uPaneGlow?.value.y??0;if(u.uPaneGlow)u.uPaneGlow.value.y=0;
    const noGlow=raw();images['pane-shape-only-'+angle]=renderer.domElement.toDataURL();
-   const depth=u.uPaneDent.value.w;u.uPaneDent.value.w=0;const off=raw();images['pane-off-'+angle]=renderer.domElement.toDataURL();u.uPaneDent.value.w=depth;if(u.uPaneGlow)u.uPaneGlow.value.y=amount;
-   pane.push({angle,glow:diff(on,noGlow),shape:diff(noGlow,off),radiusWorld:h.currentDent.radius*h.inputScale,depthWorld:depth*h.inputScale,glowUniform:u.uPaneGlow?.value.toArray()??null});
+   const thin=u.uPaneThin?.value.x??0;if(u.uPaneThin)u.uPaneThin.value.x=0;
+   const bendOnly=raw();images['pane-bend-only-'+angle]=renderer.domElement.toDataURL();
+   const depth=u.uPaneDent.value.w;u.uPaneDent.value.w=0;const off=raw();images['pane-off-'+angle]=renderer.domElement.toDataURL();u.uPaneDent.value.w=depth;if(u.uPaneThin)u.uPaneThin.value.x=thin;if(u.uPaneGlow)u.uPaneGlow.value.y=amount;
+   pane.push({angle,glow:diff(on,noGlow),shape:diff(noGlow,off),thinning:diff(noGlow,bendOnly),thin, radiusWorld:h.currentDent.radius*h.inputScale,depthWorld:depth*h.inputScale,glowUniform:u.uPaneGlow?.value.toArray()??null});
   }
   camera.position.set(0,0,.6);camera.lookAt(0,0,0);camera.updateMatrixWorld(true);
   const before=p.position.clone();position.add(new THREE.Vector3(.03,0,0));frame();const moved=p.position.distanceTo(before);
