@@ -260,7 +260,18 @@ export class InputSystem {
           _box.setFromObject(c);
           for (const point of points) dist = Math.min(dist, _box.distanceToPoint(point));
         }
-        if (points.length && src.near.update(dist)) {
+        // Opt-in drags retain the acquired input mode through the release
+        // frame. Distance alone must not replace a held ray with a poke.
+        // Source loss/reset guards above and target eligibility still apply.
+        const captured = src.state.captured;
+        const retainedRay = captured?.retainRayCapture && items.includes(captured)
+          && captured.grab?.kind === 'ray' && captured.grab.id === src.id;
+        if (retainedRay && !src.ray.visible) {
+          // Three keeps the last matrix on pose loss; it is not a live drag.
+          src.state = {}; src.pokeHistory = null; src.fingers?.clear();
+          src.near.update(Infinity); src.resetBlocked ||= src.selecting; continue;
+        }
+        if (!retainedRay && points.length && src.near.update(dist)) {
           const joint = src.hand.joints?.['index-finger-tip'];
           const hand = joints.length > 0;
           const radius = hand ? (Number.isFinite(joint?.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;

@@ -1,6 +1,6 @@
 # R01.1 · 공통 화면 밝기와 XR 조작 단서
 
-Q113 수정 계약을 구현한 별도 비교 fixture다. 이전 R01의 독립 값·초기 `.4`·작은 sample만 바꾸는 결과는 대체됐다. `PlanarSlider`는 비교 fixture이며 public DS export가 아니다. 기본 demo와 `src/`, tokens, 기존 ZSlider/InputSystem의 전역 의미는 유지한다.
+Q113 수정 계약을 구현한 별도 비교 fixture다. 이전 R01의 독립 값·초기 `.4`·작은 sample만 바꾸는 결과는 대체됐다. `PlanarSlider`는 비교 fixture이며 public DS export가 아니다. 기본 demo와 tokens, 기존 ZSlider 동작은 유지한다. Q116 후속은 InputSystem에 평면 fixture의 획득된 ray drag를 유지하는 opt-in만 추가한다.
 
 `npm run dev` 후 `/slider-comparison.html`을 연다. 자동 XR 진입·수집·업로드는 없다. 초기 공통값 `b=1`; 둘 중 하나를 조절하면 두 control/숫자와 화면 밝기가 함께 변한다. HTML과 XR 장면에 `밝기 복원`이 있다.
 
@@ -23,13 +23,15 @@ Dim은 각 camera viewport의 clip-space draw이며 input/depth/occlusion target
 
 | 경로 | 동작·한계 | 근거 |
 |---|---|---|
-| X semantic ray / desktop | track/thumb에서 select/trigger를 유지해 가로 drag. hover와 release frame은 값 불변. 평행 ray는 값 유지 | 실제 InputSystem 합성 routing·desktop pointer |
+| X semantic ray / desktop | track/thumb에서 select/trigger를 유지해 가로 drag. XR 획득 후 근거리로 들어와도 같은 ray mapping 유지; 실제 release/loss는 해제. hover와 release frame은 값 불변. 평행 ray는 값 유지 | 실제 InputSystem 합성 routing·기존 desktop pointer; 새 거리 전환은 합성 근거 |
 | X near | 앞면 contact crossing에서 획득 후 가로 drag. world radius/local scale 적용. 최초 뒤쪽 출현·radius 증가만으로 획득하지 않음. 후퇴/깊은 관통/Y 밖/loss는 해제 | 합성 InputSystem/probe; 하드웨어 미검증 |
 | Z near / semantic ray | 기존 push·semantic pinch pull·ray plane·wheel·detent를 보존. ray plane 교차 불가 시 기존 last-point fallback 한계 유지 | 기존 public probe 회귀, desktop wheel/drag 근거; 모든 ray 각도/Quest 미검증 |
 | Native joint pinch | 기존 pane 전용 fallback을 slider에 확장하지 않음 | 새 native slider 지원 주장 없음 |
 | 소유권 / reset | 다른 source 비탈취, loss 이후 재무장, 복원 뒤 stale held 차단 | bounded synthetic + desktop restore |
 
 X track 160×32mm, thumb 지름18mm, 앞면3mm와 20mm 깊은 접촉 guard는 기존 fixture 값이다. controller의 grip pose는 grip 버튼이 아니다. near X에 pinch를 요구하지 않는다. XR 장면에는 near/far hand/controller 안내를 병기하고 X thumb/track 색·크기로 hover와 획득을 구분한다. 실제 connected XR source의 hand/controller identity와 해당 control의 ray probe가 일치하면 그 안내를 먼저 표시한다. near/unknown은 기본 병기를 유지하며 source를 확신 없이 추정하지 않는다. 이 안내 화면을 무도움 첫 노출 시험으로 취급하지 않는다.
+
+Q116의 pressed 해제 보고 뒤, 실제 InputSystem에 합성 손/컨트롤러 pose를 넣어 held ray가 거리 변화만으로 poke로 바뀌고 capture·pressed·값 갱신을 잃는 경로를 재현했다. `retainRayCapture`를 켠 평면 fixture의 동일 source·ray grab·유효 target만 release frame까지 ray로 보낸다. 이 획득된 ray의 pose가 사라지면 Three의 이전 matrix를 사용하지 않고 owner를 해제하며, 계속 held인 입력은 release 뒤 재획득해야 한다. threshold 확대, native pinch 확대, 실제 loss/reset 보호 제거는 없다. 다른 component의 기존 자동 거리 전환은 유지한다. 이 재현을 사용자의 실제 입력 모드나 현장 원인으로 확정하지 않는다.
 
 ## 공간·lifecycle
 

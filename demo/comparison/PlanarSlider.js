@@ -10,6 +10,9 @@ export class PlanarSlider extends Interactable {
     this.width = 0.16;
     this.height = 0.032;
     this.frontZ = 0.003;
+    // A captured drag keeps its ray mapping until release/loss, even if
+    // the hand or controller enters the direct-touch distance meanwhile.
+    this.retainRayCapture = true;
     this.grab = null;
     this.rayPressed = new Set();
     this.rayBlocked = new Set();

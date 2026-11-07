@@ -189,6 +189,118 @@ function inputRig(view) {
   return { scene, input: new InputSystem({ T, scene, camera, renderer }) };
 }
 
+function xrPlanarRig(hand = false) {
+  const view = new SliderComparison(T), { input, scene } = inputRig(view), x = view.controls.x;
+  // No restoration action is involved. The Node text/canvas boundary does
+  // not lay out its label, so exclude that unrelated component's bounds.
+  view.restoreControl.visible = false;
+  input.renderer.xr.isPresenting = true;
+  const source = input.xr[0];
+  source.ray.dispatchEvent({ type: 'connected', data: hand ? { hand: {} } : {} });
+  if (hand) {
+    source.hand.joints = {};
+    for (const name of ['index-finger-tip', 'thumb-tip']) {
+      const joint = new THREE.Group(); joint.jointRadius = 0.008;
+      source.hand.add(joint); source.hand.joints[name] = joint;
+    }
+  }
+  const frame = (px, gripZ) => {
+    source.ray.position.copy(x.localToWorld(new THREE.Vector3(px, 0, 0.4)));
+    source.grip.position.copy(x.localToWorld(new THREE.Vector3(px, 0, gripZ)));
+    if (hand) {
+      source.hand.joints['index-finger-tip'].position.copy(source.grip.position);
+      source.hand.joints['thumb-tip'].position.copy(source.grip.position).add(new THREE.Vector3(0.03, 0, 0));
+    }
+    scene.updateMatrixWorld(true);
+    input.update(); view.update(1 / 60);
+  };
+  return { view, input, x, source, frame };
+}
+
+for (const hand of [false, true]) test(`an XR planar ray drag (${hand ? 'hand' : 'controller'}) keeps pressed feedback when approaching until actual release`, () => {
+  const { view, x, source, frame } = xrPlanarRig(hand);
+  try {
+    frame(0, 0.4);
+    source.ray.dispatchEvent({ type: 'selectstart' });
+    frame(0, 0.4);
+    const pressedColor = x.thumb.material.color.getHex();
+    assert.equal(view.results.x.number.text, '50%');
+    frame(0.04, 0.4);
+    assert.equal(view.results.x.number.text, '75%');
+    frame(0.06, 0.02); // no release, disconnection or tracking loss
+    assert.equal(x.thumb.material.color.getHex(), pressedColor, 'pressed feedback persists during the same held drag');
+    assert.equal(view.results.x.number.text, '88%', 'the same captured ray still changes the shared value');
+    assert.equal(view.results.z.number.text, '88%');
+    source.ray.dispatchEvent({ type: 'selectend' });
+    frame(-0.04, 0.02);
+    assert.equal(view.results.x.number.text, '88%', 'release does not apply a final drag value');
+    assert.notEqual(x.thumb.material.color.getHex(), pressedColor);
+    assert.equal(view.owner, null);
+    frame(-0.04, 0.02);
+    assert.equal(source.near.on, true, 'normal near routing resumes after release');
+  } finally { view.dispose(); }
+});
+
+for (const hand of [false, true]) test(`a retained planar ray (${hand ? 'hand' : 'controller'}) cancels on ray pose loss and cannot rearm while held`, () => {
+  const { view, x, source, frame } = xrPlanarRig(hand);
+  try {
+    frame(0, 0.4); source.ray.dispatchEvent({ type: 'selectstart' }); frame(0, 0.4);
+    frame(0.04, 0.02);
+    const pressedColor = x.thumb.material.color.getHex();
+    source.ray.visible = false; // Three retains the last matrix when the target pose is unavailable.
+    frame(0.04, 0.02);
+    assert.equal(view.results.x.number.text, '75%');
+    assert.equal(view.owner, null, 'ray pose loss releases the common owner even with live joints/grip');
+    assert.notEqual(x.thumb.material.color.getHex(), pressedColor);
+    source.ray.visible = true;
+    frame(-0.06, 0.5);
+    assert.equal(view.results.x.number.text, '75%', 'pose recovery alone cannot rearm a held drag');
+    assert.equal(view.owner, null);
+    source.ray.dispatchEvent({ type: 'selectend' }); frame(-0.06, 0.5);
+    source.ray.dispatchEvent({ type: 'selectstart' }); frame(-0.06, 0.5);
+    assert.equal(view.results.x.number.text, '13%');
+    assert.equal(view.results.z.number.text, '13%');
+  } finally { view.dispose(); }
+});
+
+test('a retained planar ray cancels on tracked-hand loss and requires release before another drag', () => {
+  const { view, input, x, source, frame } = xrPlanarRig(true);
+  try {
+    frame(0, 0.4); source.ray.dispatchEvent({ type: 'selectstart' }); frame(0, 0.4);
+    const pressedColor = x.thumb.material.color.getHex();
+    frame(0.04, 0.02);
+    source.hand.joints['index-finger-tip'].visible = false;
+    frame(-0.06, 0.02);
+    assert.equal(view.results.x.number.text, '75%');
+    assert.equal(view.owner, null);
+    assert.notEqual(x.thumb.material.color.getHex(), pressedColor);
+    source.hand.joints['index-finger-tip'].visible = true;
+    frame(-0.06, 0.5);
+    assert.equal(view.results.x.number.text, '75%', 'a returning held source cannot rearm');
+    source.ray.dispatchEvent({ type: 'selectend' }); frame(-0.06, 0.5);
+    source.ray.dispatchEvent({ type: 'selectstart' }); frame(-0.06, 0.5);
+    assert.equal(view.results.x.number.text, '13%');
+    input.reset(); frame(0.04, 0.5);
+    assert.equal(view.owner, null);
+    assert.equal(view.results.x.number.text, '13%', 'reference reset blocks the still-held source');
+  } finally { view.dispose(); }
+});
+
+for (const loss of ['disconnect', 'disabled-target']) test(`a retained controller drag ends on ${loss} without a final value change`, () => {
+  const { view, x, source, frame } = xrPlanarRig();
+  try {
+    frame(0, 0.4); source.ray.dispatchEvent({ type: 'selectstart' }); frame(0, 0.4);
+    frame(0.04, 0.02);
+    const pressedColor = x.thumb.material.color.getHex();
+    if (loss === 'disconnect') source.ray.dispatchEvent({ type: 'disconnected' });
+    else x.enabled = false;
+    frame(-0.06, 0.02);
+    assert.equal(view.results.x.number.text, '75%');
+    assert.equal(view.owner, null);
+    assert.notEqual(x.thumb.material.color.getHex(), pressedColor);
+  } finally { view.dispose(); }
+});
+
 test('confirmed XR source identity prioritizes its guidance without guessing unknown sources', () => {
   const view = new SliderComparison(T), { input } = inputRig(view), source = input.xr[0], x = view.controls.x;
   view.inputSources = input.xr;
