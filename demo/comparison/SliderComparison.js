@@ -143,6 +143,20 @@ export class SliderComparison extends THREE.Group {
     for (const [key, probes] of Object.entries(batches)) for (const probe of probes) {
       if (this.released(this.controls[key], probe)) this.blocked.delete(probe.id);
     }
+    // Physical fingers have independent contact ids. A pinch belongs to the
+    // same tracked hand; promote only that hand's current contact owner.
+    // Its index may have been excluded while the thumb held the contact.
+    // A fresh pinch can promote it before the competing-source filter.
+    if (this.owner) {
+      const owner = this.owner, control = this.controls[owner.key];
+      const pinch = batches[owner.key].find(p => p.kind === 'poke' && p.pinch && p.pinchStarted !== false
+        && (p.sourceId ?? p.id) === owner.sourceId);
+      if (pinch && pinch.id !== owner.id) {
+        this.blocked.delete(pinch.id);
+        if (control.grab?.id === owner.id) control.grab.id = pinch.id;
+        this.owner = { ...owner, id: pinch.id };
+      }
+    }
     const eligible = Object.fromEntries(Object.entries(batches).map(([key, probes]) => [key,
       probes.filter(p => !this.blocked.has(p.id))
         .map(p => p.kind === 'ray' && !p.pressed ? { ...p, captured: false } : p),
@@ -175,7 +189,7 @@ export class SliderComparison extends THREE.Group {
       probes.forEach(p => control.feed(p));
       control.update(dt);
       const active = selected && (control.grab || control.engaged || control.value !== before);
-      if (active && !frameOwner) frameOwner = { key, id: selected.id };
+      if (active && !frameOwner) frameOwner = { key, id: selected.id, sourceId: selected.sourceId ?? selected.id };
       if (frameOwner?.key === key) {
         this.owner = active ? frameOwner : null;
         if (!active && !batches[key].some(p => p.id === frameOwner.id && this.released(control, p))) {

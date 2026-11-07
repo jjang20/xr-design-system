@@ -39,6 +39,11 @@ export class ZSlider extends Interactable {
     super();
     markComponent(this);
     this.T = T;
+    // Joint-derived near pinch is a manipulation signal for this control,
+    // separate from WebXR semantic selection and ordinary contact push.
+    this.trackedPinch = true;
+    this.retainRayCapture = true;
+    this.retainPokeCapture = true;
     const distance = o.distance ?? DEFAULTS.distance;
     this.travel = T.get('zslider.travel');
     this.interval = T.get('feedback.detent.interval');
@@ -270,17 +275,19 @@ export class ZSlider extends Interactable {
           Math.max(0, contactZ - front) * scale.z,
         );
         hoverD = Math.min(hoverD, d);
-        if (p.pinch && (this.grab?.id === p.id || (!this.grab && this.hoverBand.on))) {
-          this.grab ??= { id: p.id, offset: p.point.z - z };
+        const nearKnob = this.hoverBand.update(d);
+        if (p.pinch && (this.grab?.id === p.id || (!this.grab && p.pinchStarted !== false
+          && nearKnob && contactZ > z - thickness))) {
+          this.grab ??= { id: p.id, kind: 'pinch', offset: p.point.z - z };
           z = p.point.z - this.grab.offset;
           engaged = true;
-        } else if (!this.grab && this.insideKnob(p.point) && contactZ < front && contactZ > z - thickness) {
+        } else if (!p.pinch && !this.grab && this.insideKnob(p.point) && contactZ < front && contactZ > z - thickness) {
           z = contactZ - thickness; // the fingertip surface pushes the face
           engaged = true;
         }
       } else if (p.kind === 'ray') {
         if (p.captured) {
-          this.grab ??= { id: p.id, offset: p.point.z - z };
+          this.grab ??= { id: p.id, kind: 'ray', offset: p.point.z - z };
           z = p.point.z - this.grab.offset;
           engaged = true;
           hoverD = 0;

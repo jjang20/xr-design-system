@@ -13,6 +13,8 @@ export class PlanarSlider extends Interactable {
     // A captured drag keeps its ray mapping until release/loss, even if
     // the hand or controller enters the direct-touch distance meanwhile.
     this.retainRayCapture = true;
+    this.trackedPinch = true;
+    this.retainPokeCapture = true;
     this.grab = null;
     this.rayPressed = new Set();
     this.rayBlocked = new Set();
@@ -80,13 +82,19 @@ export class PlanarSlider extends Interactable {
       const crossing = previous?.gap > 0 && contact.gap <= 0
         && probe.point.z - previous.radius <= this.frontZ;
       const holding = this.grab?.kind === 'poke';
-      // A front crossing acquires. During a drag X can leave the ends (clamp),
-      // but retreat, deep penetration, lateral exit or source loss releases.
-      active = insideY && contact.gap >= -0.02 / Math.abs(scale.z)
+      const pinched = this.grab?.kind === 'pinch';
+      // Unpinched contact acquires on a front crossing. X may leave the ends
+      // (clamp), but retreat, deep penetration, lateral exit or loss releases.
+      const contactActive = insideY && contact.gap >= -0.02 / Math.abs(scale.z)
         && (holding ? contact.gap <= this.T.get('input.poke.distance.release') / Math.abs(scale.z)
           : !this.grab && insideX && crossing);
+      const pinchStart = !this.grab && probe.pinchStarted !== false && insideX && insideY
+        && contact.gap >= -0.02 / Math.abs(scale.z)
+        && contact.gap <= this.T.get('input.poke.distance.release') / Math.abs(scale.z);
+      active = probe.pinch ? pinched || holding || pinchStart : !pinched && contactActive;
       if (active) {
         this.grab ??= { id: probe.id, kind: 'poke' };
+        if (probe.pinch) this.grab.kind = 'pinch';
         this.setValue(probe.point.x / this.width + 0.5);
       }
     }

@@ -64,6 +64,8 @@ export class InputSystem {
         src.handSource = event.data ? !!event.data.hand : undefined;
         src.selecting = false; src.handPinching = false;
         src.nativePinchActive = src.nativePinchBlocked = false;
+        src.pinchCaptureBlocked = false;
+        src.pinchWasDown = false;
         src.resetBlocked = false; src.near.update(Infinity);
         src.state = {}; src.pokeHistory = null; src.fingers?.clear();
       });
@@ -219,10 +221,13 @@ export class InputSystem {
         // Actual WebXR supplies hand identity on connected. The fallback also
         // supports synthetic sources whose first tracked joints identify them.
         if (src.handSource === undefined && src.hand.visible && Object.keys(src.hand.joints ?? {}).length) src.handSource = true;
+        const retainedPoke = items.some(item => item.retainPokeCapture
+          && item.grab?.kind === 'pinch' && item.grab.id === src.id);
         if(src.handSource){
           const index=src.hand.joints?.['index-finger-tip'],thumb=src.hand.joints?.['thumb-tip'];
           const live=src.hand.visible && index?.visible && thumb?.visible &&
             [index.position,thumb.position].every(p=>[p.x,p.y,p.z].every(Number.isFinite));
+          if (retainedPoke && !live) src.pinchCaptureBlocked = true;
           // Three can emit pinchend using a missing joint's cached position.
           // That event is not evidence of opening. Preserve the loss latch
           // from the preceding live gesture, even if this frame ends it.
@@ -232,6 +237,18 @@ export class InputSystem {
           if(live && !src.handPinching && index.position.distanceTo(thumb.position)>.025)
             src.nativePinchBlocked=false;
           src.nativePinchActive=!!(live && src.handPinching);
+        }
+        // Record the union before routing or loss/reset guards. Arriving at
+        // a new slider while already closed is not a new pinch, and a late
+        // semantic select event must not restart the same native gesture.
+        const pinchDown = src.selecting || src.nativePinchActive;
+        src.pinchStarted = !!pinchDown && !src.pinchWasDown;
+        src.pinchWasDown = !!pinchDown;
+        if (src.pinchCaptureBlocked) {
+          if (src.selecting || src.handPinching || src.nativePinchBlocked) {
+            src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue;
+          }
+          src.pinchCaptureBlocked = false;
         }
         if (src.handSource && !src.hand.visible) {
           src.state = {}; src.pokeHistory = null; src.fingers?.clear();
@@ -246,7 +263,11 @@ export class InputSystem {
         const manipulating = items.some(item => item.grab?.id === src.id);
         if (!manipulating && this.palmStep(src, palms)) { src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue; }
         const tip = this.tipOf(src);
-        // Native eligibility affects only the opt-in pane signal below.
+        if (retainedPoke && !tip) {
+          src.state = {}; src.pokeHistory = null; src.fingers?.clear();
+          src.resetBlocked ||= src.selecting; continue;
+        }
+        // Native eligibility affects only the opt-in manipulation signal below.
         // A lost thumb must not cancel a remaining index's real row press.
         if (src.handSource && !tip && src.selecting) {
           src.resetBlocked = true; src.state = {}; src.pokeHistory = null; src.fingers?.clear(); continue;
@@ -271,7 +292,7 @@ export class InputSystem {
           src.state = {}; src.pokeHistory = null; src.fingers?.clear();
           src.near.update(Infinity); src.resetBlocked ||= src.selecting; continue;
         }
-        if (!retainedRay && points.length && src.near.update(dist)) {
+        if (!retainedRay && points.length && (retainedPoke || src.near.update(dist))) {
           const joint = src.hand.joints?.['index-finger-tip'];
           const hand = joints.length > 0;
           const radius = hand ? (Number.isFinite(joint?.jointRadius) && joint.jointRadius > 0 ? joint.jointRadius : DEFAULTS.handInput.fingertipRadius) : 0;
@@ -380,6 +401,7 @@ export class InputSystem {
       item.feed({ kind: 'poke', id: src.id, sourceId: src.sourceId ?? src.id, point, radius,
         pressOffset: contactOnly ? 0 : pressOffset, allowHover: !contactOnly,
         pinch: src.selecting || !!(trackedPinch && item.trackedPinch),
+        pinchStarted: src.pinchStarted,
         pinchAxis: item.softShape && pinchAxis ? pinchAxis.clone().transformDirection(item.matrixWorld.clone().invert()) : null,
         surfaceCrossing: crossings.get(item) });
     }
