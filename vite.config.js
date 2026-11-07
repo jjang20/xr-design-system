@@ -11,6 +11,6 @@ export default defineConfig(({ mode }) => ({
   server: { host: mode === 'headset' },
   build: {
     outDir: '../site', emptyOutDir: true, chunkSizeWarningLimit: 1000, target: 'es2022',
-    rollupOptions: { input: { main: 'demo/index.html', bench: 'demo/bench.html', sliders: 'demo/slider-comparison.html', windows: 'demo/window-resize-comparison.html', actions: 'demo/action-comparison.html' } },
+    rollupOptions: { input: { main: 'demo/index.html', bench: 'demo/bench.html', sliders: 'demo/slider-comparison.html', windows: 'demo/window-resize-comparison.html', actions: 'demo/action-comparison.html', movement: 'demo/window-movement-comparison.html' } },
   },
 }));
