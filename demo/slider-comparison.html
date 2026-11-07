@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>밝기 · Contour 비교</title>
+  <link rel="icon" href="data:,">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #18212e; color: #eef1f7; font: 15px/1.5 system-ui,sans-serif; }
+    canvas { display: block; touch-action: none; }
+    header, footer { position: fixed; left: 24px; right: 24px; pointer-events: none; }
+    header { top: 20px; } footer { bottom: 18px; text-align: center; font-size: 13px; }
+    h1 { font-size: 20px; margin: 0 0 4px; font-weight: 600; }
+    p { margin: 0; color: #b9c3d4; }
+    button { pointer-events: auto; position: absolute; right: 0; top: 0; background: #e9eef7;
+      border: 0; border-radius: 8px; padding: 10px 16px; color: #18212e; font: inherit; }
+    button:disabled { opacity: .5; }
+    #status { margin-top: 7px; max-width: 65%; }
+    @media (max-width: 640px) { header,footer { left: 12px; right: 12px; } h1 { font-size: 16px; } button { position: static; margin-top: 8px; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>밝기 조절</h1>
+    <p>두 조작을 자유롭게 비교해 보세요. 회색 샘플만 바뀝니다.</p>
+    <button id="xr" disabled>XR 확인 중</button>
+    <p id="status" role="status">화면 준비 중</p>
+  </header>
+  <footer>평면 슬라이더: 가로로 드래그 · Z-Slider: 눌러 드래그하거나 휠로 조절</footer>
+  <script type="module" src="./slider-comparison.js"></script>
+</body>
+</html>
