@@ -60,6 +60,10 @@ export class SliderComparison extends THREE.Group {
       x: new PlanarSlider(T, { value: 1 }),
       z: new MirroredZSlider(T, { value: 1, distance: 0.6, icon: 'sun' }),
     };
+    // Reuse the original web-demo Z control. Capture transport remains a
+    // fixture lifecycle guard; native joint pinch is not enabled for Z.
+    this.controls.z.retainRayCapture = true;
+    this.controls.z.retainPokeCapture = true;
     this.results = { x: makeResult(), z: makeResult() };
     for (const [key, x] of [['x', -0.14], ['z', 0.14]]) {
       this.controls[key].position.x = x;
@@ -188,6 +192,12 @@ export class SliderComparison extends THREE.Group {
       const before = control.value;
       probes.forEach(p => control.feed(p));
       control.update(dt);
+      // The original Z grab stores only id/offset. Annotate the acquired
+      // mapping for InputSystem's loss/capture guard, without changing its
+      // acquisition, offset, public value or feedback implementation.
+      if (key === 'z' && control.grab && selected?.id === control.grab.id) {
+        control.grab.kind = selected.kind === 'ray' ? 'ray' : 'pinch';
+      }
       const active = selected && (control.grab || control.engaged || control.value !== before);
       if (active && !frameOwner) frameOwner = { key, id: selected.id, sourceId: selected.sourceId ?? selected.id };
       if (frameOwner?.key === key) {

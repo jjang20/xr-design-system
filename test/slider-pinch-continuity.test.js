@@ -31,14 +31,16 @@ function rig(key){
  return{view,control,step,input,src,controller,source};
 }
 
-test('a native Z pinch on first contact grabs before pushing and drives the shared result',()=>{
+test('the original web Z acquires semantic pinch after approach and drives the shared result',()=>{
  const r=rig('z');try{
   r.view.brightness=.5;r.view.syncResults();const at=r.control.frontZ+.007;
-  r.step(point(0,0,at)); // native event from installed Three, no prior hover or semantic select
-  assert.equal(r.view.results.z.number.text,'50%','first pinch must not push before grabbing');
-  r.step(point(0,0,at+.014));
+  r.step(point(0,0,at+.03),{gap:.04});
+  r.step(point(0,0,at),{gap:.04,semantic:'selectstart'});
+  assert.equal(r.view.results.z.number.text,'50%');
+  r.step(point(0,0,at+.014),{gap:.04});
   assert.equal(r.view.results.z.number.text,'70%');assert.equal(r.view.results.x.number.text,'70%');
-  const held=r.control.value;r.step(point(0,0,at+.02),{gap:.04});assert.equal(r.control.value,held,'opening does not apply another captured displacement');
+  const held=r.control.value;r.step(point(0,0,at+.04),{gap:.04,semantic:'selectend'});
+  assert.equal(r.control.value,held,'release keeps the final value');
  }finally{r.view.dispose();}
 });
 
@@ -102,7 +104,8 @@ for(const key of ['x','z'])for(const missing of ['index-finger-tip','thumb-tip']
  }finally{r.view.dispose();}
 });
 
-for(const key of ['x','z'])test(`${key} native-only pinch loss and restore cannot rearm while closed`,()=>{
+// Q118 restores original Z semantics; Q117 native-only Z expectations are historical.
+for(const key of ['x'])test(`${key} native-only pinch loss and restore cannot rearm while closed`,()=>{
  const r=rig(key);try{
   r.view.brightness=.5;r.view.syncResults();const f=r.control.frontZ,p=point(0,0,f+.007);
   r.step(point(0,0,f+.016),{gap:.04});r.step(p);const held=r.control.value;
@@ -133,7 +136,7 @@ test('another hand cannot promote itself over the existing contact owner',()=>{
  }finally{view.dispose();}
 });
 
-for(const key of ['x','z'])test(`${key} cannot acquire a new target with a pinch that began away from it`,()=>{
+for(const key of ['x'])test(`${key} cannot acquire a new target with a pinch that began away from it`,()=>{
  const r=rig(key);try{
   r.view.brightness=.5;r.view.syncResults();const f=r.control.frontZ;
   r.step(point(.3,.3,.3),{gap:.04});r.step(point(.3,.3,.3));
@@ -142,7 +145,7 @@ for(const key of ['x','z'])test(`${key} cannot acquire a new target with a pinch
  }finally{r.view.dispose();}
 });
 
-for(const key of ['x','z'])test(`${key} first semantic contact and native/select ordering share one gesture`,()=>{
+for(const key of ['x'])test(`${key} first semantic contact and native/select ordering share one gesture`,()=>{
  const r=rig(key);try{
   r.view.brightness=.5;r.view.syncResults();const p=point(0,0,r.control.frontZ+.007);
   r.step(p,{gap:.04,semantic:'selectstart'});assert.ok(r.view.owner,'semantic select acquires without prior hover');assert.equal(r.control.value,.5);
@@ -168,5 +171,25 @@ test('same-hand pinch can promote the thumb owner even after a nearby index was 
   r.step(point(0,0,f+.022),{thumb:point(.01,0,f+.020)});
   assert.ok(r.control.value>before+.19);
   assert.equal(r.view.results.x.number.text,r.view.results.z.number.text);
+ }finally{r.view.dispose();}
+});
+
+
+for(const [start,offset,target,expected] of [[1,.0045,.04,'75%'],[0,-.0045,-.04,'25%']])
+test(`the visible outer half of the planar endpoint handle at ${start} acquires before dragging`,()=>{
+ const r=rig('x');try{
+  r.view.brightness=start;r.view.syncResults();r.view.update(0);
+  const x=r.control.thumb.position.x+offset,z=r.control.frontZ+.007;
+  r.control.updateMatrixWorld(true);
+  const origin=r.control.localToWorld(point(x,0,.3));
+  const direction=point(0,0,-1).transformDirection(r.control.matrixWorld);
+  assert.ok(new THREE.Raycaster(origin,direction).intersectObject(r.control.thumb,false).length,'target is on the visible handle');
+  r.step(point(x,0,.03),{gap:.04});
+  const changes=[];r.control.addEventListener('change',e=>changes.push(e.value));
+  r.step(point(x,0,z));
+  r.step(point(target,0,z));
+  assert.equal(r.view.results.x.number.text,expected,'first visible handle acquisition permits subsequent drag');
+  assert.equal(r.view.results.z.number.text,expected);
+  assert.ok(changes.length>0);
  }finally{r.view.dispose();}
 });

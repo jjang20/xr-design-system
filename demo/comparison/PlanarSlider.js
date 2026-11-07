@@ -42,10 +42,16 @@ export class PlanarSlider extends Interactable {
 
   pokeDistance(point) {
     const scale = this.getWorldScale(new THREE.Vector3());
-    return Math.hypot(Math.max(0, Math.abs(point.x) - this.width / 2) * scale.x,
-      Math.max(0, Math.abs(point.y) - this.height / 2) * scale.y,
-      (point.z - this.frontZ) * scale.z);
+    const track = Math.hypot(Math.max(0, Math.abs(point.x) - this.width / 2) * scale.x,
+      Math.max(0, Math.abs(point.y) - this.height / 2) * scale.y);
+    const dx = point.x - this.thumb.position.x, dy = point.y;
+    const distance = Math.hypot(dx, dy);
+    const outside = Math.max(0, distance - this.thumbRadius) / Math.max(distance, Number.EPSILON);
+    const thumb = Math.hypot(dx * scale.x, dy * scale.y) * outside;
+    return Math.hypot(Math.min(track, thumb), (point.z - this.frontZ) * scale.z);
   }
+
+  get thumbRadius() { return this.thumb.geometry.parameters.radius * this.thumb.scale.x; }
 
   rayPoint(ray, out) {
     // A coplanar or nearly parallel ray has no stable, unique track point.
@@ -78,17 +84,21 @@ export class PlanarSlider extends Interactable {
     } else if (probe?.kind === 'poke') {
       const contact = this.contacts.get(probe.id);
       const insideY = Math.abs(probe.point.y) <= this.height / 2;
-      const insideX = Math.abs(probe.point.x) <= this.width / 2;
+      // The visible endpoint thumb extends beyond the track. Acquire on
+      // that drawn disk too, rather than making half the handle inert.
+      const onThumb = Math.hypot(probe.point.x - this.thumb.position.x, probe.point.y)
+        <= this.thumbRadius;
+      const onFace = (Math.abs(probe.point.x) <= this.width / 2 && insideY) || onThumb;
       const crossing = previous?.gap > 0 && contact.gap <= 0
         && probe.point.z - previous.radius <= this.frontZ;
       const holding = this.grab?.kind === 'poke';
       const pinched = this.grab?.kind === 'pinch';
       // Unpinched contact acquires on a front crossing. X may leave the ends
       // (clamp), but retreat, deep penetration, lateral exit or loss releases.
-      const contactActive = insideY && contact.gap >= -0.02 / Math.abs(scale.z)
+      const contactActive = (holding ? insideY : onFace) && contact.gap >= -0.02 / Math.abs(scale.z)
         && (holding ? contact.gap <= this.T.get('input.poke.distance.release') / Math.abs(scale.z)
-          : !this.grab && insideX && crossing);
-      const pinchStart = !this.grab && probe.pinchStarted !== false && insideX && insideY
+          : !this.grab && crossing);
+      const pinchStart = !this.grab && probe.pinchStarted !== false && onFace
         && contact.gap >= -0.02 / Math.abs(scale.z)
         && contact.gap <= this.T.get('input.poke.distance.release') / Math.abs(scale.z);
       active = probe.pinch ? pinched || holding || pinchStart : !pinched && contactActive;

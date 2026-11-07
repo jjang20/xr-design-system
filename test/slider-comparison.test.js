@@ -417,3 +417,37 @@ test('a lost X ray must release before reacquiring, and coplanar drag cannot inv
   assert.equal(x.value, 0);
   view.dispose();
 });
+
+
+for(const start of [0,1])test(`actual XR semantic ray acquires the visible outer endpoint thumb at ${start}`,()=>{
+ const {view,x,source,frame}=xrPlanarRig();try{
+  view.brightness=start;view.syncResults();view.update(0);
+  const target=start===1?.0845:-.0845,move=start===1?.04:-.04;
+  // Keep the synthetic grip beyond mock font bounds so this case is far-ray acquisition.
+  frame(target,1);assert.equal(source.near.on,false);const hover=x.thumb.material.color.getHex();
+  source.ray.dispatchEvent({type:'selectstart'});frame(target,1);
+  assert.notEqual(x.thumb.material.color.getHex(),hover,'visible handle hit enters pressed feedback');
+  frame(move,1);assert.equal(view.results.x.number.text,start===1?'75%':'25%');
+  source.ray.dispatchEvent({type:'selectend'});frame(-move,1);
+  assert.equal(view.results.x.number.text,start===1?'75%':'25%','release keeps last value');
+ }finally{view.dispose();}
+});
+
+test('actual near contact uses the drawn endpoint disk and rejects space beyond it',()=>{
+ for(const start of [0,1]){
+  const view=new SliderComparison(T),{input}=inputRig(view),x=view.controls.x;
+  try{
+   view.brightness=start;view.syncResults();view.update(0);
+   const sign=start===1?1:-1,source={id:'finger'},target=sign*.0845;
+   const contact=(px,z)=>{
+    x.updateMatrixWorld(true);
+    input.pokeStep(source,x.localToWorld(new THREE.Vector3(px,0,z)),input.collect().items,.008);
+    view.update(1/60);
+   };
+   contact(sign*.105,.03);contact(sign*.105,.010);
+   assert.equal(x.value,start,'empty space outside the drawn handle is not a contact');
+   contact(target,.03);contact(target,.010);contact(sign*.04,.010);
+   assert.equal(view.results.x.number.text,start===1?'75%':'25%');
+  }finally{view.dispose();}
+ }
+});
