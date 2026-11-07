@@ -91,5 +91,7 @@ export class PlanarSlider extends Interactable {
     const hovered = probe && (probe.kind === 'ray'
       || this.pokeDistance(probe.point) < this.T.get('input.hover.distance.enter'));
     this.track.material.color.set(this.grab ? 0x53647d : hovered ? 0x434f61 : 0x333b47);
+    this.thumb.material.color.set(this.grab ? 0x78cfff : hovered ? 0xd1efff : 0xffffff);
+    this.thumb.scale.setScalar(this.grab ? 1.15 : hovered ? 1.08 : 1);
   }
 }

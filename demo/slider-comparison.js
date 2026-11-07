@@ -4,10 +4,11 @@ import { Text } from 'troika-three-text';
 import tokenJson from '../tokens.json';
 import { createTokens, InputSystem, unlockAudio } from '../src/index.js';
 import { SliderComparison } from './comparison/SliderComparison.js';
+import { BrightnessOverlay } from './comparison/BrightnessOverlay.js';
 import { setBackdrop } from '../src/core/look.js';
 
-// Standalone comparison fixture. This never imports the original demo or
-// backdrop and never changes lights/environment in response to either value.
+// Standalone comparison fixture; the final composite leaves DS materials,
+// lights, original demo and hardware settings untouched.
 const status = document.getElementById('status'), xrButton = document.getElementById('xr');
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -38,6 +39,22 @@ const T = createTokens(tokenJson), comparison = new SliderComparison(T);
 comparison.position.set(0, 1.48, -0.6);
 scene.add(comparison);
 const input = new InputSystem({ T, renderer, scene, camera });
+comparison.inputSources = input.xr;
+const dimmer = new BrightnessOverlay(); scene.add(dimmer);
+const restoreButton = document.getElementById('restore');
+const scopeLabel = document.getElementById('scope');
+comparison.onRestore = () => input.reset();
+comparison.onBrightness = value => {
+  dimmer.setBrightness(value);
+  // Only DOM content; never filter the canvas as well as its GL composite.
+  document.documentElement.style.setProperty('--content-brightness', String(1 - dimmer.material.uniforms.opacity.value));
+};
+restoreButton.onclick = () => comparison.restoreBrightness();
+const updateScope = mode => {
+  dimmer.setBlendMode(mode); scopeLabel.textContent = dimmer.scopeLabel;
+  comparison.setScopeLabel(dimmer.scopeLabel);
+};
+updateScope(undefined);
 renderer.domElement.addEventListener('pointerdown', unlockAudio);
 const cancelDesktop = () => {
   // InputSystem's legacy desktop path handles pointerup. Keep this fixture's
@@ -119,6 +136,7 @@ xrButton.onclick = async () => {
     session.addEventListener('end', () => {
       if (disposed) return;
       showBackdrop(false); input.reset();
+      comparison.restoreBrightness(); updateScope(undefined);
       for (const control of Object.values(comparison.controls)) { control.consumeProbes(); control.update(0); }
       comparison.position.set(0, 1.48, -0.6); comparison.rotation.set(0, 0, 0);
       placeInXR = false;
@@ -127,17 +145,19 @@ xrButton.onclick = async () => {
     await renderer.xr.setSession(session);
     if (disposed) { await session.end(); return; }
     showBackdrop(mode === 'immersive-ar');
+    updateScope(session.environmentBlendMode);
     placeInXR = true;
     xrButton.textContent = 'XR 종료';
   } catch (error) {
     await session?.end().catch(() => {});
+    comparison.restoreBrightness(); updateScope(undefined);
     status.textContent = `XR을 열 수 없습니다: ${error.message}`;
   } finally { xrButton.disabled = disposed; }
 };
 
 // Local inspection hooks, like demo/main.js. No recording/transmission.
 window.sliderComparison = {
-  comparison, input, camera, renderer, scene,
+  comparison, input, camera, renderer, scene, dimmer,
   screenOf(control, point = new THREE.Vector3()) {
     const p = control.localToWorld(point.clone()).project(camera);
     return { x: (p.x + 1) * innerWidth / 2, y: (1 - p.y) * innerHeight / 2 };
@@ -146,6 +166,7 @@ window.sliderComparison = {
     if (disposed) return disposePromise;
     disposed = true;
     xrButton.disabled = true;
+    restoreButton.disabled = true; restoreButton.onclick = null;
     xrButton.onclick = null;
     // Request native session shutdown too; renderer.dispose() alone does not
     // end WebXR. A late requestSession result is ended by the guard above.
@@ -155,8 +176,9 @@ window.sliderComparison = {
     renderer.domElement.removeEventListener('pointercancel', cancelDesktop);
     renderer.domElement.removeEventListener('lostpointercapture', lostDesktopCapture);
     cancelDesktop();
+    comparison.restoreBrightness();
     const release = () => {
-      comparison.dispose(); setBackdrop(null); environment.dispose();
+      comparison.dispose(); dimmer.dispose(); setBackdrop(null); environment.dispose();
       for (const source of input.xr) { source.line.geometry.dispose(); source.line.material.dispose(); }
       renderer.dispose(); renderer.domElement.remove();
     };
@@ -172,5 +194,6 @@ window.sliderComparison = {
   },
 };
 addEventListener('pagehide', event => {
+  comparison.restoreBrightness();
   if (!event.persisted) window.sliderComparison.dispose();
 });

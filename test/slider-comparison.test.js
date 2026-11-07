@@ -8,19 +8,105 @@ import { InputSystem } from '../src/core/InputSystem.js';
 
 const T = createTokens(JSON.parse(readFileSync(new URL('../tokens.json', import.meta.url))));
 
-test('comparison starts both independent controls at 40% with matching visible results', () => {
+test('XR guidance distinguishes contact from far selection, and restore resets the shared visible result', () => {
+  const view = new SliderComparison(T), x = view.controls.x;
+  assert.equal(view.scopeLabel.text, '가상 화면 밝기');
+  view.setScopeLabel('앱 화면과 보이는 주변 밝기');
+  assert.equal(view.scopeLabel.text, '앱 화면과 보이는 주변 밝기');
+  assert.match(view.guidance.x.text, /가까이: 닿아 가로 이동/);
+  assert.match(view.guidance.x.text, /원거리 손: 지목 후 집은 채 이동/);
+  assert.match(view.guidance.x.text, /컨트롤러: 트리거 누른 채 이동/);
+  x.feed({ kind: 'ray', id: 'ray', pressed: false, captured: false, point: new THREE.Vector3() });
+  view.update(1 / 60);
+  const hoverColor = x.thumb.material.color.getHex();
+  assert.equal(x.value, 1);
+  x.feed({ kind: 'ray', id: 'ray', pressed: true, captured: true, point: new THREE.Vector3() });
+  view.update(1 / 60);
+  assert.notEqual(x.thumb.material.color.getHex(), hoverColor);
+  view.restoreControl.dispatchEvent({ type: 'select' });
+  assert.equal(view.results.x.number.text, '100%');
+  assert.equal(view.results.z.number.text, '100%');
+  view.dispose();
+});
+
+test('shared brightness keeps its owner, blocks a competing held source, and restores without stale input', () => {
+  const view = new SliderComparison(T), { x, z } = view.controls;
+  const ray = (control, id, pressed, point) => control.feed({ kind: 'ray', id, pressed, captured: true, point });
+  const xp = new THREE.Vector3(0, 0, x.frontZ);
+  ray(x, 'first', true, xp); view.update(1 / 60);
+  const shared = x.value;
+  const mirrorDetents = [], mirrorChanges = [];
+  z.addEventListener('detent', e => mirrorDetents.push(e.index));
+  z.addEventListener('change', e => mirrorChanges.push(e.value));
+  ray(x, 'first', true, new THREE.Vector3(0.04, 0, x.frontZ));
+  ray(z, 'second', true, new THREE.Vector3(0, 0, 0)); view.update(1 / 60);
+  assert.equal(x.value, 0.75);
+  assert.equal(z.value, 0.75);
+  assert.deepEqual(mirrorChanges, []); assert.deepEqual(mirrorDetents, []);
+  // Loss releases the owner but does not let a competitor's old hold acquire.
+  ray(z, 'second', true, new THREE.Vector3(0, 0, -0.1)); view.update(1 / 60);
+  assert.equal(z.value, 0.75);
+  view.restoreBrightness();
+  ray(x, 'first', true, xp); ray(z, 'second', true, new THREE.Vector3(0, 0, 0)); view.update(1 / 60);
+  assert.equal(x.value, 1); assert.equal(z.value, 1);
+  ray(x, 'first', false, xp); ray(z, 'second', false, new THREE.Vector3()); view.update(1 / 60);
+  ray(x, 'first', true, xp); view.update(1 / 60);
+  assert.equal(x.value, shared); assert.equal(z.value, shared);
+  view.dispose();
+});
+
+test('unrelated hover does not change the source tie-break between acquired controls', () => {
+  const view = new SliderComparison(T), { x, z } = view.controls;
+  x.feed({ kind: 'ray', id: 'a-hover', pressed: false, captured: false, point: new THREE.Vector3() });
+  x.feed({ kind: 'ray', id: 'c-acquired', pressed: true, captured: true, point: new THREE.Vector3(-0.08, 0, x.frontZ) });
+  z.feed({ kind: 'ray', id: 'b-acquired', pressed: true, captured: true, point: new THREE.Vector3(0, 0, z.knobZ) });
+  view.update(1 / 60);
+  assert.equal(x.value, 1, 'b-acquired Z wins over c-acquired X regardless of a-hover');
+  assert.equal(z.value, 1);
+  z.feed({ kind: 'ray', id: 'b-acquired', pressed: true, captured: true, point: new THREE.Vector3(0, 0, 0) });
+  view.update(1 / 60);
+  assert.equal(x.value, 0); assert.equal(z.value, 0);
+  view.dispose();
+});
+
+test('simultaneous controls use the source tie-break, and near restore requires withdrawal', () => {
+  const view = new SliderComparison(T), { x, z } = view.controls;
+  x.feed({ kind: 'ray', id: 'z-source', pressed: true, captured: true, point: new THREE.Vector3(-0.08, 0, x.frontZ) });
+  z.feed({ kind: 'ray', id: 'a-source', pressed: true, captured: true, point: new THREE.Vector3(0, 0, z.knobZ) });
+  view.update(1 / 60);
+  assert.equal(x.value, 1, 'Z wins despite X being inserted first');
+  z.feed({ kind: 'ray', id: 'a-source', pressed: true, captured: true, point: new THREE.Vector3(0, 0, 0) });
+  view.update(1 / 60);
+  assert.equal(x.value, 0); assert.equal(z.value, 0);
+  view.update(0);
+  const contact = depth => x.feed({ kind: 'poke', id: 'finger', radius: 0.008, point: new THREE.Vector3(0, 0, depth) });
+  contact(0.04); view.update(0); contact(0.01); view.update(0);
+  assert.equal(x.value, 0.5);
+  view.restoreBrightness(); contact(0.01); view.update(0);
+  assert.equal(x.value, 1);
+  contact(0.04); view.update(0); contact(0.01); view.update(0);
+  assert.equal(x.value, 0.5); assert.equal(z.value, 0.5);
+  view.dispose();
+});
+
+test('comparison starts at full brightness and X changes both visible control results', () => {
   const view = new SliderComparison(T);
   view.update(1 / 60);
   for (const key of ['x', 'z']) {
-    assert.equal(view.controls[key].value, 0.4);
-    assert.equal(view.results[key].number.text, '40%');
-    assert.deepEqual(view.results[key].sample.material.color.toArray(), [0.4, 0.4, 0.4]);
+    assert.equal(view.controls[key].value, 1);
+    assert.equal(view.results[key].number.text, '100%');
     assert.equal(view.results[key].sample.material.transparent, false);
+  }
+  view.controls.x.feed({ kind: 'ray', id: 'hand', pressed: true, captured: true, point: new THREE.Vector3(0, 0, 0.003) });
+  view.update(1 / 60);
+  for (const key of ['x', 'z']) {
+    assert.equal(view.controls[key].value, 0.5);
+    assert.equal(view.results[key].number.text, '50%');
   }
   view.dispose();
 });
 
-test('X hover leaves values alone; a captured ray changes only X and retains it after release/loss', () => {
+test('X hover leaves values alone; a captured ray updates the shared result and retains it after release/loss', () => {
   const view = new SliderComparison(T), x = view.controls.x;
   const changes = [];
   x.addEventListener('change', event => changes.push(event.value));
@@ -29,13 +115,13 @@ test('X hover leaves values alone; a captured ray changes only X and retains it 
     view.update(1 / 60);
   };
   frame(0.04, false);
-  assert.equal(x.value, 0.4);
+  assert.equal(x.value, 1);
   assert.deepEqual(changes, []);
   frame(0.04, true);
   assert.equal(x.value, 0.75);
   assert.equal(view.results.x.number.text, '75%');
-  assert.deepEqual(view.results.x.sample.material.color.toArray(), [0.75, 0.75, 0.75]);
-  assert.equal(view.controls.z.value, 0.4);
+  assert.equal(view.results.z.number.text, '75%');
+  assert.equal(view.controls.z.value, 0.75);
   // InputSystem's release frame still carries captured:true.
   frame(-0.08, false, true);
   assert.equal(x.value, 0.75);
@@ -55,7 +141,7 @@ test('X requires front contact, keeps one contact owner, clamps a drag and relea
     view.update(1 / 60);
   };
   frame(0.04, 0.04); // proximity is not contact
-  assert.equal(x.value, 0.4);
+  assert.equal(x.value, 1);
   frame(0.04, 0.010); // radius reaches frontZ=.003
   assert.equal(x.value, 0.75);
   frame(0.09, 0.010, 'finger', [{ kind: 'ray', id: 'other', point: new THREE.Vector3(-0.08, 0, 0), pressed: true, captured: true }]);
@@ -70,35 +156,26 @@ test('X requires front contact, keeps one contact owner, clamps a drag and relea
   view.dispose();
 });
 
-test('continuous values drive equal samples even when rounded labels conceal a difference', () => {
+test('common values retain precision and mirroring never reinjects changes or detents', () => {
   const view = new SliderComparison(T), { x, z } = view.controls;
-  const events = [];
-  x.addEventListener('change', e => events.push(e.value));
-  x.setValue(0.333);
-  z.setValue(0.333);
-  assert.equal(view.results.x.number.text, '40%', 'result is flushed on update');
-  view.update(1 / 60);
-  assert.equal(view.results.x.number.text, '33%');
-  assert.deepEqual(view.results.x.sample.material.color.toArray(), view.results.z.sample.material.color.toArray());
-  z.setValue(0.334);
-  view.update(1 / 60);
-  assert.equal(view.results.x.number.text, view.results.z.number.text);
-  assert.notEqual(view.results.x.sample.material.color.r, view.results.z.sample.material.color.r);
-  assert.deepEqual(events, [0.333], 'result updates never reinject a change');
-  x.setValue(-1); z.setValue(2);
-  view.update(1 / 60);
-  assert.equal(view.results.x.number.text, '0%');
-  assert.equal(view.results.z.number.text, '100%');
-  assert.deepEqual(view.results.x.sample.material.color.toArray(), [0, 0, 0]);
-  assert.deepEqual(view.results.z.sample.material.color.toArray(), [1, 1, 1]);
   const detents = [], changes = [];
   z.addEventListener('detent', e => detents.push(e.index));
   z.addEventListener('change', e => changes.push(e.value));
-  x.setValue(0.4, { silent: true }); z.setValue(0.4, { silent: true });
-  view.update(1 / 60);
-  assert.equal(detents.length, 1, 'existing silent detent remains distinct from change');
-  assert.deepEqual(changes, []);
-  assert.equal(view.results.z.number.text, '40%');
+  x.setValue(0.333); view.update(1 / 60);
+  assert.equal(z.value, 0.333);
+  assert.equal(view.results.x.number.text, '33%');
+  assert.equal(view.results.z.number.text, '33%');
+  x.setValue(0.334); view.update(1 / 60);
+  assert.equal(z.value, 0.334);
+  assert.deepEqual(changes, []); assert.deepEqual(detents, []);
+  z.setValue(0.7); view.update(1 / 60);
+  assert.equal(x.value, 0.7);
+  assert.equal(changes.length, 1);
+  assert.ok(detents.length > 0, 'real Z setter keeps its original detent semantics');
+  const before = [...detents];
+  view.restoreBrightness();
+  assert.deepEqual(detents, before);
+  assert.equal(view.results.z.number.text, '100%');
   view.dispose();
 });
 
@@ -112,6 +189,37 @@ function inputRig(view) {
   return { scene, input: new InputSystem({ T, scene, camera, renderer }) };
 }
 
+test('confirmed XR source identity prioritizes its guidance without guessing unknown sources', () => {
+  const view = new SliderComparison(T), { input } = inputRig(view), source = input.xr[0], x = view.controls.x;
+  view.inputSources = input.xr;
+  const aim = () => {
+    input.rayStep(source, new THREE.Ray(x.localToWorld(new THREE.Vector3(0, 0, 0.4)), new THREE.Vector3(0, 0, -1)), false, 0, input.collect().items);
+    view.update(1 / 60);
+  };
+  source.ray.dispatchEvent({ type: 'connected', data: {} }); aim();
+  assert.match(view.guidance.x.text.split('\n')[0], /^컨트롤러:/);
+  source.ray.dispatchEvent({ type: 'connected', data: { hand: {} } }); aim();
+  assert.match(view.guidance.x.text.split('\n')[0], /^원거리 손:/);
+  source.ray.dispatchEvent({ type: 'disconnected' }); aim();
+  assert.match(view.guidance.x.text.split('\n')[0], /^가까이:/);
+  assert.equal(view.controls.x.value, 1);
+  view.dispose();
+});
+
+test('actual InputSystem selection of the in-scene restore button restores both controls', () => {
+  const view = new SliderComparison(T), { input } = inputRig(view);
+  view.controls.x.setValue(0); view.update(0);
+  const source = { id: 'restore-ray', state: {} }, button = view.restoreControl;
+  const origin = button.localToWorld(new THREE.Vector3(0, 0, 0.4));
+  for (const pressed of [false, true, false]) {
+    input.rayStep(source, new THREE.Ray(origin, new THREE.Vector3(0, 0, -1)), pressed, 0, input.collect().items);
+    view.update(1 / 60);
+  }
+  assert.equal(view.controls.x.value, 1);
+  assert.equal(view.controls.z.value, 1);
+  view.dispose();
+});
+
 test('actual InputSystem ray routing uses X hit geometry, rejects hover and retains values on parallel rays', () => {
   const view = new SliderComparison(T), x = view.controls.x;
   const { input } = inputRig(view), pointer = { id: 'controller', state: {} };
@@ -121,7 +229,7 @@ test('actual InputSystem ray routing uses X hit geometry, rejects hover and reta
     view.update(1 / 60);
   };
   aim(0.04, false);
-  assert.equal(x.value, 0.4);
+  assert.equal(x.value, 1);
   aim(0.04, true);
   assert.ok(Math.abs(x.value - 0.75) < 1e-12);
   input.rayStep(pointer, new THREE.Ray(new THREE.Vector3(0, 0, 0.4), new THREE.Vector3(1, 0, 0)), true, 0, input.collect().items);
@@ -146,7 +254,7 @@ test('actual InputSystem near routing requires a moving front contact, including
   };
   tip(0, 0.03);
   tip(0, 0.03, 0.016); // radius growth around stationary point is not acquisition
-  assert.equal(x.value, 0.4);
+  assert.equal(x.value, 1);
   tip(0.04, 0.04);
   tip(0.04, 0.010);
   assert.ok(Math.abs(x.value - 0.75) < 1e-12);
@@ -159,6 +267,7 @@ test('actual InputSystem near routing requires a moving front contact, including
 
 test('Z public near push and semantic pinch keep their existing value and loss behavior', () => {
   const view = new SliderComparison(T), z = view.controls.z;
+  z.setValue(0.4); view.update(0);
   const poke = (depth, pinch = false) => {
     z.feed({ kind: 'poke', id: 'semantic', point: new THREE.Vector3(0, 0, depth), radius: 0, pinch });
     view.update(1 / 60);
@@ -173,7 +282,7 @@ test('Z public near push and semantic pinch keep their existing value and loss b
   assert.ok(held > 0.4);
   view.update(1 / 60);
   assert.equal(z.value, held);
-  assert.equal(view.controls.x.value, 0.4);
+  assert.equal(view.controls.x.value, held);
   assert.equal(view.results.z.number.text, z.valueLabel.text);
   view.dispose();
 });

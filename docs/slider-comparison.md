@@ -1,43 +1,46 @@
-# R01 · 숫자 + 가상 밝기 샘플
+# R01.1 · 공통 화면 밝기와 XR 조작 단서
 
-Q112의 선택을 구현한 별도 비교 후보다. 기본 demo, B51 tokens/InputSystem/ZSlider/shader를 수정하지 않는다. `demo/comparison/PlanarSlider.js`는 fixture이며 public DS export가 아니다.
+Q113 수정 계약을 구현한 별도 비교 fixture다. 이전 R01의 독립 값·초기 `.4`·작은 sample만 바꾸는 결과는 대체됐다. `PlanarSlider`는 비교 fixture이며 public DS export가 아니다. 기본 demo와 `src/`, tokens, 기존 ZSlider/InputSystem의 전역 의미는 유지한다.
 
-`npm run dev` 후 `/slider-comparison.html`을 연다. 빌드에도 별도 entry가 포함된다. 두 control은 자유 순서로 조작하며 각 값은 독립이다. 초기 `.4`와 배치 거리는 fixture 값이다. 자동 reset이나 과업 순서, 지속 selected, 새 slider token은 없다.
+`npm run dev` 후 `/slider-comparison.html`을 연다. 자동 XR 진입·수집·업로드는 없다. 초기 공통값 `b=1`; 둘 중 하나를 조절하면 두 control/숫자와 화면 밝기가 함께 변한다. HTML과 XR 장면에 `밝기 복원`이 있다.
 
-## 값과 공통 결과
+## 값·소유권·복원
 
-- 두 control은 연속 `[0,1]`, 표시만 반올림한 `0–100%`. 같은 raw 값에서 같은 RGB parameter와 숫자를 낸다. 같은 정수 표시라도 raw 값이 다르면 sample parameter가 다르다.
-- 매 update에 control의 공개 `value`를 읽는다. `change`는 control의 원래 이벤트이며 결과에서 control로 재주입하지 않는다. silent 초기화/프로그램 설정도 같은 결과 경로를 쓴다. ZSlider의 silent detent는 보존하며 실행 확정으로 해석하지 않는다.
-- sample은 양쪽 모두 75×75mm 불투명 MeshBasicMaterial, `toneMapped:false`, linear RGB `(v,v,v)`를 동일 renderer 색관리로 표시한다. 조명/HDR/backdrop/다른 control에 영향을 주지 않는다. 물리 luminance, 지각적 선형성, 동일 픽셀 밝기를 뜻하지 않는다.
-- 공통 `밝기`는 로컬 system font canvas, 공통 숫자는 기존 로컬 Inter/Troika 경로다. 최초 text geometry sync 후 준비 완료한다. 이후 숫자 갱신에도 비동기 text sync가 필요하다. Hangul/Latin 가독성의 사용자 수락은 별도다.
+- 연속 `[0,1]` 하나를 공유하며 숫자만 `Math.round(b*100)%`로 표시한다. 한 source/control이 조작 중 공통 결과를 소유한다. 기존 owner가 우선이며 동시 acquisition은 source ID, control key의 안정된 순서로 중재한다. 서로 다른 control의 update 순서로 마지막 값이 이기지 않는다.
+- 경쟁 중 held 입력은 release/withdrawal 뒤 새 acquisition이 필요하다. owner loss/release는 마지막 값을 유지한다. 복원은 owner를 해제하고 `b=1`로 돌아가며 아직 held인 입력을 막는다. live handoff나 모든 입력 전환의 경험 등가를 주장하지 않는다.
+- 실제 control `change`를 공통 상태에 반영하고 반대 control은 무음 mirror로 갱신한다. 기존 Z의 silent setter가 detent를 발생시킬 수 있어 fixture의 Z subclass가 mirror 동안 이벤트를 억제한다. 직접 Z 조작의 detent·Glow·음향 의미는 바꾸지 않는다. silent 외부 setter는 사용자 commit 경로가 아니다.
+- 동일 숫자는 로컬 Inter/Troika 경로, Hangul 안내는 로컬 system-font canvas다. text geometry는 비동기 동기화된다. 중립 sample은 고정 linear RGB `.7`이며 최종 dim을 함께 받는다. 별도 brightness 결과가 아니다.
 
-## 입력 경계와 지원 근거
+## 전체 화면 합성
 
-| 경로 | 현재 동작 / 보존 경계 | 확인 범위 |
+마지막 검정 transparent draw의 `alpha=.75*(1-b)`로 가상 scene·unlit/custom 재질·숫자·안내·control을 함께 감쇠한다. desktop HTML 내용은 대응 CSS filter를 적용하고 canvas에는 중복 적용하지 않는다. `b=0`도 완전 검정은 아니다. 이 값은 fixture 상한이며 가독성, 물리 광도/nits, 지각 선형성 보장이 아니다. 배경·HDR·조명 값이나 시스템 밝기를 바꾸지 않는다.
+
+실제 `XRSession.environmentBlendMode`를 읽어 HTML과 XR 안에 범위를 표시한다. `alpha-blend`는 투명 영역의 alpha를 통한 표시 passthrough 감쇠 후보이며, camera 접근이나 실제 방 조명 변경이 아니다. `opaque`는 가상 앱 화면만, `additive`/unknown은 `가상 화면 밝기`로 표시한다. unknown을 alpha-blend로 추정하지 않는다. 실제 Quest 합성은 아직 미검증이다.
+
+Dim은 각 camera viewport의 clip-space draw이며 input/depth/occlusion target이 아니다. 별도 per-eye 수동 render나 renderer 설정 전역 변경을 추가하지 않는다. 실제 GL 검사는 합성된 두 viewport의 alpha·영역을 확인하며 실제 XR compositor 검사가 아니다.
+
+## 입력 경계
+
+| 경로 | 동작·한계 | 근거 |
 |---|---|---|
-| X desktop / semantic ray | track/thumb hit 후 press로 acquire. track 앞 평면의 local X로 이동·clamp. hover/놓는 프레임은 값 변경 없음. owner만 drag. 평행/동일 평면 ray는 값 유지. source loss 시 값 유지·owner 해제, 같은 ray는 release 후 재획득 | 실제 InputSystem 합성 routing + 실제 desktop pointer. Quest 미검증 |
-| X near hand / controller pose | 앞면을 움직여 접촉하는 관측 crossing에서만 acquire. world radius를 local scale로 변환. 최초 뒤쪽 출현·radius 증가만으로 획득하지 않음. drag 중 X 밖은 clamp, Y 밖/깊은 관통/후퇴/loss는 해제·값 유지 | 실제 InputSystem 합성 routing/scale 검사. hand/controller 실기기 미검증. controller grip pose는 grip 버튼 아님 |
-| Z near push / semantic pinch | 기존 front push 및 near hover에서 semantic select/pinch capture pull 보존 | public probe 회귀. 새 Quest 확인 없음 |
-| Z semantic ray / desktop wheel | 기존 knob hit, horizontal local-Y plane capture, wheel·detent·Glow·value label 보존. 평면 교차가 없을 때 InputSystem의 last-point fallback도 기존 그대로 | 실제 desktop wheel/drag. controller/hand far 하드웨어 및 모든 ray 각도 미검증 |
-| Native joint pinch | 기존 InputSystem의 pane 전용 fallback을 sliders에 확장하지 않음 | 이 비교에서 slider 지원으로 주장하지 않음 |
-| Loss / 입력 전환 | 값 복원과 feedback rest 복귀는 별개. X owner 해제 후 fresh acquire, Z 기존 loss 동작 보존. live handoff/입력 등가/comfort 미확인 | bounded synthetic + desktop. 전체 입력 전환 matrix 미검증 |
+| X semantic ray / desktop | track/thumb에서 select/trigger를 유지해 가로 drag. hover와 release frame은 값 불변. 평행 ray는 값 유지 | 실제 InputSystem 합성 routing·desktop pointer |
+| X near | 앞면 contact crossing에서 획득 후 가로 drag. world radius/local scale 적용. 최초 뒤쪽 출현·radius 증가만으로 획득하지 않음. 후퇴/깊은 관통/Y 밖/loss는 해제 | 합성 InputSystem/probe; 하드웨어 미검증 |
+| Z near / semantic ray | 기존 push·semantic pinch pull·ray plane·wheel·detent를 보존. ray plane 교차 불가 시 기존 last-point fallback 한계 유지 | 기존 public probe 회귀, desktop wheel/drag 근거; 모든 ray 각도/Quest 미검증 |
+| Native joint pinch | 기존 pane 전용 fallback을 slider에 확장하지 않음 | 새 native slider 지원 주장 없음 |
+| 소유권 / reset | 다른 source 비탈취, loss 이후 재무장, 복원 뒤 stale held 차단 | bounded synthetic + desktop restore |
 
-X track 160×32mm, thumb 지름18mm, 앞면3mm. contact가 20mm보다 깊이 들어가면 해제하는 fixture guard, 후퇴는 기존 release token. 인접 control의 hit가 겹치지 않게 배치했다. 이것은 새로운 DS 최소 target/접촉 규범이 아니다. sample/label은 input target이 아니다.
+X track 160×32mm, thumb 지름18mm, 앞면3mm와 20mm 깊은 접촉 guard는 기존 fixture 값이다. controller의 grip pose는 grip 버튼이 아니다. near X에 pinch를 요구하지 않는다. XR 장면에는 near/far hand/controller 안내를 병기하고 X thumb/track 색·크기로 hover와 획득을 구분한다. 실제 connected XR source의 hand/controller identity와 해당 control의 ray probe가 일치하면 그 안내를 먼저 표시한다. near/unknown은 기본 병기를 유지하며 source를 확신 없이 추정하지 않는다. 이 안내 화면을 무도움 첫 노출 시험으로 취급하지 않는다.
 
-## 공간·환경 한계
+## 공간·lifecycle
 
-Desktop 기준 눈높이1.6m, rig `(0,1.48,-.6)`, 좌우 중심 ±.14m, scale1. 공통 sample/label은 같은 깊이·크기·foreground다. Z는 기존 D=.6 크기 계산을 쓰고 Y축 -0.35rad만 기울인다. X/Z 조절축, hit, reach, Z의 추가 자체 값 label/feedback은 남는 차이다. 실제 눈-각 control 거리는 약.628m이며 `.6`을 정확한 눈 거리로 주장하지 않는다.
+Desktop rig `(0,1.48,-.6)`, 양 중심 ±.14m, scale1. Z는 기존 D=.6 계산과 Y회전 -.35rad를 쓴다. XR은 첫 viewer pose 기준 rig를 배치한다. UI 축/hit/reach/자체 Z feedback 차이는 남는다. 실제 공간 센싱·가림·접촉은 구현하지 않는다.
 
-XR entry는 기존 InputSystem으로 연결하고 첫 viewer pose 기준 같은 rig를 배치한다. AR은 배경 투명, VR/desktop은 같은 가상 배경이다. 가상 reflection 환경은 고정이며 기존 custom glass의 `setBackdrop`으로 연결하고 AR에서는 원래처럼 null로 전환한다. sample 값과 연결되지 않는다. 실제 방/책상 센싱·접촉·가림은 구현하지 않았다. XR entry/종료/첫 pose 배치는 하드웨어 미확인이다.
-
-새 motion은 없으며 기존 Z feedback을 바꾸지 않는다. Reduced preference에서 결과 유지와 기존 feedback은 전체 reduced-motion 적합성/기기 comfort 증거가 아니다. 물성 이해·첫 예측을 평가할 때 이 개발 화면의 조작 설명을 참가자 안내로 자동 채택하지 않는다.
+Session 종료와 앱 dispose는 공통값1과 dim 제거를 수행한다. source loss는 session 종료와 달리 값을 유지한다. pagehide도 앱 밝기를 복원하며 BFCache 보존 시 자원은 유지한다. 최종 dispose는 own canvas/geometry/material/texture/renderer를 정리하고 공유 cache는 소유하지 않는다. native session 종료는 요청·비동기 정리 경계이며 하드웨어 종료 증거가 아니다. 기존 retained preview는 이 변경과 별도로 고정되어 있다.
 
 ## 개발 검증
 
-`node --import ./test/support/register.mjs --disable-warning=THREE_CJS_DEPRECATED --test test/slider-comparison.test.js`는 실제 control/value/외부 결과를 확인한다. Node는 font/image/DOM 경계 stand-in이며 pixel 검사가 아니다.
+`node --import ./test/support/register.mjs --disable-warning=THREE_CJS_DEPRECATED --test test/slider-comparison.test.js`는 공통 public control/value/visible 결과 및 실제 InputSystem routing을 확인한다. Node DOM/font는 stand-in이고 pixel 증거가 아니다.
 
-`node scripts/verify-slider-comparison.mjs`는 별도 소유 Vite/Chromium에서 font-ready 표시, 실제 pointer hover/drag, Z wheel/drag, 독립 결과, reduced preference 값 유지, console/network와 disposal을 확인한 뒤 브라우저/서버를 닫는다. `CHROMIUM_PATH`와 `R01_OUTPUT`으로 설치된 browser와 결과 경로만 지정할 수 있다. 설치·XR session·GPU 시간 계측·진단 업로드는 하지 않는다. 기본 출력 `shots/r01`은 Git 제외다.
+`node scripts/verify-slider-brightness.mjs` (`verify-slider-comparison.mjs`도 같은 checker로 연결)는 소유 loopback Vite/설치 Chrome에서 pointer·복원·실제 GL frame/alpha·합성 ArrayCamera viewport와 오류·정리를 확인한다. XR session/POST/성능계측을 하지 않는다. `CHROMIUM_PATH`, `R01_OUTPUT`으로 설치 browser/결과 경로를 지정할 수 있다. paused-loop 캡처는 text sync 뒤 새 frame을 제출해야 한다.
 
-Fixture의 pointercancel/lostpointercapture adapter는 mouse ownership만 해제하고 값을 유지한다. 기존 InputSystem 소스는 보존한다. BFCache용 persisted pagehide에는 scene을 보존하고 최종 dispose에는 instance halo/label texture와 geometry/material/renderer를 정리한다. shared texture cache는 소유하지 않는다. 명시 dispose는 활성 XR session 종료를 요청하며 늦은 session 결과도 종료하지만 native 완료는 실기기 증거가 아니다.
-
-`npm test`는 token 검사 + Node + Arena, `npm run build`는 token 검사 + Vite build다. 독립 TS typecheck script는 없다. 이 근거는 Q112 비교 후보의 기술 검증이며 사용자 적응/Quest/성능 PASS가 아니다. GPU 후속은 계속 보류하고 #12 NOT_MET / #13 OPEN을 유지한다.
+`npm test`는 tokens + Node + Arena, `npm run build`는 tokens + Vite다. 별도 TS typecheck script는 없다. 이 검증은 Quest 동작·passthrough·가독성/comfort·성능 수락을 대신하지 않는다. GPU deferred/auto-resume false, #12 NOT_MET / #13 OPEN 유지.
