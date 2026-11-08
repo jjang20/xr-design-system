@@ -24,13 +24,22 @@ for (const t of tokens) {
     errors.push(`${t.name}: ${t.type} needs {value:number, unit: ${[...UNITS].join('|')}}`);
   if (isAlias(t.raw) && byName.get(t.raw.slice(1, -1))?.type !== t.type)
     errors.push(`${t.name}: alias ${t.raw} has a different $type`);
-  const shown = typeof v === 'object' && !Array.isArray(v) ? `${v.value}${v.unit}` : JSON.stringify(v);
+  const shown = v && typeof v === 'object' && !Array.isArray(v) ? `${v.value}${v.unit}` : JSON.stringify(v);
   rows.push(`${t.status ? '~' : ' '} ${t.evidence}  ${t.name.padEnd(40)} ${shown}${isAlias(t.raw) ? `  <- ${t.raw}` : ''}`);
 }
 for (const [from, to] of Object.entries(renames))
   if (typeof to === 'string' && !byName.has(to)) errors.push(`renames.json: ${from} -> ${to}, which does not exist`);
 
 console.log(rows.join('\n'));
+const provisional = rows.filter(r => r.startsWith('~')).length;
+const aliases = tokens.filter(t => isAlias(t.raw)).length;
+console.log(`\n${rows.length} tokens (${aliases} aliases, ${provisional} provisional, marked ~)`);
+// Diagnostics must be reported before advisory calculations dereference the
+// values they rejected (for example, a missing thickness alias).
+if (errors.length) {
+  console.error('\n' + errors.join('\n'));
+  process.exit(1);
+}
 
 // Known conflict: a press shallower than the release pull-back makes the button
 // feel sticky (the finger must lift above the resting surface before it lets go).
@@ -44,10 +53,3 @@ for (const t of ['thin', 'regular', 'thick'])
   }
 if (sticky.length)
   console.warn(`\nwarning: press travel is shorter than input.poke.distance.release (${release * 1000}mm) for: ${sticky.join(', ')}`);
-const provisional = rows.filter(r => r.startsWith('~')).length;
-const aliases = tokens.filter(t => isAlias(t.raw)).length;
-console.log(`\n${rows.length} tokens (${aliases} aliases, ${provisional} provisional, marked ~)`);
-if (errors.length) {
-  console.error('\n' + errors.join('\n'));
-  process.exit(1);
-}
