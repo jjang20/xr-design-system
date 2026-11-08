@@ -2,6 +2,8 @@
 
 [`tokens.json`](../tokens.json) is the source for declared Contour tokens. It does not contain every implementation value: [DEFAULTS](../src/core/defaults.js) and comparison fixtures still contain layout, appearance and input constants. Their presence is not final token/schema adoption. See the [current component inventory](components.md#tokens-and-design-values).
 
+For current naming, compatibility, migration and unresolved design boundaries, see the [token contract](token-contract.md) and [complete source-derived inventory](token-inventory.json).
+
 Check the file after any edit:
 
 ```sh

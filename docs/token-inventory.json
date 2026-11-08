@@ -1,0 +1,1079 @@
+{
+  "sourceVersion": "0.2.0",
+  "sourceSha256": {
+    "tokens.json": "d644cb4357e5124ee730de8b024d962e04cc84d6d17db58762337fbf111f11a6",
+    "scripts/renames.json": "5fef15354f68d515f67a8653dd1f47fce4c7b924512602e829e178bd30e18e7e"
+  },
+  "counts": {
+    "tokens": 76,
+    "aliases": 19,
+    "provisional": 17,
+    "migrationEntries": 43,
+    "renames": 38,
+    "removals": 5
+  },
+  "tokens": [
+    {
+      "path": "anchor.eccentricity.vertical",
+      "type": "dimension",
+      "authoredValue": {
+        "value": -25,
+        "unit": "deg"
+      },
+      "authoredUnit": "deg",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Dock sits 25 degrees below the centre of view."
+    },
+    {
+      "path": "anchor.follow.damping",
+      "type": "string",
+      "authoredValue": "critical",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "No overshoot or wobble. The number one motion-sickness tuning item."
+    },
+    {
+      "path": "anchor.follow.delay",
+      "type": "duration",
+      "authoredValue": {
+        "value": 350,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Lazy follow: how long after the body turns the dock starts to follow."
+    },
+    {
+      "path": "anchor.follow.frequency",
+      "type": "number",
+      "authoredValue": 6,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Natural frequency (rad/s) of the critically damped follow spring used in the lab."
+    },
+    {
+      "path": "anchor.mode",
+      "type": "string",
+      "authoredValue": "bodyLock",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "The dock's anchor. Decision. head-lock is banned (sticker on glasses), world-lock is banned for the dock (gets lost when you turn)."
+    },
+    {
+      "path": "color.contrast.ratio.minimum",
+      "type": "number",
+      "authoredValue": 3,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "M",
+      "category": "Color",
+      "status": null,
+      "provisional": false,
+      "description": "Minimum contrast ratio against the background (3:1). Below it, the scrim turns on."
+    },
+    {
+      "path": "color.scrim.opacity.maximum",
+      "type": "number",
+      "authoredValue": 0.35,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Color",
+      "status": null,
+      "provisional": false,
+      "description": "Upper end of the automatic backing scrim opacity, for busy backgrounds."
+    },
+    {
+      "path": "color.scrim.opacity.minimum",
+      "type": "number",
+      "authoredValue": 0,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Color",
+      "status": null,
+      "provisional": false,
+      "description": "Lower end of the automatic backing scrim opacity."
+    },
+    {
+      "path": "distance.003",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.003,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Distance",
+      "status": null,
+      "provisional": false,
+      "description": "3 mm. Step = the literal value in mm."
+    },
+    {
+      "path": "distance.100",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.1,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Distance",
+      "status": null,
+      "provisional": false,
+      "description": "100 mm. Step = the literal value in mm."
+    },
+    {
+      "path": "distance.140",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.14,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Distance",
+      "status": null,
+      "provisional": false,
+      "description": "140 mm. Step = the literal value in mm."
+    },
+    {
+      "path": "distance.350",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.35,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Distance",
+      "status": null,
+      "provisional": false,
+      "description": "350 mm. Step = the literal value in mm."
+    },
+    {
+      "path": "distance.400",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.4,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Distance",
+      "status": null,
+      "provisional": false,
+      "description": "400 mm. Step = the literal value in mm."
+    },
+    {
+      "path": "dock.magnify.falloff",
+      "type": "string",
+      "authoredValue": "cosine",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Curve that fades magnification for neighbouring icons: scale = 1 + (max - 1) * cos(d / radius * pi/2)."
+    },
+    {
+      "path": "dock.magnify.radius",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 133.33333333333334,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Hand distance at which dock icons start to grow. 133 1/3 vpt preserves the recovered component lookdev value of 100 dmm."
+    },
+    {
+      "path": "dock.magnify.scale.max",
+      "type": "number",
+      "authoredValue": 1.2,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Largest icon scale when the hand is right on it."
+    },
+    {
+      "path": "duration.030",
+      "type": "duration",
+      "authoredValue": {
+        "value": 30,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "30 ms. Step = the literal value."
+    },
+    {
+      "path": "duration.080",
+      "type": "duration",
+      "authoredValue": {
+        "value": 80,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "80 ms. Step = the literal value."
+    },
+    {
+      "path": "duration.120",
+      "type": "duration",
+      "authoredValue": {
+        "value": 120,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "120 ms. Step = the literal value."
+    },
+    {
+      "path": "duration.140",
+      "type": "duration",
+      "authoredValue": {
+        "value": 140,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "140 ms. Step = the literal value."
+    },
+    {
+      "path": "duration.220",
+      "type": "duration",
+      "authoredValue": {
+        "value": 220,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "220 ms. Step = the literal value."
+    },
+    {
+      "path": "duration.240",
+      "type": "duration",
+      "authoredValue": {
+        "value": 240,
+        "unit": "ms"
+      },
+      "authoredUnit": "ms",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Duration",
+      "status": null,
+      "provisional": false,
+      "description": "240 ms. Step = the literal value."
+    },
+    {
+      "path": "easing.easeInOut",
+      "type": "cubicBezier",
+      "authoredValue": [
+        0.42,
+        0,
+        0.58,
+        1
+      ],
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Easing",
+      "status": null,
+      "provisional": false,
+      "description": "Ease-in-out (CSS built-in curve)."
+    },
+    {
+      "path": "easing.easeOut",
+      "type": "cubicBezier",
+      "authoredValue": [
+        0,
+        0,
+        0.58,
+        1
+      ],
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Easing",
+      "status": null,
+      "provisional": false,
+      "description": "Ease-out (CSS built-in curve)."
+    },
+    {
+      "path": "feedback.detent.interval",
+      "type": "number",
+      "authoredValue": 0.1,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "Z-Slider detent step as a fraction of the range (10 steps)."
+    },
+    {
+      "path": "input.direct.distance.enter",
+      "type": "dimension",
+      "authoredValue": "{distance.350}",
+      "authoredUnit": null,
+      "directAliasTarget": "distance.350",
+      "evidence": "G",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "Hand-to-panel distance where the ray turns off and direct touch takes over."
+    },
+    {
+      "path": "input.direct.distance.exit",
+      "type": "dimension",
+      "authoredValue": "{distance.400}",
+      "authoredUnit": null,
+      "directAliasTarget": "distance.400",
+      "evidence": "G",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "Direct touch ends only when the hand moves further than this, so it does not flicker (was threshold 350 + hysteresis 50 mm)."
+    },
+    {
+      "path": "input.hover.distance.enter",
+      "type": "dimension",
+      "authoredValue": "{distance.100}",
+      "authoredUnit": null,
+      "directAliasTarget": "distance.100",
+      "evidence": "G",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "Hover starts when the fingertip comes closer than this. Physical: was 100 dmm, now 100 mm."
+    },
+    {
+      "path": "input.hover.distance.exit",
+      "type": "dimension",
+      "authoredValue": "{distance.140}",
+      "authoredUnit": null,
+      "directAliasTarget": "distance.140",
+      "evidence": "G",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "Hover ends only when the fingertip moves further than this (hysteresis band 100-140 mm)."
+    },
+    {
+      "path": "input.poke.distance.release",
+      "type": "dimension",
+      "authoredValue": "{distance.003}",
+      "authoredUnit": null,
+      "directAliasTarget": "distance.003",
+      "evidence": "T",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "Release only after the finger retreats this far back from the press point (release hysteresis, stops jitter)."
+    },
+    {
+      "path": "input.poke.pressTrigger",
+      "type": "string",
+      "authoredValue": "surfaceContact",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "N",
+      "category": "Input",
+      "status": null,
+      "provisional": false,
+      "description": "A press starts when the fingertip touches the surface; depth then follows material.firmness.*.pressDepth."
+    },
+    {
+      "path": "input.touch.size.minimum",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.022,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Input",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Physical floor for any target touched by a fingertip, whatever vpt works out to: hit size = max(vpt size at d, this). About one fingertip wide."
+    },
+    {
+      "path": "material.firmness.firm.pressDepth",
+      "type": "number",
+      "authoredValue": 0.4,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Default density. Press depth as a fraction of material.thickness (press depth = ratio x t)."
+    },
+    {
+      "path": "material.firmness.rigid.pressDepth",
+      "type": "number",
+      "authoredValue": 0.15,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Barely presses. Disabled and structural elements. Press depth as a fraction of material.thickness (press depth = ratio x t)."
+    },
+    {
+      "path": "material.firmness.soft.pressDepth",
+      "type": "number",
+      "authoredValue": 0.6,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "T",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Presses deep, recovers slowly. Press depth as a fraction of material.thickness (press depth = ratio x t)."
+    },
+    {
+      "path": "material.glow.width",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 2,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Edge glow width on hover (2 vpt = 1.5 dmm, unchanged)."
+    },
+    {
+      "path": "material.opacity.default",
+      "type": "number",
+      "authoredValue": 0.92,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Not glass. Objects are opaque by default."
+    },
+    {
+      "path": "material.outline.width",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 1,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "High-contrast outline that keeps edges readable on bright walls and busy backgrounds. Was 1 dmm; now 1 vpt (0.75 dmm), a hairline."
+    },
+    {
+      "path": "material.thickness.regular",
+      "type": "dimension",
+      "authoredValue": "{thickness.200}",
+      "authoredUnit": null,
+      "directAliasTarget": "thickness.200",
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Default thickness for buttons and controls."
+    },
+    {
+      "path": "material.thickness.thick",
+      "type": "dimension",
+      "authoredValue": "{thickness.400}",
+      "authoredUnit": null,
+      "directAliasTarget": "thickness.400",
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Thickness for panels and the dock."
+    },
+    {
+      "path": "material.thickness.thin",
+      "type": "dimension",
+      "authoredValue": "{thickness.100}",
+      "authoredUnit": null,
+      "directAliasTarget": "thickness.100",
+      "evidence": "G",
+      "category": "Material",
+      "status": null,
+      "provisional": false,
+      "description": "Thickness for cards and list items."
+    },
+    {
+      "path": "menu.extent.vertical.max",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 35,
+        "unit": "deg"
+      },
+      "authoredUnit": "deg",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": null,
+      "provisional": false,
+      "description": "How far below eye level a dropdown may extend. Opening upward is not allowed."
+    },
+    {
+      "path": "motion.enter.duration",
+      "type": "duration",
+      "authoredValue": "{duration.120}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.120",
+      "evidence": "G",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Something appearing or lighting up, such as hover feedback."
+    },
+    {
+      "path": "motion.enter.easing",
+      "type": "cubicBezier",
+      "authoredValue": "{easing.easeOut}",
+      "authoredUnit": null,
+      "directAliasTarget": "easing.easeOut",
+      "evidence": "G",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Easing for motion.enter."
+    },
+    {
+      "path": "motion.expand.duration",
+      "type": "duration",
+      "authoredValue": "{duration.240}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.240",
+      "evidence": "T",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Dropdown inline expand and one-level packaging transitions."
+    },
+    {
+      "path": "motion.expand.easing",
+      "type": "cubicBezier",
+      "authoredValue": "{easing.easeInOut}",
+      "authoredUnit": null,
+      "directAliasTarget": "easing.easeInOut",
+      "evidence": "T",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Easing for motion.expand."
+    },
+    {
+      "path": "motion.press.behavior",
+      "type": "string",
+      "authoredValue": "followInput",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "N",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Not an animation. The surface tracks the finger in real time."
+    },
+    {
+      "path": "motion.recovery.firm.duration",
+      "type": "duration",
+      "authoredValue": "{duration.140}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.140",
+      "evidence": "T",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Time for a firm surface to spring back to full thickness after release."
+    },
+    {
+      "path": "motion.recovery.rigid.duration",
+      "type": "duration",
+      "authoredValue": "{duration.080}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.080",
+      "evidence": "T",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Time for a rigid surface to spring back to full thickness after release."
+    },
+    {
+      "path": "motion.recovery.soft.duration",
+      "type": "duration",
+      "authoredValue": "{duration.220}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.220",
+      "evidence": "T",
+      "category": "Motion",
+      "status": null,
+      "provisional": false,
+      "description": "Time for a soft surface to spring back to full thickness after release."
+    },
+    {
+      "path": "packaging.depth.max",
+      "type": "number",
+      "authoredValue": 3,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Deepest nesting level shown in the lab (levels 0-3). Real limit is the depth budget."
+    },
+    {
+      "path": "packaging.parent.mode",
+      "type": "string",
+      "authoredValue": "compress",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "What the parent does when a child opens: compress | replace | protrude. Lab default; the real default is still open."
+    },
+    {
+      "path": "packaging.parent.recede.opacity.min",
+      "type": "number",
+      "authoredValue": 0.3,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Parents never fade below this, so the path back is always visible."
+    },
+    {
+      "path": "packaging.parent.recede.opacity.start",
+      "type": "number",
+      "authoredValue": 0.6,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Opacity of the first parent behind the active panel. This is the wayfinding breadcrumb."
+    },
+    {
+      "path": "packaging.parent.recede.opacity.step",
+      "type": "number",
+      "authoredValue": 0.14,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Opacity lost per further level."
+    },
+    {
+      "path": "packaging.parent.recede.scale",
+      "type": "number",
+      "authoredValue": 0.08,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Scale lost per level of depth (compress mode)."
+    },
+    {
+      "path": "packaging.parent.recede.y",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.035,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "How far each level of parent moves up (compress mode), so its silhouette stays visible."
+    },
+    {
+      "path": "packaging.parent.recede.z",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.05,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "How far each level of parent moves back (compress mode)."
+    },
+    {
+      "path": "shadow.contact.behavior",
+      "type": "string",
+      "authoredValue": "proportionalToPush",
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Shadow",
+      "status": null,
+      "provisional": false,
+      "description": "Contact shadow grows with Z-Slider push depth to aid depth perception."
+    },
+    {
+      "path": "shadow.contact.opacity.maximum",
+      "type": "number",
+      "authoredValue": 0.6,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Shadow",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Shadow opacity at full push."
+    },
+    {
+      "path": "shadow.contact.opacity.minimum",
+      "type": "number",
+      "authoredValue": 0.15,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Shadow",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Shadow opacity at zero push."
+    },
+    {
+      "path": "shadow.contact.scaleGain",
+      "type": "number",
+      "authoredValue": 0.9,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Shadow",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Extra shadow scale at full push (scale = 1 + push x 0.9)."
+    },
+    {
+      "path": "size.1600",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 64,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Size",
+      "status": null,
+      "provisional": false,
+      "description": "64 vpt. Step = multiple of the 4 vpt base x 100."
+    },
+    {
+      "path": "size.2000",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 80,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Size",
+      "status": null,
+      "provisional": false,
+      "description": "80 vpt. Step = multiple of the 4 vpt base x 100."
+    },
+    {
+      "path": "size.interactive.default",
+      "type": "dimension",
+      "authoredValue": "{size.2000}",
+      "authoredUnit": null,
+      "directAliasTarget": "size.2000",
+      "evidence": "M",
+      "category": "Size",
+      "status": null,
+      "provisional": false,
+      "description": "Default button face, square (80 x 80 vpt = 60 x 60 dmm)."
+    },
+    {
+      "path": "size.interactive.minimum",
+      "type": "dimension",
+      "authoredValue": "{size.1600}",
+      "authoredUnit": null,
+      "directAliasTarget": "size.1600",
+      "evidence": "M",
+      "category": "Size",
+      "status": null,
+      "provisional": false,
+      "description": "Smallest interactive target: 64 vpt = 48 dmm (raised from 32 to 48 dmm on 2026-10-19). In the hand zone it never goes below input.touch.size.minimum."
+    },
+    {
+      "path": "sound.detent.duration",
+      "type": "duration",
+      "authoredValue": "{duration.030}",
+      "authoredUnit": null,
+      "directAliasTarget": "duration.030",
+      "evidence": "G",
+      "category": "Sound",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Length of the detent tick."
+    },
+    {
+      "path": "sound.detent.gain",
+      "type": "number",
+      "authoredValue": -18,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Sound",
+      "status": null,
+      "provisional": false,
+      "description": "Detent tick loudness in dB. First substitute for missing haptics."
+    },
+    {
+      "path": "spacing.600",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 24,
+        "unit": "vpt"
+      },
+      "authoredUnit": "vpt",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Spacing",
+      "status": null,
+      "provisional": false,
+      "description": "24 vpt. Step = multiple of the 4 vpt base x 100."
+    },
+    {
+      "path": "spacing.gap.minimum",
+      "type": "dimension",
+      "authoredValue": "{spacing.600}",
+      "authoredUnit": null,
+      "directAliasTarget": "spacing.600",
+      "evidence": "M",
+      "category": "Spacing",
+      "status": null,
+      "provisional": false,
+      "description": "Minimum gap between targets to avoid mis-presses. 24 vpt (18 dmm); was 16 dmm, rounded up to the 4 vpt grid."
+    },
+    {
+      "path": "thickness.100",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.004,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Thickness",
+      "status": null,
+      "provisional": false,
+      "description": "4 mm. Step = multiple of the 4 mm base x 100."
+    },
+    {
+      "path": "thickness.200",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.008,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Thickness",
+      "status": null,
+      "provisional": false,
+      "description": "8 mm. Step = multiple of the 4 mm base x 100."
+    },
+    {
+      "path": "thickness.400",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.016,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "D",
+      "category": "Thickness",
+      "status": null,
+      "provisional": false,
+      "description": "16 mm. Step = multiple of the 4 mm base x 100."
+    },
+    {
+      "path": "zone.room.growth.rate",
+      "type": "number",
+      "authoredValue": 0.5,
+      "authoredUnit": null,
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Zone",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Past zone.room.growth.start, each extra metre counts as this many metres in f(d) (Android XR grows 0.5 m per m)."
+    },
+    {
+      "path": "zone.room.growth.start",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 1.75,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Zone",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Placement distance after which panels stop growing in step with distance (Android XR keeps apparent size constant up to 1.75 m). Used by f(d)."
+    },
+    {
+      "path": "zslider.travel",
+      "type": "dimension",
+      "authoredValue": {
+        "value": 0.07,
+        "unit": "m"
+      },
+      "authoredUnit": "m",
+      "directAliasTarget": null,
+      "evidence": "G",
+      "category": "Backlog",
+      "status": "provisional",
+      "provisional": true,
+      "description": "Knob travel along Z from fully pulled to fully pushed."
+    }
+  ],
+  "migrationDescription": "Old token names (v0.1) and what they became in v0.2.0. A string is the new name; { removed } explains why a token was dropped. The build exports this as `renamed` so old code can migrate.",
+  "renamesAndRemovals": {
+    "anchor.body.scale": {
+      "removed": "Replaced by one rule for every zone: visual sizes are vpt, d is measured once at placement, and the hand zone adds input.touch.size.minimum."
+    },
+    "anchor.hand.scale": {
+      "removed": "Replaced by one rule for every zone: visual sizes are vpt, d is measured once at placement, and the hand zone adds input.touch.size.minimum."
+    },
+    "anchor.surface.scale": {
+      "removed": "Replaced by one rule for every zone: visual sizes are vpt, d is measured once at placement, and the hand zone adds input.touch.size.minimum."
+    },
+    "anchor.world.growth.knee": "zone.room.growth.start",
+    "anchor.world.growth.rate": "zone.room.growth.rate",
+    "anchor.world.scale": {
+      "removed": "Replaced by one rule for every zone: visual sizes are vpt, d is measured once at placement, and the hand zone adds input.touch.size.minimum."
+    },
+    "feedback.detent.audio.gain": "sound.detent.gain",
+    "feedback.detent.audio.length": "sound.detent.duration",
+    "feedback.glow.edge": "material.glow.width",
+    "feedback.shadow.press.curve": "shadow.contact.behavior",
+    "feedback.shadow.press.opacity.max": "shadow.contact.opacity.maximum",
+    "feedback.shadow.press.opacity.min": "shadow.contact.opacity.minimum",
+    "feedback.shadow.press.scale": "shadow.contact.scaleGain",
+    "material.density.firm.press": "material.firmness.firm.pressDepth",
+    "material.density.firm.recover": "motion.recovery.firm.duration",
+    "material.density.rigid.press": "material.firmness.rigid.pressDepth",
+    "material.density.rigid.recover": "motion.recovery.rigid.duration",
+    "material.density.soft.press": "material.firmness.soft.pressDepth",
+    "material.density.soft.recover": "motion.recovery.soft.duration",
+    "material.t.regular": "material.thickness.regular",
+    "material.t.thick": "material.thickness.thick",
+    "material.t.thin": "material.thickness.thin",
+    "motion.expand.dropdown.duration": "motion.expand.duration",
+    "motion.expand.dropdown.easing": "motion.expand.easing",
+    "motion.hover.in.duration": "motion.enter.duration",
+    "motion.hover.in.easing": "motion.enter.easing",
+    "motion.press.down": "motion.press.behavior",
+    "motion.recover": {
+      "removed": "It only pointed at the recovery timings, which now live in motion.recovery.*."
+    },
+    "proximity.hover.enter": "input.hover.distance.enter",
+    "proximity.hover.exit": "input.hover.distance.exit",
+    "proximity.nearfar.hysteresis": "input.direct.distance.exit",
+    "proximity.nearfar.threshold": "input.direct.distance.enter",
+    "proximity.poke.press": "input.poke.pressTrigger",
+    "proximity.poke.release": "input.poke.distance.release",
+    "size.button.default": "size.interactive.default",
+    "size.gap.min": "spacing.gap.minimum",
+    "size.target.floor": "input.touch.size.minimum",
+    "size.target.min": "size.interactive.minimum",
+    "surface.contrast.min": "color.contrast.ratio.minimum",
+    "surface.opacity.base": "material.opacity.default",
+    "surface.outline.mr": "material.outline.width",
+    "surface.scrim.max": "color.scrim.opacity.maximum",
+    "surface.scrim.min": "color.scrim.opacity.minimum"
+  }
+}
