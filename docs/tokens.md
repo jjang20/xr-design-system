@@ -18,7 +18,7 @@ Edit declared tokens in `tokens.json`, not the generated output. The live compon
 |---|---|---|
 | `dist/tokens.js` | WebXR / three.js code | metres, radians, seconds. vpt = metres at 1 m (use `viewSize`) |
 | `dist/tokens.css` | the website | physical lengths as `mm`; `deg`, `ms` as CSS units; vpt as a plain number |
-| `dist/figma-variables.json` | Figma, via Local variables → Import | vpt as px (1 px = 1 vpt); metres shown in cm, or mm below 1 cm; unit in the description |
+| `dist/figma-variables.json` | Figma-variable interchange output; import workflow and compatibility not yet verified | vpt as px (1 px = 1 vpt); metres shown in cm, or mm below 1 cm; unit in the description |
 
 `npm run check` validates `tokens.json` and fails if `dist/` is out of date. Generated JS exports nested values and numeric sizing helpers; it is not a drop-in replacement for the runtime `T.get(name)` / `T.viewSize(name, distance)` API. The Figma-variable JSON is an interchange artifact, not evidence of a synced or accepted design library.
 
