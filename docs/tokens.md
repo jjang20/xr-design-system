@@ -1,6 +1,6 @@
 # Reading tokens.json
 
-[`tokens.json`](../tokens.json) is the single source of truth for Contour values. The website, the 3D lab and any future demo should read values from it instead of typing numbers into their own code.
+[`tokens.json`](../tokens.json) is the source for declared Contour tokens. It does not contain every implementation value: [DEFAULTS](../src/core/defaults.js) and comparison fixtures still contain layout, appearance and input constants. Their presence is not final token/schema adoption. See the [current component inventory](components.md#tokens-and-design-values).
 
 Check the file after any edit:
 
@@ -12,7 +12,7 @@ It lists every token and fails if one is missing a type, a unit or an evidence t
 
 ## Built files
 
-`tokens.json` stays the only place values are edited. Code reads it through the files in `dist/`, which `npm run build:tokens` regenerates from it:
+Edit declared tokens in `tokens.json`, not the generated output. The live components use `createTokens(tokenJson)` from [src/tokens.js](../src/tokens.js), sharing alias/unit conversion with [scripts/tokens-lib.mjs](../scripts/tokens-lib.mjs). `npm run build:tokens` also regenerates these consumer artifacts:
 
 | File | For | Units |
 |---|---|---|
@@ -20,7 +20,7 @@ It lists every token and fails if one is missing a type, a unit or an evidence t
 | `dist/tokens.css` | the website | physical lengths as `mm`; `deg`, `ms` as CSS units; vpt as a plain number |
 | `dist/figma-variables.json` | Figma, via Local variables → Import | vpt as px (1 px = 1 vpt); metres shown in cm, or mm below 1 cm; unit in the description |
 
-`npm run check` validates `tokens.json` and fails if `dist/` is out of date.
+`npm run check` validates `tokens.json` and fails if `dist/` is out of date. Generated JS exports nested values and numeric sizing helpers; it is not a drop-in replacement for the runtime `T.get(name)` / `T.viewSize(name, distance)` API. The Figma-variable JSON is an interchange artifact, not evidence of a synced or accepted design library.
 
 ```js
 import { tokens, viewSize, touchSize, renamed } from './dist/tokens.js';
@@ -96,7 +96,9 @@ viewSize(tokens.size.interactive.minimum, 2);      // 64 vpt at 2 m -> f(2) = 1.
 - For anything a fingertip touches, use `touchSize`: the view size, but never under `input.touch.size.minimum` (22 mm).
 - Physical tokens (`m`) are already real lengths. deg tokens are angles from the eye.
 
-## Known conflict: sticky press
+## Historical press-travel warning
+
+The table below preserves the token-level warning, not a diagnosis or physical failure verdict for every current component. Contact depth and visible material compression are handled separately in current input paths; consult [support](support.md) before applying this historical interpretation.
 
 `input.poke.distance.release` asks the finger to pull back 3 mm from the press point before a press ends. The press itself only travels `pressDepth × thickness`. When the travel is shorter than 3 mm, the finger has to lift *above* the resting surface before the button lets go, so it feels sticky.
 

@@ -1,6 +1,6 @@
 # R03 action comparison
 
-Separate `demo/action-comparison.html` / `npm run dev` entry. The flat controls are comparison fixtures, not exported DS components. Product base: `088c83689af6ffc92b4f42dd0ee66b046c5dbf4e`. Contract: Coordinator `xr-r03-action-comparison-spec-2026-11-08.md` SHA256 `04d5a6e6cde4a2c0bc5d7a3c95177857cc4ee703c961c92336686958bf13c96f`.
+Separate `demo/action-comparison.html` / `npm run dev` entry. The flat controls are comparison fixtures, not exported DS components. Product base: `088c83689af6ffc92b4f42dd0ee66b046c5dbf4e`. Current entry and evidence boundaries are indexed in [Examples](examples.md) and [Support](support.md).
 
 Both columns have Action and the same Action A/B/C/Unavailable toolbar. Standalone public `select` and toolbar parent `select(tool,index)` update only their own last-action notice. Repeating an action emits another public action but may keep the same string; no counter, blink or participant log. Disabled/bar/hover/press-progress/cancel do not act. Scene and DOM Reset clear both notices and cancel pending/held input. Loss preserves completed notices.
 

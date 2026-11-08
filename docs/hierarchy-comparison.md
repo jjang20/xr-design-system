@@ -20,7 +20,7 @@ Local fixture metrics: pane width .144 m and height .20 m before root scale 1.5;
 - Lost pose/capture, source replacement, page/session loss and reset cannot synthesize an action. A held source must release before reacquiring; fixture semantic-edge history survives source replacement. Fresh Contour row acquisition is temporarily blocked when its visible bounds overlap an in-front closing pane, while captured owners and exposed Back remain separate. Cancellation updates press state without integrating a fabricated one-second visual frame.
 - Reset cancels pending routing and restores both Catalog roots. Loss retains committed content. Disposal removes fixture listeners and owned scene resources.
 
-Window movement, resizing, close rail, Dropdown, mode switching, palm app exit and distance reevaluation are excluded. Their original implementations remain available elsewhere.
+Window movement, resizing, close rail, Dropdown, mode switching, palm app exit and distance reevaluation are excluded. Original window movement/resize and Packaging mode controls remain available elsewhere. Dropdown and closing rail are not implemented; palm app exit and distance reevaluation are not provided here.
 
 ## Verification boundary
 

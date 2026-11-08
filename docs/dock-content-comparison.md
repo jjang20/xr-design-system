@@ -4,7 +4,7 @@ The separate `dock-content-comparison.html` entry compares seven flat app target
 
 ## Decision and scope
 
-Q121 chose the same seven flat-row items versus the 3D Dock. Q122 chose seven substantive read-only destinations. The sequential contract is `xr-r06-dock-content-comparison-spec-2026-11-08.md` in the coordination workspace, SHA256 `f0d0c70c65ab5125e3a28ac56f782f13ad3afc9e3679535bf82b4336197dad0f`, based on product `03ef2c5851533eb2a1105a6bccd16110783d479f`.
+Q121 chose the same seven flat-row items versus the 3D Dock. Q122 chose seven substantive read-only destinations. This entry builds on product `03ef2c5851533eb2a1105a6bccd16110783d479f`. See [Examples](examples.md) and [Support](support.md) for current entry and evidence boundaries.
 
 Only fixture files and the additional Vite entry change. Shared components, tokens, original demo and previous comparison entries remain unchanged. Plate sizing and lower-sphere placement remain visible but are disabled input targets here; this slice does not validate those operations or final icon quality. Existing Dock magnify/spring calculations are preserved, not reintroduced as a new policy or claimed removed.
 
