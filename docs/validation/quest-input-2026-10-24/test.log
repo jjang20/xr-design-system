@@ -1,0 +1,511 @@
+
+> contour-xr@0.2.0 test
+> npm run check && node --import ./test/support/register.mjs --disable-warning=THREE_CJS_DEPRECATED --test test/*.test.js && node --test arena/test/*.test.mjs
+
+
+> contour-xr@0.2.0 check
+> node scripts/check-tokens.mjs && node scripts/build-tokens.mjs --check
+
+  D  thickness.100                            0.004m
+  D  thickness.200                            0.008m
+  D  thickness.400                            0.016m
+  D  size.1600                                64vpt
+  D  size.2000                                80vpt
+  M  size.interactive.minimum                 64vpt  <- {size.1600}
+  M  size.interactive.default                 80vpt  <- {size.2000}
+  D  spacing.600                              24vpt
+  M  spacing.gap.minimum                      24vpt  <- {spacing.600}
+  D  duration.120                             120ms
+  D  duration.140                             140ms
+  D  duration.220                             220ms
+  D  duration.240                             240ms
+  D  duration.030                             30ms
+  D  duration.080                             80ms
+  D  easing.easeOut                           [0,0,0.58,1]
+  D  easing.easeInOut                         [0.42,0,0.58,1]
+  D  distance.100                             0.1m
+  D  distance.140                             0.14m
+  D  distance.350                             0.35m
+  D  distance.400                             0.4m
+  D  distance.003                             0.003m
+  G  material.thickness.thin                  0.004m  <- {thickness.100}
+  G  material.thickness.regular               0.008m  <- {thickness.200}
+  G  material.thickness.thick                 0.016m  <- {thickness.400}
+  T  material.firmness.soft.pressDepth        0.6
+  T  material.firmness.firm.pressDepth        0.4
+  T  material.firmness.rigid.pressDepth       0.15
+  G  material.opacity.default                 0.92
+  G  material.outline.width                   1vpt
+  G  material.glow.width                      2vpt
+  G  motion.enter.duration                    120ms  <- {duration.120}
+  G  motion.enter.easing                      [0,0,0.58,1]  <- {easing.easeOut}
+  T  motion.expand.duration                   240ms  <- {duration.240}
+  T  motion.expand.easing                     [0.42,0,0.58,1]  <- {easing.easeInOut}
+  T  motion.recovery.soft.duration            220ms  <- {duration.220}
+  T  motion.recovery.firm.duration            140ms  <- {duration.140}
+  T  motion.recovery.rigid.duration           80ms  <- {duration.080}
+  N  motion.press.behavior                    "followInput"
+  M  color.contrast.ratio.minimum             3
+  T  color.scrim.opacity.minimum              0
+  T  color.scrim.opacity.maximum              0.35
+  G  shadow.contact.behavior                  "proportionalToPush"
+~ G  shadow.contact.scaleGain                 0.9
+~ G  shadow.contact.opacity.minimum           0.15
+~ G  shadow.contact.opacity.maximum           0.6
+  G  sound.detent.gain                        -18
+~ G  sound.detent.duration                    30ms  <- {duration.030}
+  G  input.hover.distance.enter               0.1m  <- {distance.100}
+  G  input.hover.distance.exit                0.14m  <- {distance.140}
+  N  input.poke.pressTrigger                  "surfaceContact"
+  T  input.poke.distance.release              0.003m  <- {distance.003}
+  G  input.direct.distance.enter              0.35m  <- {distance.350}
+  G  input.direct.distance.exit               0.4m  <- {distance.400}
+~ G  input.touch.size.minimum                 0.022m
+~ G  zone.room.growth.start                   1.75m
+~ G  zone.room.growth.rate                    0.5
+  D  anchor.mode                              "bodyLock"
+  T  anchor.follow.delay                      350ms
+  G  anchor.follow.damping                    "critical"
+~ G  anchor.follow.frequency                  6
+  G  anchor.eccentricity.vertical             -25deg
+  T  dock.magnify.radius                      133.33333333333334vpt
+  T  dock.magnify.scale.max                   1.2
+  G  dock.magnify.falloff                     "cosine"
+  G  menu.extent.vertical.max                 35deg
+~ G  zslider.travel                           0.07m
+  T  feedback.detent.interval                 0.1
+~ G  packaging.depth.max                      3
+~ G  packaging.parent.mode                    "compress"
+~ G  packaging.parent.recede.z                0.05m
+~ G  packaging.parent.recede.y                0.035m
+~ G  packaging.parent.recede.scale            0.08
+~ G  packaging.parent.recede.opacity.start    0.6
+~ G  packaging.parent.recede.opacity.step     0.14
+~ G  packaging.parent.recede.opacity.min      0.3
+
+warning: press travel is shorter than input.poke.distance.release (3mm) for: soft x thin (2.4mm), firm x thin (1.6mm), rigid x thin (0.6mm), rigid x regular (1.2mm), rigid x thick (2.4mm)
+
+76 tokens (19 aliases, 17 provisional, marked ~)
+dist/ is up to date (76 tokens).
+TAP version 13
+# Subtest: tokens convert to scene units
+ok 1 - tokens convert to scene units
+  ---
+  duration_ms: 0.861292
+  type: 'test'
+  ...
+# Subtest: every token name used in src/ exists in tokens.json
+ok 2 - every token name used in src/ exists in tokens.json
+  ---
+  duration_ms: 6.82225
+  type: 'test'
+  ...
+# Subtest: hysteresis does not flicker inside the band
+ok 3 - hysteresis does not flicker inside the band
+  ---
+  duration_ms: 0.374917
+  type: 'test'
+  ...
+# Subtest: press depth is density x thickness, and follows the finger
+ok 4 - press depth is density x thickness, and follows the finger
+  ---
+  duration_ms: 0.361542
+  type: 'test'
+  ...
+# Subtest: release needs the finger to retreat input.poke.distance.release
+ok 5 - release needs the finger to retreat input.poke.distance.release
+  ---
+  duration_ms: 0.312084
+  type: 'test'
+  ...
+# Subtest: recovery takes exactly the density recover time
+ok 6 - recovery takes exactly the density recover time
+  ---
+  duration_ms: 0.149958
+  type: 'test'
+  ...
+# Subtest: a finger already behind the face cannot start a press
+ok 7 - a finger already behind the face cannot start a press
+  ---
+  duration_ms: 0.05825
+  type: 'test'
+  ...
+# Subtest: a soft surface lags behind a retreating finger
+ok 8 - a soft surface lags behind a retreating finger
+  ---
+  duration_ms: 0.065542
+  type: 'test'
+  ...
+# Subtest: ease-out curve from tokens
+ok 9 - ease-out curve from tokens
+  ---
+  duration_ms: 0.273666
+  type: 'test'
+  ...
+# Subtest: critically damped follow never overshoots
+ok 10 - critically damped follow never overshoots
+  ---
+  duration_ms: 0.427375
+  type: 'test'
+  ...
+# Subtest: dock waits anchor.follow.delay before following a turn
+ok 11 - dock waits anchor.follow.delay before following a turn
+  ---
+  duration_ms: 0.212916
+  type: 'test'
+  ...
+# Subtest: dock ignores a short glance
+ok 12 - dock ignores a short glance
+  ---
+  duration_ms: 0.119291
+  type: 'test'
+  ...
+# Subtest: dock magnify uses the cosine falloff
+ok 13 - dock magnify uses the cosine falloff
+  ---
+  duration_ms: 0.055917
+  type: 'test'
+  ...
+# Subtest: packaging compress recedes, fades and never drops below the minimum
+ok 14 - packaging compress recedes, fades and never drops below the minimum
+  ---
+  duration_ms: 0.158041
+  type: 'test'
+  ...
+# Subtest: z-slider detents tick every interval, shadow grows with push
+ok 15 - z-slider detents tick every interval, shadow grows with push
+  ---
+  duration_ms: 0.452125
+  type: 'test'
+  ...
+# Subtest: packaging: open A, back, open B before A has closed
+ok 16 - packaging: open A, back, open B before A has closed
+  ---
+  duration_ms: 1073.706083
+  type: 'test'
+  ...
+# Subtest: packaging: nested back and reopen while levels are still moving
+ok 17 - packaging: nested back and reopen while levels are still moving
+  ---
+  duration_ms: 1556.2525
+  type: 'test'
+  ...
+# Subtest: packaging: a level on its way out opens nothing and goes nowhere
+ok 18 - packaging: a level on its way out opens nothing and goes nowhere
+  ---
+  duration_ms: 554.464375
+  type: 'test'
+  ...
+# Subtest: packaging stack: depth is the logical index, closing levels kept apart
+ok 19 - packaging stack: depth is the logical index, closing levels kept apart
+  ---
+  duration_ms: 0.194416
+  type: 'test'
+  ...
+# Subtest: packaging, reduced motion: levels fade in place instead of travelling
+ok 20 - packaging, reduced motion: levels fade in place instead of travelling
+  ---
+  duration_ms: 791.083833
+  type: 'test'
+  ...
+# Subtest: packaging, full motion: the child grows out of its row
+ok 21 - packaging, full motion: the child grows out of its row
+  ---
+  duration_ms: 552.340583
+  type: 'test'
+  ...
+# Subtest: packaging follows the viewer's reduced-motion setting by default
+ok 22 - packaging follows the viewer's reduced-motion setting by default
+  ---
+  duration_ms: 817.96375
+  type: 'test'
+  ...
+# Subtest: pickProbe: the pressing source keeps the press; ties go to a captured ray
+ok 23 - pickProbe: the pressing source keeps the press; ties go to a captured ray
+  ---
+  duration_ms: 0.16825
+  type: 'test'
+  ...
+# Subtest: button: a hovering ray neither steals nor ends another ray's press
+ok 24 - button: a hovering ray neither steals nor ends another ray's press
+  ---
+  duration_ms: 52.979333
+  type: 'test'
+  ...
+# Subtest: button: if the pressing source disappears the press is cancelled, no select
+ok 25 - button: if the pressing source disappears the press is cancelled, no select
+  ---
+  duration_ms: 58.411958
+  type: 'test'
+  ...
+# Subtest: button: a pinch dragged onto it does not press it
+ok 26 - button: a pinch dragged onto it does not press it
+  ---
+  duration_ms: 53.855917
+  type: 'test'
+  ...
+# Subtest: dock: a ray press pins the dent where the pinch began
+ok 27 - dock: a ray press pins the dent where the pinch began
+  ---
+  duration_ms: 54.1395
+  type: 'test'
+  ...
+# Subtest: dock: a fingertip still drags the dent along
+ok 28 - dock: a fingertip still drags the dent along
+  ---
+  duration_ms: 30.311958
+  type: 'test'
+  ...
+# Subtest: dock: a hovering ray neither steals nor ends another ray's press
+ok 29 - dock: a hovering ray neither steals nor ends another ray's press
+  ---
+  duration_ms: 28.745542
+  type: 'test'
+  ...
+# Subtest: dock: a pressed app keeps the one bubble while a ray passes a neighbour
+ok 30 - dock: a pressed app keeps the one bubble while a ray passes a neighbour
+  ---
+  duration_ms: 0.132083
+  type: 'test'
+  ...
+# Subtest: springTo matches the spring Button used to carry (same response and damping)
+ok 31 - springTo matches the spring Button used to carry (same response and damping)
+  ---
+  duration_ms: 0.456625
+  type: 'test'
+  ...
+# Subtest: Quest: one fingertip hovers only the nearest adjacent control
+ok 32 - Quest: one fingertip hovers only the nearest adjacent control
+  ---
+  duration_ms: 51.910917
+  type: 'test'
+  ...
+# Subtest: Quest: fingertip contact presses before the tracked joint passes through the face
+ok 33 - Quest: fingertip contact presses before the tracked joint passes through the face
+  ---
+  duration_ms: 5.849583
+  type: 'test'
+  ...
+# Subtest: Quest: an inflated row presses at its visible crown
+ok 34 - Quest: an inflated row presses at its visible crown
+  ---
+  duration_ms: 42.108958
+  type: 'test'
+  ...
+# Subtest: Quest: extending the Z-Slider away from its base increases the percentage
+ok 35 - Quest: extending the Z-Slider away from its base increases the percentage
+  ---
+  duration_ms: 99.5025
+  type: 'test'
+  ...
+# Subtest: Quest: two hands can hover separate controls without one finger lighting both
+ok 36 - Quest: two hands can hover separate controls without one finger lighting both
+  ---
+  duration_ms: 15.586958
+  type: 'test'
+  ...
+# Subtest: Quest: physical fingertip radius and release distance survive component scale
+ok 37 - Quest: physical fingertip radius and release distance survive component scale
+  ---
+  duration_ms: 10.406625
+  type: 'test'
+  ...
+# Subtest: Quest: replacing a hovering hand with one behind the face does not fabricate contact
+ok 38 - Quest: replacing a hovering hand with one behind the face does not fabricate contact
+  ---
+  duration_ms: 5.505083
+  type: 'test'
+  ...
+# Subtest: Quest: slider capture survives a second hand and tracking loss leaves the value still
+ok 39 - Quest: slider capture survives a second hand and tracking loss leaves the value still
+  ---
+  duration_ms: 62.924917
+  type: 'test'
+  ...
+# Subtest: Quest: hover chooses between a slider and an adjacent button
+ok 40 - Quest: hover chooses between a slider and an adjacent button
+  ---
+  duration_ms: 55.3315
+  type: 'test'
+  ...
+# Subtest: Quest: Catalog corner does not press ahead of its rendered crown
+ok 41 - Quest: Catalog corner does not press ahead of its rendered crown
+  ---
+  duration_ms: 301.545958
+  type: 'test'
+  ...
+# Subtest: Quest: scaled sliders preserve physical hover distances
+ok 42 - Quest: scaled sliders preserve physical hover distances
+  ---
+  duration_ms: 113.452209
+  type: 'test'
+  ...
+# Subtest: Quest: scaled small sliders retain the 22 mm fingertip floor
+ok 43 - Quest: scaled small sliders retain the 22 mm fingertip floor
+  ---
+  duration_ms: 110.224417
+  type: 'test'
+  ...
+# Subtest: all component consumers accept v0.2, with finite geometry at room distance
+ok 44 - all component consumers accept v0.2, with finite geometry at room distance
+  ---
+  duration_ms: 1511.094708
+  type: 'test'
+  ...
+# Subtest: direct input uses the absolute enter and exit distances
+ok 45 - direct input uses the absolute enter and exit distances
+  ---
+  duration_ms: 1.50275
+  type: 'test'
+  ...
+# Subtest: a small button accepts direct touch in the 22 mm floor without growing its face
+ok 46 - a small button accepts direct touch in the 22 mm floor without growing its face
+  ---
+  duration_ms: 3.924125
+  type: 'test'
+  ...
+# Subtest: a small slider accepts a push within the fingertip floor
+ok 47 - a small slider accepts a push within the fingertip floor
+  ---
+  duration_ms: 63.04025
+  type: 'test'
+  ...
+# Subtest: a small Dock object keeps a fingertip-sized direct hit volume
+ok 48 - a small Dock object keeps a fingertip-sized direct hit volume
+  ---
+  duration_ms: 196.637875
+  type: 'test'
+  ...
+# Subtest: room-distance row and header text use the same sizing as their containers
+ok 49 - room-distance row and header text use the same sizing as their containers
+  ---
+  duration_ms: 693.438125
+  type: 'test'
+  ...
+# Subtest: one direct touch selects one action where small Toolbar hit areas overlap
+ok 50 - one direct touch selects one action where small Toolbar hit areas overlap
+  ---
+  duration_ms: 88.224792
+  type: 'test'
+  ...
+# Subtest: Dock hover and release thresholds stay in world metres under magnification
+ok 51 - Dock hover and release thresholds stay in world metres under magnification
+  ---
+  duration_ms: 389.883916
+  type: 'test'
+  ...
+# Subtest: overlapping direct targets keep the pressed button and allow two independent fingers
+ok 52 - overlapping direct targets keep the pressed button and allow two independent fingers
+  ---
+  duration_ms: 80.897083
+  type: 'test'
+  ...
+# Subtest: scaled buttons keep a physical touch floor, hover band and release retreat
+ok 53 - scaled buttons keep a physical touch floor, hover band and release retreat
+  ---
+  duration_ms: 3.143541
+  type: 'test'
+  ...
+# Subtest: direct-input routing preserves lateral hover enter and exit distances
+ok 54 - direct-input routing preserves lateral hover enter and exit distances
+  ---
+  duration_ms: 3.736
+  type: 'test'
+  ...
+# Subtest: direct-input routing preserves disabled press/release feedback without selection
+ok 55 - direct-input routing preserves disabled press/release feedback without selection
+  ---
+  duration_ms: 2.987417
+  type: 'test'
+  ...
+# Subtest: a far press-eligible finger does not hide a closer lateral hover
+ok 56 - a far press-eligible finger does not hide a closer lateral hover
+  ---
+  duration_ms: 2.521042
+  type: 'test'
+  ...
+# Subtest: vpt and metre tokens convert at the runtime loading boundary
+ok 57 - vpt and metre tokens convert at the runtime loading boundary
+  ---
+  duration_ms: 0.645166
+  type: 'test'
+  ...
+# Subtest: live JSON aliases agree with generated scene values
+ok 58 - live JSON aliases agree with generated scene values
+  ---
+  duration_ms: 1.080916
+  type: 'test'
+  ...
+# Subtest: runtime uses the patched input, not a cached generated token module
+ok 59 - runtime uses the patched input, not a cached generated token module
+  ---
+  duration_ms: 3.031375
+  type: 'test'
+  ...
+# Subtest: placement sizing agrees at hand, reach, knee and room distances
+ok 60 - placement sizing agrees at hand, reach, knee and room distances
+  ---
+  duration_ms: 0.484625
+  type: 'test'
+  ...
+# Subtest: bad aliases and units report the token path
+ok 61 - bad aliases and units report the token path
+  ---
+  duration_ms: 0.252875
+  type: 'test'
+  ...
+1..61
+# tests 61
+# suites 0
+# pass 61
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5836.440667
+TAP version 13
+# Subtest: motion.enter.duration still points at duration.120
+ok 1 - motion.enter.duration still points at duration.120
+  ---
+  duration_ms: 0.525875
+  type: 'test'
+  ...
+# Subtest: affectedPaths follows aliases to the primitive they point at
+ok 2 - affectedPaths follows aliases to the primitive they point at
+  ---
+  duration_ms: 0.323584
+  type: 'test'
+  ...
+# Subtest: a primitive patch that breaks a motion rule through an alias fails the variant
+ok 3 - a primitive patch that breaks a motion rule through an alias fails the variant
+  ---
+  duration_ms: 1.7295
+  type: 'test'
+  ...
+# Subtest: patching the alias directly still fails the variant
+ok 4 - patching the alias directly still fails the variant
+  ---
+  duration_ms: 0.959875
+  type: 'test'
+  ...
+# Subtest: the unpatched baseline is not blocked by motion rules
+ok 5 - the unpatched baseline is not blocked by motion rules
+  ---
+  duration_ms: 0.709292
+  type: 'test'
+  ...
+# Subtest: catalog metrics retain their checks and do not run button pixel checks
+ok 6 - catalog metrics retain their checks and do not run button pixel checks
+  ---
+  duration_ms: 0.73575
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 63.873958

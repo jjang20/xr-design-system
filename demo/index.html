@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Contour · Room planner</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <aside id="hud">
+    <details>
+      <summary><b>Contour</b> · Room planner demo</summary>
+      <p>Mouse is a far ray: hover, click to press. Wheel or drag the Lamp knob to push it. Drag empty space or use ← → to turn; the dock follows after a pause.</p>
+      <div class="row"><span>When a level opens, the parent</span><div id="modes" role="group" aria-label="Packaging parent mode"></div></div>
+    </details>
+    <button id="xr" disabled>Checking for a headset…</button>
+  </aside>
+  <p id="log" aria-live="polite"></p>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

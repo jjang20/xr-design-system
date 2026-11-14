@@ -16,7 +16,7 @@ export function loadExperiment(id) {
     name, overrides, tokens: withOverrides(tokens, overrides),
     image: join(dir, `${name}.png`),
   }));
-  return { exp, dir, variants, file: f => join(dir, f) };
+  return { exp, dir, tokens, variants, file: f => join(dir, f) };
 }
 
 export function readJson(path, fallback) {

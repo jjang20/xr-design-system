@@ -1,0 +1,160 @@
+
+> contour-xr@0.2.0 test
+> npm run check && node --import ./test/support/register.mjs --disable-warning=THREE_CJS_DEPRECATED --test test/*.test.js && node --test arena/test/*.test.mjs
+
+
+> contour-xr@0.2.0 check
+> node scripts/check-tokens.mjs && node scripts/build-tokens.mjs --check
+
+  D  thickness.100                            0.004m
+  D  thickness.200                            0.008m
+  D  thickness.400                            0.016m
+  D  size.1600                                64vpt
+  D  size.2000                                80vpt
+  M  size.interactive.minimum                 64vpt  <- {size.1600}
+  M  size.interactive.default                 80vpt  <- {size.2000}
+  D  spacing.600                              24vpt
+  M  spacing.gap.minimum                      24vpt  <- {spacing.600}
+  D  duration.120                             120ms
+  D  duration.140                             140ms
+  D  duration.220                             220ms
+  D  duration.240                             240ms
+  D  duration.030                             30ms
+  D  duration.080                             80ms
+  D  easing.easeOut                           [0,0,0.58,1]
+  D  easing.easeInOut                         [0.42,0,0.58,1]
+  D  distance.100                             0.1m
+  D  distance.140                             0.14m
+  D  distance.350                             0.35m
+  D  distance.400                             0.4m
+  D  distance.003                             0.003m
+  G  material.thickness.thin                  0.004m  <- {thickness.100}
+  G  material.thickness.regular               0.008m  <- {thickness.200}
+  G  material.thickness.thick                 0.016m  <- {thickness.400}
+  T  material.firmness.soft.pressDepth        0.6
+  T  material.firmness.firm.pressDepth        0.4
+  T  material.firmness.rigid.pressDepth       0.15
+  G  material.opacity.default                 0.92
+  G  material.outline.width                   1vpt
+  G  material.glow.width                      2vpt
+  G  motion.enter.duration                    120ms  <- {duration.120}
+  G  motion.enter.easing                      [0,0,0.58,1]  <- {easing.easeOut}
+  T  motion.expand.duration                   240ms  <- {duration.240}
+  T  motion.expand.easing                     [0.42,0,0.58,1]  <- {easing.easeInOut}
+  T  motion.recovery.soft.duration            220ms  <- {duration.220}
+  T  motion.recovery.firm.duration            140ms  <- {duration.140}
+  T  motion.recovery.rigid.duration           80ms  <- {duration.080}
+  N  motion.press.behavior                    "followInput"
+  M  color.contrast.ratio.minimum             3
+  T  color.scrim.opacity.minimum              0
+  T  color.scrim.opacity.maximum              0.35
+  G  shadow.contact.behavior                  "proportionalToPush"
+~ G  shadow.contact.scaleGain                 0.9
+~ G  shadow.contact.opacity.minimum           0.15
+~ G  shadow.contact.opacity.maximum           0.6
+  G  sound.detent.gain                        -18
+~ G  sound.detent.duration                    30ms  <- {duration.030}
+  G  input.hover.distance.enter               0.1m  <- {distance.100}
+  G  input.hover.distance.exit                0.14m  <- {distance.140}
+  N  input.poke.pressTrigger                  "surfaceContact"
+  T  input.poke.distance.release              0.003m  <- {distance.003}
+  G  input.direct.distance.enter              0.35m  <- {distance.350}
+  G  input.direct.distance.exit               0.4m  <- {distance.400}
+~ G  input.touch.size.minimum                 0.022m
+~ G  zone.room.growth.start                   1.75m
+~ G  zone.room.growth.rate                    0.5
+  D  anchor.mode                              "bodyLock"
+  T  anchor.follow.delay                      350ms
+  G  anchor.follow.damping                    "critical"
+~ G  anchor.follow.frequency                  6
+  G  anchor.eccentricity.vertical             -25deg
+  T  dock.magnify.radius                      133.33333333333334vpt
+  T  dock.magnify.scale.max                   1.2
+  G  dock.magnify.falloff                     "cosine"
+  G  menu.extent.vertical.max                 35deg
+~ G  zslider.travel                           0.07m
+  T  feedback.detent.interval                 0.1
+~ G  packaging.depth.max                      3
+~ G  packaging.parent.mode                    "compress"
+~ G  packaging.parent.recede.z                0.05m
+~ G  packaging.parent.recede.y                0.035m
+~ G  packaging.parent.recede.scale            0.08
+~ G  packaging.parent.recede.opacity.start    0.6
+~ G  packaging.parent.recede.opacity.step     0.14
+~ G  packaging.parent.recede.opacity.min      0.3
+
+warning: press travel is shorter than input.poke.distance.release (3mm) for: soft x thin (2.4mm), firm x thin (1.6mm), rigid x thin (0.6mm), rigid x regular (1.2mm), rigid x thick (2.4mm)
+
+76 tokens (19 aliases, 17 provisional, marked ~)
+dist/ is up to date (76 tokens).
+(node:55562) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ tokens convert to scene units (1.01225ms)
+✔ every token name used in src/ exists in tokens.json (2.963583ms)
+✔ hysteresis does not flicker inside the band (0.096333ms)
+✔ press depth is density x thickness, and follows the finger (0.147958ms)
+✔ release needs the finger to retreat input.poke.distance.release (0.088709ms)
+✔ recovery takes exactly the density recover time (0.080333ms)
+✔ a finger already behind the face cannot start a press (0.067917ms)
+✔ a soft surface lags behind a retreating finger (0.067666ms)
+✔ ease-out curve from tokens (0.129833ms)
+✔ critically damped follow never overshoots (0.805417ms)
+✔ dock waits anchor.follow.delay before following a turn (0.222125ms)
+✔ dock ignores a short glance (0.095542ms)
+✔ dock magnify uses the cosine falloff (0.071209ms)
+✔ packaging compress recedes, fades and never drops below the minimum (0.180417ms)
+✔ z-slider detents tick every interval, shadow grows with push (0.074209ms)
+(node:55563) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ packaging: open A, back, open B before A has closed (703.052416ms)
+✔ packaging: nested back and reopen while levels are still moving (1487.708083ms)
+✔ packaging: a level on its way out opens nothing and goes nowhere (455.861625ms)
+✔ packaging stack: depth is the logical index, closing levels kept apart (0.185042ms)
+✔ packaging, reduced motion: levels fade in place instead of travelling (626.307916ms)
+✔ packaging, full motion: the child grows out of its row (459.18125ms)
+✔ packaging follows the viewer's reduced-motion setting by default (719.106208ms)
+✔ pickProbe: the pressing source keeps the press; ties go to a captured ray (0.172875ms)
+✔ button: a hovering ray neither steals nor ends another ray's press (43.598708ms)
+✔ button: if the pressing source disappears the press is cancelled, no select (44.877708ms)
+✔ button: a pinch dragged onto it does not press it (39.057708ms)
+✔ dock: a ray press pins the dent where the pinch began (47.315291ms)
+✔ dock: a fingertip still drags the dent along (37.053166ms)
+✔ dock: a hovering ray neither steals nor ends another ray's press (25.025084ms)
+✔ dock: a pressed app keeps the one bubble while a ray passes a neighbour (0.138125ms)
+✔ springTo matches the spring Button used to carry (same response and damping) (0.273291ms)
+(node:55564) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ all component consumers accept v0.2, with finite geometry at room distance (1282.783459ms)
+✔ direct input uses the absolute enter and exit distances (2.199666ms)
+✔ a small button accepts direct touch in the 22 mm floor without growing its face (3.809666ms)
+✔ a small slider accepts a push within the fingertip floor (88.725292ms)
+✔ a small Dock object keeps a fingertip-sized direct hit volume (283.04075ms)
+(node:55565) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+✔ vpt and metre tokens convert at the runtime loading boundary (0.915958ms)
+✔ live JSON aliases agree with generated scene values (1.39875ms)
+✔ runtime uses the patched input, not a cached generated token module (0.577834ms)
+✔ placement sizing agrees at hand, reach, knee and room distances (0.507375ms)
+✔ bad aliases and units report the token path (0.1695ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4899.78275
+✔ motion.enter.duration still points at duration.120 (0.847334ms)
+✔ affectedPaths follows aliases to the primitive they point at (0.835542ms)
+✔ a primitive patch that breaks a motion rule through an alias fails the variant (1.297708ms)
+✔ patching the alias directly still fails the variant (0.576167ms)
+✔ the unpatched baseline is not blocked by motion rules (0.589958ms)
+✔ catalog metrics retain their checks and do not run button pixel checks (1.374959ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 114.2715

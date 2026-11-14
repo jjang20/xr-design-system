@@ -1,0 +1,44 @@
+{
+  "checks": [
+    {
+      "name": "unlit glow leaves the MR background transparent",
+      "pass": true
+    },
+    {
+      "name": "lit glow leaves its centre and rectangular corners transparent",
+      "pass": true
+    },
+    {
+      "name": "lit detent rings still emit visible light",
+      "pass": true
+    },
+    {
+      "name": "no browser errors",
+      "pass": true
+    }
+  ],
+  "samples": [
+    {
+      "lit": 0,
+      "centreAlpha": 0,
+      "cornerAlpha": 0,
+      "maxAlpha": 0,
+      "maxLight": 0
+    },
+    {
+      "lit": 3,
+      "centreAlpha": 0,
+      "cornerAlpha": 0,
+      "maxAlpha": 148,
+      "maxLight": 148
+    },
+    {
+      "lit": 5,
+      "centreAlpha": 0,
+      "cornerAlpha": 0,
+      "maxAlpha": 148,
+      "maxLight": 148
+    }
+  ],
+  "errors": []
+}

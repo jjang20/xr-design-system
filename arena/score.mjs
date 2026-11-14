@@ -65,13 +65,16 @@ for (const [j, rows] of Object.entries(groups)) {
     positionBias: rows.filter(r => r.position_bias).length };
 }
 
+// No variant survived check.mjs, so there is nothing for anyone to judge.
+const checkedOut = Object.keys(checks).length > 0 && checked.length === 0;
 const top = names.length >= 2 ? tables.human?.[0] : null;
 // Decided = at least two human wins and clearly ahead of the runner-up.
 const decided = top && top.win >= 2 && top.strength > (tables.human[1]?.strength ?? 0) * 1.5;
 const result = {
   experiment: exp.id,
   winner: decided ? top.name : null,
-  status: Object.values(bar).every(b => b.human === 'not judged') ? 'waiting for your votes'
+  status: checkedOut ? 'every variant failed a code check: fix the design, nothing is promoted'
+    : Object.values(bar).every(b => b.human === 'not judged') ? 'waiting for your votes'
     : names.length === 0 ? 'nothing reached the bar: improve the design, nothing is promoted'
     : names.length === 1 ? `only ${names[0]} reached the bar: promote it by hand if you are sure`
     : !tables.human ? 'waiting for your pairwise votes'
